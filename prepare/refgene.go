@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"grandanno/bio"
-	"grandanno/config"
+	"grandanno/core"
 	"io"
 	"os"
-	"path"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -17,37 +16,37 @@ type Refgene struct {
 	Chrom      string
 	Start      int
 	End        int
+	UpStream   int
+	DownStream int
 	Transcript string
 	Sequence   []byte
 }
 
-func (refgene *Refgene) Read(refgeneLine string) {
+type Refgenes []Refgene
+
+type RefgeneDict map[string]Refgenes
+
+func (refgene *Refgene) Read(refgeneLine string, upDownStreamLen int) {
 	field := strings.Split(refgeneLine, "\t")
 	refgene.Transcript = field[1]
-	refgene.Chrom = strings.Replace(field[2], "chr", "", -1)
+	refgene.Chrom = strings.Replace(strings.Split(field[2], " ")[0], "chr", "", -1)
 	if start, err := strconv.Atoi(field[4]); err == nil {
 		refgene.Start = start + 1
 	}
-	if end, err := strconv.Atoi(field[4]); err == nil {
+	if end, err := strconv.Atoi(field[5]); err == nil {
 		refgene.End = end
 	}
+	refgene.UpStream = refgene.Start - upDownStreamLen
+	refgene.DownStream = refgene.End + upDownStreamLen
 }
 
 func (refgene Refgene) GetSn() string {
 	return fmt.Sprintf("%s|%s:%d:%d", refgene.Transcript, refgene.Chrom, refgene.Start, refgene.End)
 }
 
-func (refgene Refgene) GetUpStream() int {
-	return refgene.Start - config.MyConfig.Param.UpDownStream
-}
-
-func (refgene Refgene) GetDownStream() int {
-	return refgene.End + config.MyConfig.Param.UpDownStream
-}
-
 func (refgene Refgene) GetDigitalPosition() (int, int) {
-	start := bio.GetChromOrder(refgene.Chrom)*1e9 + refgene.GetUpStream()
-	end := bio.GetChromOrder(refgene.Chrom)*1e9 + refgene.GetDownStream()
+	start := core.ChromOrderDict[refgene.Chrom]*1e9 + refgene.UpStream
+	end := core.ChromOrderDict[refgene.Chrom]*1e9 + refgene.DownStream
 	return start, end
 }
 
@@ -55,7 +54,9 @@ func (refgene *Refgene) SetSequence(chromSeq []byte) {
 	refgene.Sequence = chromSeq[refgene.Start-1 : refgene.End]
 }
 
-type Refgenes []Refgene
+func (refgenes Refgenes) Len() int {
+	return len(refgenes)
+}
 
 func (refgenes Refgenes) Less(i, j int) bool {
 	starti, endi := refgenes[i].GetDigitalPosition()
@@ -71,20 +72,30 @@ func (refgenes Refgenes) Swap(i, j int) {
 	refgenes[i], refgenes[j] = refgenes[j], refgenes[i]
 }
 
-type RefgeneDict map[string]Refgenes
+func (refgenes Refgenes) Write(chromSeq []byte, outHandle *os.File) {
+	sort.Sort(refgenes)
+	for _, refgene := range refgenes {
+		refgene.SetSequence(chromSeq)
+		if _, err := outHandle.WriteString(">" + refgene.GetSn() + "\n"); err != nil {
+			panic(err.Error())
+		}
+		if _, err := outHandle.WriteString(string(refgene.Sequence) + "\n"); err != nil {
+			panic(err.Error())
+		}
+	}
+}
 
-func (refgeneDict RefgeneDict) Read(dbPath string) {
-	refgeneFile := path.Join(dbPath, config.MyConfig.Database.Refgene)
+func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 	if fp, err := os.Open(refgeneFile); err == nil {
 		defer fp.Close()
 		reader := bufio.NewReader(fp)
 		for {
 			if line, err := reader.ReadBytes('\n'); err == nil {
 				var refgene Refgene
-				refgene.Read(string(line))
 				if refgene.Chrom == "M" || len(refgene.Chrom) > 2 {
 					continue
 				}
+				refgene.Read(string(line), upDownSteamLen)
 				if refgenes, ok := refgeneDict[refgene.Chrom]; ok {
 					refgeneDict[refgene.Chrom] = append(refgenes, refgene)
 				} else {
@@ -94,18 +105,16 @@ func (refgeneDict RefgeneDict) Read(dbPath string) {
 				if err == io.EOF {
 					break
 				} else {
-					panic("read refgene file failed!")
+					panic(err.Error())
 				}
 			}
 		}
 	} else {
-		panic("open refgene file failed!")
+		panic(err.Error())
 	}
 }
 
-func (refgeneDict RefgeneDict) write(dbPath string) {
-	mrnaFile := path.Join(dbPath, config.MyConfig.Database.Mrna)
-	referenceFile := path.Join(dbPath, config.MyConfig.Database.Reference)
+func (refgeneDict RefgeneDict) Write(referenceFile string, mrnaFile string) {
 	fo, erro := os.Create(mrnaFile)
 	fi, erri := os.Open(referenceFile)
 	reader := bufio.NewReader(fi)
@@ -115,15 +124,19 @@ func (refgeneDict RefgeneDict) write(dbPath string) {
 		var name, seq bytes.Buffer
 		for {
 			if line, err := reader.ReadBytes('\n'); err == nil {
+				line = bytes.TrimSpace(line)
+				if len(line) == 0 {
+					continue
+				}
 				if line[0] == '>' {
-					if len(name.Bytes()) != 0 {
-						chrom := name.String()
+					if name.Len() != 0 {
+						chrom := strings.Split(name.String(), " ")[0]
 						if refgenes, ok := refgeneDict[chrom]; ok {
-							for i := 0; i < len(refgenes); i++ {
-								refgenes[i].SetSequence(seq.Bytes())
-							}
+							refgenes.Write(seq.Bytes(), fo)
 						}
 					}
+					name.Reset()
+					seq.Reset()
 					name.Write(line[1:])
 				} else {
 					seq.Write(line)
@@ -132,9 +145,13 @@ func (refgeneDict RefgeneDict) write(dbPath string) {
 				if err == io.EOF {
 					break
 				} else {
-					panic("read refgene file failed!")
+					panic(err.Error())
 				}
 			}
+		}
+		chrom := strings.Split(name.String(), " ")[0]
+		if refgenes, ok := refgeneDict[chrom]; ok {
+			refgenes.Write(seq.Bytes(), fo)
 		}
 	}
 }

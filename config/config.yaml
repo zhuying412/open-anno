@@ -1,6 +1,6 @@
 database:
   reference: human_g1k_v37.fasta
-  ncbi_gene: Homo_sapiens.gene_info.gz
+  ncbigene: Homo_sapiens.gene_info.gz
   refgene: refgene.b37.txt
   ensmt: ens_mt.b37.txt
   cds: refgene.cds.b37.bed
@@ -8,4 +8,5 @@ database:
   mrna: mRNA.b37.fasta
   refidx: refgene_ensMT.b37.idx
 param:
-  up_down_stream: 1e9
+  updownstream: 1000
+  refidxstep: 300000

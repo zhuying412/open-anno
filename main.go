@@ -2,7 +2,10 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"grandanno/config"
 	"grandanno/prepare"
+	"path"
 )
 
 type Parameter struct {
@@ -21,17 +24,31 @@ func (param *Parameter) Init() {
 }
 
 func (param Parameter) runPrepare() {
-	var refgeneDict prepare.RefgeneDict
-	refgeneDict.Read(param.DatabasePath)
+	//referenceFile := path.Join(param.DatabasePath, config.MyConfig.Database.Reference)
+	refgeneFile := path.Join(param.DatabasePath, config.MyConfig.Database.Refgene)
+	ensMtFile := path.Join(param.DatabasePath, config.MyConfig.Database.EnsMt)
+	//mrnaFile := path.Join(param.DatabasePath, config.MyConfig.Database.Mrna)
+	refidxFile := path.Join(param.DatabasePath, config.MyConfig.Database.Refidx)
+	upDownSteamLen := config.MyConfig.Param.UpDownStream
+	refidxStepLen := config.MyConfig.Param.RefidxStep
+	refgeneDict := make(prepare.RefgeneDict)
+	refgeneDict.Read(refgeneFile, upDownSteamLen)
+	refgeneDict.Read(ensMtFile, upDownSteamLen)
+	//refgeneDict.Write(referenceFile, mrnaFile)
+	refidxDict := make(prepare.RefidxDict)
+	refidxDict.Init(refidxStepLen)
+	refidxDict.Write(refidxFile, refgeneDict)
 }
 
 func main() {
-	var param Parameter
-	param.Init()
-	switch {
-	case param.Help:
-		flag.Usage()
-	case param.IsPrepare:
-		param.runPrepare()
-	}
+	//var param Parameter
+	//param.Init()
+	//switch {
+	//case param.Help:
+	//	flag.Usage()
+	//case param.IsPrepare:
+	//	param.runPrepare()
+	//}
+	b := make([]int, 10, -1)
+	fmt.Print(b)
 }

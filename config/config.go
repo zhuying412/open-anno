@@ -18,6 +18,7 @@ type Database struct {
 
 type Param struct {
 	UpDownStream int
+	RefidxStep   int
 }
 type Config struct {
 	Database Database
