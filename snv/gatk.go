@@ -47,7 +47,7 @@ func (snvs Snvs) Len() int {
 
 func (snvs Snvs) Less(i, j int) bool {
 	starti, endi := snvs[i].Variant.GetDigitalPosition()
-	startj, endj := snvs[i].Variant.GetDigitalPosition()
+	startj, endj := snvs[j].Variant.GetDigitalPosition()
 	if starti == startj {
 		return endi < endj
 	} else {
