@@ -28,7 +28,7 @@ type Snv struct {
 
 type Snvs []Snv
 
-func (snv Snv) GetType() string {
+func (snv Snv) GetTypo() string {
 	var typo string
 	switch {
 	case snv.Variant.Ref.GetChar(0) == '-':

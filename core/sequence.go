@@ -1,7 +1,11 @@
 package core
 
 import (
+	"bufio"
 	"bytes"
+	"io"
+	"os"
+	"strings"
 )
 
 type Sequence []byte
@@ -28,6 +32,10 @@ func (seq Sequence) GetSeq(index int, len int) Sequence {
 		return seq[index:]
 	}
 	return seq[index : index+len]
+}
+
+func (seq Sequence) GetIndex(char byte) int {
+	return bytes.IndexByte(seq, char)
 }
 
 func (seq Sequence) IsStartswith(prefix Sequence) bool {
@@ -63,6 +71,17 @@ func (seq *Sequence) Clear() {
 	*seq = Sequence("")
 }
 
+func (seq *Sequence) PushChar(c byte) {
+	*seq = append(*seq, c)
+}
+
+func (seq *Sequence) UnshiftChar(c byte) {
+	tmp := make(Sequence, (*seq).GetLen()+1)
+	tmp[0] = c
+	copy(tmp[1:], *seq)
+	*seq = tmp
+}
+
 func (seq1 *Sequence) Push(seq2 Sequence) {
 	*seq1 = append(*seq1, seq2...)
 }
@@ -72,4 +91,81 @@ func (seq1 *Sequence) Unshift(seq2 Sequence) {
 	copy(tmp[0:seq2.GetLen()], seq2)
 	copy(tmp[seq2.GetLen():], *seq1)
 	*seq1 = tmp
+}
+
+func (seq Sequence) GetSnpSequence(pos int, alt byte) Sequence {
+	newSeq := make(Sequence, seq.GetLen())
+	copy(newSeq, seq)
+	newSeq[pos-1] = alt
+	return newSeq
+}
+
+func (seq Sequence) GetInsSequence(pos int, alt Sequence) Sequence {
+	newSeq := make(Sequence, seq.GetLen()+alt.GetLen())
+	copy(newSeq, seq[0:pos])
+	copy(newSeq[pos:], alt)
+	copy(newSeq[pos+len(alt):], seq[pos:])
+	return newSeq
+}
+
+func (seq Sequence) GetDelSequence(pos int, length int) Sequence {
+	newSeq := make(Sequence, seq.GetLen()-length)
+	copy(newSeq, seq[0:pos])
+	copy(newSeq[pos:], seq[pos+length:])
+	return newSeq
+}
+
+func (seq Sequence) Translate(isMt bool) Sequence {
+	protein := make(Sequence, seq.GetLen()/3)
+	for i, j := 0, 0; i < seq.GetLen(); i, j = i+3, j+1 {
+		if isMt {
+			protein[j] = CodonMtDicT[string(seq.GetSeq(i, 3))]
+		} else {
+			protein[j] = CodonDicT[string(seq.GetSeq(i, 3))]
+		}
+	}
+	return protein
+}
+
+func (protein Sequence) IsCmpl() bool {
+	return bytes.IndexByte(protein, '*') != -1
+}
+
+type Fasta map[string]Sequence
+
+func (fasta Fasta) Read(fastaFile string) {
+	if fp, err := os.Open(fastaFile); err == nil {
+		defer fp.Close()
+		reader := bufio.NewReader(fp)
+		var name, seq bytes.Buffer
+		for {
+			if line, err := reader.ReadBytes('\n'); err == nil {
+				line = bytes.TrimSpace(line)
+				if len(line) == 0 {
+					continue
+				}
+				if line[0] == '>' {
+					if name.Len() != 0 {
+						_name := strings.Split(name.String(), " ")[0]
+						fasta[_name] = Sequence(seq.String())
+					}
+					name.Reset()
+					seq.Reset()
+					name.Write(line[1:])
+				}
+			} else {
+				if err == io.EOF {
+					break
+				} else {
+					panic(err.Error())
+				}
+			}
+		}
+		if name.Len() != 0 {
+			_name := strings.Split(name.String(), " ")[0]
+			fasta[_name] = Sequence(seq.String())
+		}
+	} else {
+		panic(err.Error())
+	}
 }

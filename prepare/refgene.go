@@ -2,12 +2,10 @@ package prepare
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"grandanno/core"
 	"io"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -72,19 +70,6 @@ func (refgenes Refgenes) Swap(i, j int) {
 	refgenes[i], refgenes[j] = refgenes[j], refgenes[i]
 }
 
-func (refgenes Refgenes) Write(chromSeq []byte, outHandle *os.File) {
-	sort.Sort(refgenes)
-	for _, refgene := range refgenes {
-		refgene.SetSequence(chromSeq)
-		if _, err := outHandle.WriteString(">" + refgene.GetSn() + "\n"); err != nil {
-			panic(err.Error())
-		}
-		if _, err := outHandle.WriteString(string(refgene.Sequence) + "\n"); err != nil {
-			panic(err.Error())
-		}
-	}
-}
-
 func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 	if fp, err := os.Open(refgeneFile); err == nil {
 		defer fp.Close()
@@ -92,10 +77,10 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 		for {
 			if line, err := reader.ReadBytes('\n'); err == nil {
 				var refgene Refgene
+				refgene.Read(string(line), upDownSteamLen)
 				if refgene.Chrom == "M" || len(refgene.Chrom) > 2 {
 					continue
 				}
-				refgene.Read(string(line), upDownSteamLen)
 				if refgenes, ok := refgeneDict[refgene.Chrom]; ok {
 					refgeneDict[refgene.Chrom] = append(refgenes, refgene)
 				} else {
@@ -114,44 +99,23 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 	}
 }
 
-func (refgeneDict RefgeneDict) Write(referenceFile string, mrnaFile string) {
-	fo, erro := os.Create(mrnaFile)
-	fi, erri := os.Open(referenceFile)
-	reader := bufio.NewReader(fi)
-	if erro == nil && erri == nil {
-		defer fo.Close()
-		defer fi.Close()
-		var name, seq bytes.Buffer
-		for {
-			if line, err := reader.ReadBytes('\n'); err == nil {
-				line = bytes.TrimSpace(line)
-				if len(line) == 0 {
-					continue
-				}
-				if line[0] == '>' {
-					if name.Len() != 0 {
-						chrom := strings.Split(name.String(), " ")[0]
-						if refgenes, ok := refgeneDict[chrom]; ok {
-							refgenes.Write(seq.Bytes(), fo)
-						}
+func (refgeneDict RefgeneDict) Write(reference core.Fasta, mrnaFile string) {
+	if fp, err := os.Create(mrnaFile); err == nil {
+		defer fp.Close()
+		for _, chrom := range core.ChromList {
+			sequence, ok1 := reference[chrom]
+			refgenes, ok2 := refgeneDict[chrom]
+			if ok1 && ok2 {
+				for _, refgene := range refgenes {
+					refgene.SetSequence(sequence)
+					if _, err := fp.WriteString(">" + refgene.GetSn() + "\n"); err != nil {
+						panic(err.Error())
 					}
-					name.Reset()
-					seq.Reset()
-					name.Write(line[1:])
-				} else {
-					seq.Write(line)
-				}
-			} else {
-				if err == io.EOF {
-					break
-				} else {
-					panic(err.Error())
+					if _, err := fp.WriteString(string(refgene.Sequence) + "\n"); err != nil {
+						panic(err.Error())
+					}
 				}
 			}
-		}
-		chrom := strings.Split(name.String(), " ")[0]
-		if refgenes, ok := refgeneDict[chrom]; ok {
-			refgenes.Write(seq.Bytes(), fo)
 		}
 	}
 }

@@ -10,3 +10,4 @@ database:
 param:
   updownstream: 1000
   refidxstep: 300000
+  splicinglen: 15
