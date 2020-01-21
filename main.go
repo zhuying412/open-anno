@@ -150,11 +150,14 @@ func (param Parameter) runAnnoXhmmCnv() {
 
 type SS string
 
+func (s SS) get(i int, l int) SS {
+	return s[i : i+l]
+}
 func (s *SS) test() {
-	*s = "a"
+	*s = s.get(1, 2)
 }
 func main() {
-	var s SS
+	var s SS = "abcd"
 	s.test()
 	fmt.Println(s)
 }
