@@ -8,26 +8,30 @@ import (
 	"strings"
 )
 
-type Sequence []byte
+type Base = byte
+type Sequence string
 
-func GetOne2Three(base byte) string {
+func GetOne2Three(base Base) string {
 	return AaOne2ThreeDict[base]
 }
 
-func (seq Sequence) Reverse() {
-	length := len(seq)
-	tmpStr := make(Sequence, length)
-	copy(tmpStr, seq)
-	for i, v := range tmpStr {
-		seq[length-i-1] = v
+func (seq Sequence) String() string {
+	return string(seq)
+}
+
+func (seq *Sequence) Reverse() {
+	var buffer bytes.Buffer
+	for i := seq.GetLen() - 1; i >= 0; i-- {
+		buffer.WriteByte(seq.GetChar(i))
 	}
+	*seq = Sequence(buffer.String())
 }
 
 func (seq Sequence) GetLen() int {
 	return len(seq)
 }
 
-func (seq Sequence) GetChar(index int) byte {
+func (seq Sequence) GetChar(index int) Base {
 	return seq[index]
 }
 
@@ -38,106 +42,87 @@ func (seq Sequence) GetSeq(index int, len int) Sequence {
 	return seq[index : index+len]
 }
 
-func (seq Sequence) GetIndex(base byte) int {
-	return bytes.IndexByte(seq, base)
+func (seq Sequence) GetIndex(base Base) int {
+	return strings.IndexByte(seq.String(), base)
 }
 
 func (seq Sequence) IsStartswith(prefix Sequence) bool {
-	return bytes.HasPrefix(seq, prefix)
+	return strings.HasPrefix(seq.String(), prefix.String())
 }
 
 func (seq Sequence) IsEndswith(suffix Sequence) bool {
-	return bytes.HasSuffix(seq, suffix)
+	return strings.HasSuffix(seq.String(), suffix.String())
 }
 
 func (seq1 Sequence) IsEqual(seq2 Sequence) bool {
-	return bytes.Equal(seq1, seq2)
+	return seq1 == seq2
 }
 
 func (seq Sequence) IsEmpty() bool {
-	return len(seq) == 0
+	return seq == ""
 }
 
-func (seq1 *Sequence) CopyFrom(seq2 Sequence) {
-	*seq1 = make([]byte, seq2.GetLen())
-	copy(*seq1, seq2)
+func (seq *Sequence) RemoveOne(substr Sequence) {
+	*seq = Sequence(strings.Replace(seq.String(), substr.String(), "", 1))
 }
 
-func (seq *Sequence) RemoveOne(oldSeq Sequence) {
-	*seq = bytes.Replace(*seq, oldSeq, Sequence(""), 1)
-}
-
-func (seq *Sequence) RemoveAll(oldSeq Sequence) {
-	*seq = bytes.Replace(*seq, oldSeq, Sequence(""), -1)
+func (seq *Sequence) RemoveAll(substr Sequence) {
+	*seq = Sequence(strings.Replace(seq.String(), substr.String(), "", -1))
 }
 
 func (seq *Sequence) Clear() {
-	*seq = Sequence("")
+	*seq = ""
 }
 
-func (seq *Sequence) PushChar(c byte) {
-	*seq = append(*seq, c)
+func (seq *Sequence) Join(sequences []Sequence) {
+	var buffer bytes.Buffer
+	for _, sequence := range sequences {
+		buffer.WriteString(sequence.String())
+	}
+	*seq = Sequence(buffer.String())
 }
 
-func (seq *Sequence) UnshiftChar(c byte) {
-	tmp := make(Sequence, (*seq).GetLen()+1)
-	tmp[0] = c
-	copy(tmp[1:], *seq)
-	*seq = tmp
-}
-
-func (seq1 *Sequence) Push(seq2 Sequence) {
-	*seq1 = append(*seq1, seq2...)
-}
-
-func (seq1 *Sequence) Unshift(seq2 Sequence) {
-	tmp := make(Sequence, (*seq1).GetLen()+seq2.GetLen())
-	copy(tmp[0:seq2.GetLen()], seq2)
-	copy(tmp[seq2.GetLen():], *seq1)
-	*seq1 = tmp
-}
-
-func (seq Sequence) GetSnpSequence(pos int, alt byte) Sequence {
-	newSeq := make(Sequence, seq.GetLen())
-	copy(newSeq, seq)
-	newSeq[pos-1] = alt
-	return newSeq
+func (seq Sequence) GetSnpSequence(pos int, alt Base) Sequence {
+	var buffer bytes.Buffer
+	buffer.WriteString(seq.GetSeq(0, pos-1).String())
+	buffer.WriteByte(alt)
+	buffer.WriteString(seq.GetSeq(pos, -1).String())
+	return Sequence(buffer.String())
 }
 
 func (seq Sequence) GetInsSequence(pos int, alt Sequence) Sequence {
-	newSeq := make(Sequence, seq.GetLen()+alt.GetLen())
-	copy(newSeq, seq.GetSeq(0, pos))
-	copy(newSeq[pos:], alt)
-	copy(newSeq[pos+len(alt):], seq.GetSeq(pos, -1))
-	return newSeq
+	var buffer bytes.Buffer
+	buffer.WriteString(seq.GetSeq(0, pos).String())
+	buffer.WriteString(alt.String())
+	buffer.WriteString(seq.GetSeq(pos, -1).String())
+	return Sequence(buffer.String())
 }
 
 func (seq Sequence) GetDelSequence(lenL int, lenR int) Sequence {
-	newSeq := make(Sequence, lenL+lenR)
-	copy(newSeq, seq.GetSeq(0, lenL))
-	copy(newSeq[lenL:], seq.GetSeq(seq.GetLen()-lenR, lenR))
-	return newSeq
+	var buffer bytes.Buffer
+	buffer.WriteString(seq.GetSeq(0, lenL).String())
+	buffer.WriteString(seq.GetSeq(seq.GetLen()-lenR, lenR).String())
+	return Sequence(buffer.String())
 }
 
 func (seq Sequence) Translate(isMt bool) Sequence {
-	length := seq.GetLen()
-	protein := make(Sequence, length/3)
-	for i, j := 0, 0; i < length; i, j = i+3, j+1 {
+	var buffer bytes.Buffer
+	for i := 0; i < seq.GetLen(); i += 3 {
 		var codonDict map[string]byte
 		if isMt {
 			codonDict = CodonMtDict
 		} else {
 			codonDict = CodonDict
 		}
-		if aa, ok := codonDict[string(seq.GetSeq(i, 3))]; ok {
-			protein[j] = aa
+		if aa, ok := codonDict[seq.GetSeq(i, 3).String()]; ok {
+			buffer.WriteByte(aa)
 		}
 	}
-	return protein
+	return Sequence(buffer.String())
 }
 
 func (protein Sequence) IsCmpl() bool {
-	return bytes.IndexByte(protein, '*') != -1
+	return strings.IndexByte(protein.String(), '*') != -1
 }
 
 func (protein Sequence) GetOne2Tree() string {
