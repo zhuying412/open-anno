@@ -1,103 +1,14 @@
 package snv
 
 import (
-	"bytes"
+	"fmt"
 	"grandanno/core"
-	"strconv"
 	"strings"
 )
 
-func (anno Annotation) setNaChangeOfSplicingDelOne(length int, flag byte, distance int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("c.")
-	buffer.WriteString(strconv.Itoa(length))
-	buffer.WriteByte(flag)
-	buffer.WriteString(strconv.Itoa(distance))
-	buffer.WriteString("del")
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setNaChangeOfSplicingDelTwo(length int, flag byte, distance1 int, distance2 int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("c.")
-	buffer.WriteString(strconv.Itoa(length))
-	buffer.WriteByte(flag)
-	buffer.WriteString(strconv.Itoa(distance1))
-	buffer.WriteByte('_')
-	buffer.WriteString(strconv.Itoa(length))
-	buffer.WriteByte(flag)
-	buffer.WriteString(strconv.Itoa(distance2))
-	buffer.WriteString("del")
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setNaChangeOfCdsDel(start int, end int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("c.")
-	buffer.WriteString(strconv.Itoa(start))
-	buffer.WriteByte('_')
-	buffer.WriteString(strconv.Itoa(end))
-	buffer.WriteString("del")
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setAaChangeOfDelOne(ref byte, pos int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("p.")
-	buffer.WriteString(core.AaOne2ThreeDict[ref])
-	buffer.WriteString(strconv.Itoa(pos))
-	buffer.WriteString("del")
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setAaChangeOfDelMany(ref1 byte, start int, ref2 byte, end int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("p.")
-	buffer.WriteString(core.AaOne2ThreeDict[ref1])
-	buffer.WriteString(strconv.Itoa(start))
-	buffer.WriteByte('_')
-	buffer.WriteString(core.AaOne2ThreeDict[ref2])
-	buffer.WriteString(strconv.Itoa(end))
-	buffer.WriteString("del")
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setAaChangeOfDelReplace(ref1 byte, start int, ref2 byte, end int, alt core.Sequence) {
-	var buffer bytes.Buffer
-	buffer.WriteString("p.")
-	buffer.WriteString(core.AaOne2ThreeDict[ref1])
-	buffer.WriteString(strconv.Itoa(start))
-	buffer.WriteByte('_')
-	buffer.WriteString(core.AaOne2ThreeDict[ref2])
-	buffer.WriteString(strconv.Itoa(end))
-	buffer.WriteString("insdel")
-	for _, altChar := range alt {
-		buffer.WriteString(core.AaOne2ThreeDict[altChar])
-	}
-	anno.NaChange = buffer.String()
-}
-
-func (anno Annotation) setAaChangeOfDelFrameshift(ref byte, pos int, alt byte) {
-	var buffer bytes.Buffer
-	buffer.WriteString("p.")
-	buffer.WriteString(core.AaOne2ThreeDict[ref])
-	buffer.WriteString(strconv.Itoa(pos))
-	buffer.WriteString(core.AaOne2ThreeDict[alt])
-	buffer.WriteString("fs")
-	anno.NaChange = buffer.String()
-}
-
 func (anno Annotation) annoCdsChangeOfDel(lenL int, lenR int, cdna core.Sequence, protein core.Sequence, isMt bool) {
-	var buffer bytes.Buffer
-	if lenL > 0 {
-		buffer.Write(cdna.GetSeq(0, lenL))
-	}
-	if lenR > 0 {
-		buffer.Write(cdna.GetSeq(cdna.GetLen()-lenR, lenR))
-	}
-	var varCdna, varProtein core.Sequence
-	varCdna = buffer.Bytes()
-	varProtein = varCdna.Translate(isMt)
+	varCdna := cdna.GetDelSequence(lenL, lenR)
+	varProtein := varCdna.Translate(isMt)
 	lenl, lenr := 0, 0
 	for i := 0; i < lenL+lenR; i++ {
 		if cdna[i] != varCdna[i] {
@@ -114,7 +25,7 @@ func (anno Annotation) annoCdsChangeOfDel(lenL int, lenR int, cdna core.Sequence
 	if lenl+lenr > lenL+lenR {
 		lenr = lenL + lenR - lenl
 	}
-	anno.setNaChangeOfCdsDel(lenl+1, lenL+lenR-lenr)
+	anno.NaChange = fmt.Sprintf("c.%d_%ddel", lenl+1, lenL+lenR-lenr)
 	lenDel := lenL + lenR - lenl - lenr
 	lenl, lenr, lenp, lenvp := 0, 0, protein.GetLen(), varProtein.GetLen()
 	for i := 0; i < lenvp; i++ {
@@ -143,18 +54,37 @@ func (anno Annotation) annoCdsChangeOfDel(lenL int, lenR int, cdna core.Sequence
 		}
 		if start == end2+1 {
 			if start == end1 {
-				anno.setAaChangeOfDelOne(protein.GetChar(start-1), start)
+				anno.AaChange = fmt.Sprintf("p.%s%ddel", core.GetOne2Three(protein.GetChar(start-1)), start)
 			} else {
-				anno.setAaChangeOfDelMany(protein.GetChar(start-1), start, protein.GetChar(end1-1), end1)
+				anno.AaChange = fmt.Sprintf(
+					"p.%s%d_%s%ddel",
+					core.GetOne2Three(protein.GetChar(start-1)),
+					start,
+					core.GetOne2Three(protein.GetChar(end1-1)),
+					end1,
+				)
 			}
 		} else {
-			anno.setAaChangeOfDelReplace(protein.GetChar(start-1), start, protein.GetChar(end1-1), end1, varProtein.GetSeq(start-1, end2-start+1))
+			anno.AaChange = fmt.Sprintf(
+				"p.%s%d_%s%dinsdel%s",
+				core.GetOne2Three(protein.GetChar(start-1)),
+				start,
+				core.GetOne2Three(protein.GetChar(end1-1)),
+				end1,
+				varProtein.GetSeq(start-1, end2-start+1).GetOne2Tree(),
+			)
 		}
 	} else {
 		start := lenl + 1
 		if start > varProtein.GetLen() {
 			anno.Function = "del_nonframeshift_stoploss"
-			anno.setAaChangeOfDelMany(protein.GetChar(start-1), start, protein[lenp-1], lenp)
+			anno.AaChange = fmt.Sprintf(
+				"p.%s%d_%s%s%ddel",
+				core.GetOne2Three(protein.GetChar(start-1)),
+				start,
+				core.GetOne2Three(protein[lenp-1]),
+				lenp,
+			)
 		} else {
 			if stopIndex := varProtein.GetIndex('*'); stopIndex < 0 {
 				anno.Function = "del_frameshift_stoploss"
@@ -163,25 +93,30 @@ func (anno Annotation) annoCdsChangeOfDel(lenL int, lenR int, cdna core.Sequence
 			} else {
 				anno.Function = "del_frameshift"
 			}
-			anno.setAaChangeOfDelFrameshift(protein.GetChar(start-1), start, varProtein.GetChar(start-1))
+			anno.AaChange = fmt.Sprintf(
+				"p.%s%d%sfs",
+				core.GetOne2Three(protein.GetChar(start-1)),
+				start,
+				core.GetOne2Three(varProtein.GetChar(start-1)),
+			)
 		}
 	}
 }
 
-func (anno Annotation) annoIntronSplicingOfDel(del Snv, region core.Region, lenL int, ref core.Sequence, side byte, strand byte) {
+func (anno Annotation) annoIntronSplicingOfDel(variant core.Variant, region core.Region, lenL int, ref core.Sequence, side byte, strand byte) {
 	var distance1, distance2, length int
 	var flag byte
 	if side == 'l' {
-		distance1 = del.Variant.Start - region.Start + 1
-		distance2 = del.Variant.End - region.Start + 1
+		distance1 = variant.Start - region.Start + 1
+		distance2 = variant.End - region.Start + 1
 		if strand == '+' {
 			length, flag = lenL, '+'
 		} else {
 			length, flag = lenL+1, '-'
 		}
 	} else {
-		distance1 = region.End - del.Variant.Start + 1
-		distance2 = region.End - del.Variant.End + 1
+		distance1 = region.End - variant.Start + 1
+		distance2 = region.End - variant.End + 1
 		if strand == '+' {
 			length, flag = lenL+1, '-'
 		} else {
@@ -189,97 +124,81 @@ func (anno Annotation) annoIntronSplicingOfDel(del Snv, region core.Region, lenL
 		}
 	}
 	if ref.GetLen() == 1 {
-		anno.setNaChangeOfSplicingDelOne(length, flag, distance1)
+		anno.NaChange = fmt.Sprintf("c.%d%c%ddel", length, flag, distance1)
 	} else {
 		if flag == '+' && distance1 > distance2 || flag == '-' && distance1 < distance2 {
 			distance1, distance2 = distance2, distance1
 		}
-		anno.setNaChangeOfSplicingDelTwo(length, flag, distance1, distance2)
+		anno.NaChange = fmt.Sprintf("c.%d%c%d_%d%c%ddel", length, flag, distance1, length, flag, distance2)
 	}
 }
 
-func (anno *Annotation) annoDelForward(del Snv, refgene core.Refgene, splicingLen int) {
-	cdna, protein, ref := refgene.Cdna, refgene.Protein, del.Variant.Ref
+func (anno *Annotation) annoDelForward(variant core.Variant, refgene core.Refgene, splicingLen int) {
+	cdna, protein, ref := refgene.Cdna, refgene.Protein, variant.Ref
 	lenL, lenR := 0, 0
 	regionCount := len(refgene.Regions)
 	for i := 0; i < regionCount; i++ {
 		region := refgene.Regions[i]
-		hasPrev, hasNext := false, false
-		var prevRegion, nextRegion core.Region
-		if i-1 >= 0 {
-			hasPrev = true
-			prevRegion = refgene.Regions[i-1]
-		}
-		if i+1 < regionCount {
-			hasNext = true
-			nextRegion = refgene.Regions[i+1]
-		}
-		if region.Start > del.Variant.End {
+		prevRegion, hasPrev := refgene.Regions.GetPrev(i, '+')
+		nextRegion, hasNext := refgene.Regions.GetNext(i, '+')
+		if region.Start > variant.End {
 			if region.Typo == "cds" {
 				lenR += region.End - region.Start + 1
 			}
-		} else if region.End < del.Variant.Start {
+		} else if region.End < variant.Start {
 			if region.Typo == "cds" {
 				lenL += region.End - region.Start + 1
 			}
 		} else {
-			if region.Start <= del.Variant.Start && del.Variant.End <= region.End {
+			if region.Start <= variant.Start && variant.End <= region.End {
 				if region.Typo == "intron" {
-					distance1 := del.Variant.Start - region.Start + 1
-					distance2 := region.End - del.Variant.End + 1
+					distance1 := variant.Start - region.Start + 1
+					distance2 := region.End - variant.End + 1
 					if distance1 <= splicingLen && hasPrev {
+						if distance1 <= 2 {
+							anno.Region = "splicing_site"
+						} else {
+							anno.Region = "splicing_region"
+						}
 						if prevRegion.Typo == "cds" {
-							if distance1 <= 2 {
-								anno.Region = "splicing_site"
-							} else {
-								anno.Region = "splicing_region"
-							}
 							if refgene.Tag == "cmpl" {
 								anno.SetExon(prevRegion.ExonOrder)
-								anno.annoIntronSplicingOfDel(del, region, lenL, ref, 'l', '+')
-							} else {
-								if distance1 <= 2 {
-									anno.Region = prevRegion.Typo + "_splicing_site"
-								} else {
-									anno.Region = prevRegion.Typo + "_splicing_region"
-								}
-							}
-						}
-					} else if distance2 <= splicingLen && hasNext {
-						if nextRegion.Typo == "cds" {
-							if distance2 <= 2 {
-								anno.Region = "splicing_site"
-							} else {
-								anno.Region = "splicing_region"
-							}
-							if refgene.Tag == "cmpl" {
-								anno.SetExon(nextRegion.ExonOrder)
-								anno.annoIntronSplicingOfDel(del, region, lenL, ref, 'r', '+')
+								anno.annoIntronSplicingOfDel(variant, region, lenL, ref, 'l', '+')
 							}
 						} else {
-							if distance2 <= 2 {
-								anno.Region = nextRegion.Typo + "_splicing_site"
-							} else {
-								anno.Region = nextRegion.Typo + "_splicing_region"
+							anno.Region = strings.Join([]string{prevRegion.Typo, anno.Region}, "_")
+						}
+					} else if distance2 <= splicingLen && hasNext {
+						if distance2 <= 2 {
+							anno.Region = "splicing_site"
+						} else {
+							anno.Region = "splicing_region"
+						}
+						if nextRegion.Typo == "cds" {
+							if refgene.Tag == "cmpl" {
+								anno.SetExon(nextRegion.ExonOrder)
+								anno.annoIntronSplicingOfDel(variant, region, lenL, ref, 'r', '+')
 							}
+						} else {
+							anno.Region = strings.Join([]string{nextRegion.Typo, anno.Region}, "_")
 						}
 					} else {
 						anno.Region = "intronic"
 					}
 				} else if strings.HasPrefix(region.Typo, "utr") {
-					if del.Variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
-						anno.Region = region.Typo + "_exon_splicing"
-					} else if region.End-del.Variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
-						anno.Region = region.Typo + "_exon_splicing"
+					if variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+						anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
+					} else if region.End-variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
+						anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
 					} else {
 						anno.Region = region.Typo
 					}
 				} else {
-					lenL += del.Variant.Start - region.Start
-					lenR += region.End - del.Variant.End
-					if del.Variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+					lenL += variant.Start - region.Start
+					lenR += region.End - variant.End
+					if variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
 						anno.Region = "CDS_splicing"
-					} else if region.End-del.Variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
+					} else if region.End-variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
 						anno.Region = "CDS_splicing"
 					} else {
 						anno.Region = "exonic"
@@ -289,14 +208,14 @@ func (anno *Annotation) annoDelForward(del Snv, refgene core.Refgene, splicingLe
 				if region.Typo == "cds" {
 					anno.Region = "exonic"
 					anno.SetExon(region.ExonOrder)
-					if region.Start < del.Variant.Start {
-						lenL += del.Variant.Start - region.Start
+					if region.Start < variant.Start {
+						lenL += variant.Start - region.Start
 						if hasNext && nextRegion.Typo == "intron" {
 							anno.Region = "oCDS_splicing"
 						}
 					}
-					if region.End > del.Variant.End {
-						lenR += region.End - del.Variant.End
+					if region.End > variant.End {
+						lenR += region.End - variant.End
 						if hasPrev && prevRegion.Typo == "intron" {
 							anno.Region = "oCDS_splicing"
 						}
@@ -305,7 +224,7 @@ func (anno *Annotation) annoDelForward(del Snv, refgene core.Refgene, splicingLe
 					if anno.Region != "." {
 						continue
 					}
-					if del.Variant.Start < region.Start && region.Start < del.Variant.End {
+					if variant.Start < region.Start && region.Start < variant.End {
 						if strings.HasPrefix(region.Typo, "utr") {
 							if hasPrev {
 								if prevRegion.Typo == "intron" {
@@ -330,7 +249,7 @@ func (anno *Annotation) annoDelForward(del Snv, refgene core.Refgene, splicingLe
 							}
 						}
 					}
-					if del.Variant.Start < region.End && region.End < del.Variant.End {
+					if variant.Start < region.End && region.End < variant.End {
 						if strings.HasPrefix(region.Typo, "utr") {
 							if hasNext {
 								if nextRegion.Typo == "intron" {
@@ -364,89 +283,73 @@ func (anno *Annotation) annoDelForward(del Snv, refgene core.Refgene, splicingLe
 	}
 }
 
-func (anno *Annotation) annoDelBackward(del Snv, refgene core.Refgene, splicingLen int) {
-	cdna, protein, ref := refgene.Cdna, refgene.Protein, del.Variant.Ref
+func (anno *Annotation) annoDelBackward(variant core.Variant, refgene core.Refgene, splicingLen int) {
+	cdna, protein, ref := refgene.Cdna, refgene.Protein, variant.Ref
 	lenL, lenR := 0, 0
 	regionCount := len(refgene.Regions)
 	for i := regionCount - 1; i >= 0; i-- {
 		region := refgene.Regions[i]
-		hasPrev, hasNext := false, false
-		var prevRegion, nextRegion core.Region
-		if i-1 >= 0 {
-			hasNext = true
-			nextRegion = refgene.Regions[i-1]
-		}
-		if i+1 < regionCount {
-			hasPrev = true
-			prevRegion = refgene.Regions[i+1]
-		}
-		if region.End < del.Variant.Start {
+		prevRegion, hasPrev := refgene.Regions.GetPrev(i, '+')
+		nextRegion, hasNext := refgene.Regions.GetNext(i, '+')
+		if region.End < variant.Start {
 			if region.Typo == "cds" {
 				lenR += region.End - region.Start + 1
 			}
-		} else if region.Start > del.Variant.End {
+		} else if region.Start > variant.End {
 			if region.Typo == "cds" {
 				lenL += region.End - region.Start + 1
 			}
 		} else {
-			if region.Start <= del.Variant.Start && del.Variant.End <= region.End {
+			if region.Start <= variant.Start && variant.End <= region.End {
 				if region.Typo == "intron" {
-					distance1 := del.Variant.Start - region.Start + 1
-					distance2 := region.End - del.Variant.End + 1
+					distance1 := variant.Start - region.Start + 1
+					distance2 := region.End - variant.End + 1
 					if distance1 <= splicingLen && hasNext {
+						if distance1 <= 2 {
+							anno.Region = "splicing_site"
+						} else {
+							anno.Region = "splicing_region"
+						}
 						if nextRegion.Typo == "cds" {
-							if distance1 <= 2 {
-								anno.Region = "splicing_site"
-							} else {
-								anno.Region = "splicing_region"
-							}
 							if refgene.Tag == "cmpl" {
 								anno.SetExon(nextRegion.ExonOrder)
-								anno.annoIntronSplicingOfDel(del, region, lenL, ref, 'l', '-')
-							} else {
-								if distance1 <= 2 {
-									anno.Region = nextRegion.Typo + "_splicing_site"
-								} else {
-									anno.Region = nextRegion.Typo + "_splicing_region"
-								}
-							}
-						}
-					} else if distance2 <= splicingLen && hasPrev {
-						if prevRegion.Typo == "cds" {
-							if distance2 <= 2 {
-								anno.Region = "splicing_site"
-							} else {
-								anno.Region = "splicing_region"
-							}
-							if refgene.Tag == "cmpl" {
-								anno.SetExon(prevRegion.ExonOrder)
-								anno.annoIntronSplicingOfDel(del, region, lenL, ref, 'r', '-')
+								anno.annoIntronSplicingOfDel(variant, region, lenL, ref, 'l', '-')
 							}
 						} else {
-							if distance2 <= 2 {
-								anno.Region = prevRegion.Typo + "_splicing_site"
-							} else {
-								anno.Region = prevRegion.Typo + "_splicing_region"
+							anno.Region = strings.Join([]string{nextRegion.Typo, anno.Region}, "_")
+						}
+					} else if distance2 <= splicingLen && hasPrev {
+						if distance2 <= 2 {
+							anno.Region = "splicing_site"
+						} else {
+							anno.Region = "splicing_region"
+						}
+						if prevRegion.Typo == "cds" {
+							if refgene.Tag == "cmpl" {
+								anno.SetExon(prevRegion.ExonOrder)
+								anno.annoIntronSplicingOfDel(variant, region, lenL, ref, 'r', '-')
 							}
+						} else {
+							anno.Region = strings.Join([]string{prevRegion.Typo, anno.Region}, "_")
 						}
 					} else {
 						anno.Region = "intronic"
 					}
 				} else if strings.HasPrefix(region.Typo, "utr") {
-					if del.Variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
-						anno.Region = region.Typo + "_exon_splicing"
-					} else if region.End-del.Variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
-						anno.Region = region.Typo + "_exon_splicing"
+					if variant.Start-region.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+						anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
+					} else if region.End-variant.End < splicingLen && hasNext && nextRegion.Typo == "intron" {
+						anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
 					} else {
 						anno.Region = region.Typo
 					}
 				} else {
-					lenL += region.End - del.Variant.End
-					lenR += del.Variant.Start - region.Start
+					lenL += region.End - variant.End
+					lenR += variant.Start - region.Start
 					anno.SetExon(region.ExonOrder)
-					if del.Variant.Start-region.Start < splicingLen && hasNext && nextRegion.Typo == "intron" {
+					if variant.Start-region.Start < splicingLen && hasNext && nextRegion.Typo == "intron" {
 						anno.Region = "CDS_splicing"
-					} else if region.End-del.Variant.End < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+					} else if region.End-variant.End < splicingLen && hasPrev && prevRegion.Typo == "intron" {
 						anno.Region = "CDS_splicing"
 					} else {
 						anno.Region = "exonic"
@@ -456,14 +359,14 @@ func (anno *Annotation) annoDelBackward(del Snv, refgene core.Refgene, splicingL
 				if region.Typo == "cds" {
 					anno.Region = "exonic"
 					anno.SetExon(region.ExonOrder)
-					if region.Start < del.Variant.Start {
-						lenR += del.Variant.Start - region.Start
+					if region.Start < variant.Start {
+						lenR += variant.Start - region.Start
 						if hasNext && nextRegion.Typo == "intron" {
 							anno.Region = "oCDS_splicing"
 						}
 					}
-					if region.End > del.Variant.End {
-						lenL += region.End - del.Variant.End
+					if region.End > variant.End {
+						lenL += region.End - variant.End
 						if hasPrev && prevRegion.Typo == "intron" {
 							anno.Region = "oCDS_splicing"
 						}
@@ -472,7 +375,7 @@ func (anno *Annotation) annoDelBackward(del Snv, refgene core.Refgene, splicingL
 					if anno.Region != "." {
 						continue
 					}
-					if del.Variant.Start < region.Start && region.Start < del.Variant.End {
+					if variant.Start < region.Start && region.Start < variant.End {
 						if strings.HasPrefix(region.Typo, "utr") {
 							if hasNext {
 								if nextRegion.Typo == "intron" {
@@ -497,7 +400,7 @@ func (anno *Annotation) annoDelBackward(del Snv, refgene core.Refgene, splicingL
 							}
 						}
 					}
-					if del.Variant.Start < region.End && region.End < del.Variant.End {
+					if variant.Start < region.End && region.End < variant.End {
 						if strings.HasPrefix(region.Typo, "utr") {
 							if strings.HasPrefix(region.Typo, "utr") {
 								if hasPrev {
@@ -536,8 +439,8 @@ func (anno *Annotation) annoDelBackward(del Snv, refgene core.Refgene, splicingL
 }
 func (anno *Annotation) AnnoDel(del Snv, refgene core.Refgene, splicingLen int) {
 	if refgene.Strand == '+' {
-		anno.annoDelForward(del, refgene, splicingLen)
+		anno.annoDelForward(del.GetVariant(), refgene, splicingLen)
 	} else {
-		anno.annoDelBackward(del, refgene, splicingLen)
+		anno.annoDelBackward(del.GetVariant(), refgene, splicingLen)
 	}
 }

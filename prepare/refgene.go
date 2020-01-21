@@ -30,9 +30,13 @@ func (refgene *Refgene) Read(refgeneLine string, upDownStreamLen int) {
 	refgene.Chrom = strings.Replace(strings.Split(field[2], " ")[0], "chr", "", -1)
 	if start, err := strconv.Atoi(field[4]); err == nil {
 		refgene.Start = start + 1
+	} else {
+		panic(err)
 	}
 	if end, err := strconv.Atoi(field[5]); err == nil {
 		refgene.End = end
+	} else {
+		panic(err)
 	}
 	refgene.UpStream = refgene.Start - upDownStreamLen
 	refgene.DownStream = refgene.End + upDownStreamLen
@@ -48,8 +52,8 @@ func (refgene Refgene) GetDigitalPosition() (int, int) {
 	return start, end
 }
 
-func (refgene *Refgene) SetSequence(chromSeq []byte) {
-	refgene.Sequence = chromSeq[refgene.Start-1 : refgene.End]
+func (refgene *Refgene) SetSequence(chromSeq core.Sequence) {
+	refgene.Sequence = chromSeq.GetSeq(refgene.Start-1, refgene.End-refgene.Start+1)
 }
 
 func (refgenes Refgenes) Len() int {
@@ -90,12 +94,12 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 				if err == io.EOF {
 					break
 				} else {
-					panic(err.Error())
+					panic(err)
 				}
 			}
 		}
 	} else {
-		panic(err.Error())
+		panic(err)
 	}
 }
 
@@ -109,10 +113,10 @@ func (refgeneDict RefgeneDict) Write(reference core.Fasta, mrnaFile string) {
 				for _, refgene := range refgenes {
 					refgene.SetSequence(sequence)
 					if _, err := fp.WriteString(">" + refgene.GetSn() + "\n"); err != nil {
-						panic(err.Error())
+						panic(err)
 					}
 					if _, err := fp.WriteString(string(refgene.Sequence) + "\n"); err != nil {
-						panic(err.Error())
+						panic(err)
 					}
 				}
 			}

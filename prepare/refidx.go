@@ -94,12 +94,14 @@ func (refidxDict RefidxDict) Write(refidxFile string, refgeneDict RefgeneDict) {
 		}
 		for _, chrom := range core.ChromList {
 			for _, refidx := range refidxDict[chrom] {
-				if _, err := fo.WriteString(fmt.Sprintf(
-					"%s\t%d\t%d\t%s\n",
-					refidx.Chrom, refidx.Start, refidx.End,
-					strings.Join(refidx.Transcripts, ","),
-				)); err != nil {
-					panic(err.Error())
+				if len(refidx.Transcripts) > 0 {
+					if _, err := fo.WriteString(fmt.Sprintf(
+						"%s\t%d\t%d\t%s\n",
+						refidx.Chrom, refidx.Start, refidx.End,
+						strings.Join(refidx.Transcripts, ","),
+					)); err != nil {
+						panic(err.Error())
+					}
 				}
 			}
 		}

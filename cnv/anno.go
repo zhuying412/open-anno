@@ -1,9 +1,8 @@
-package snv
+package cnv
 
 import (
-	"bytes"
+	"fmt"
 	"grandanno/core"
-	"strconv"
 	"strings"
 )
 
@@ -11,25 +10,40 @@ type Annotation struct {
 	Gene       string
 	EntrezId   int
 	Transcript string
-	Exon       string
-	NaChange   string
-	AaChange   string
 	Region     string
 	Function   string
+	Exons      []int
 }
 
-func (anno *Annotation) SetExon(exonOrder int) {
-	var buffer bytes.Buffer
-	buffer.WriteString("exon")
-	buffer.WriteString(strconv.Itoa(exonOrder))
-	anno.Exon = buffer.String()
+func (anno *Annotation) AddExon(exon int) {
+	anno.Exons = append(anno.Exons, exon)
+}
+
+func (anno *Annotation) GetCds() string {
+	switch len(anno.Exons) {
+	case 0:
+		return "."
+	case 1:
+		return fmt.Sprintf("exon.%d", anno.Exons[0])
+	default:
+		min, max := anno.Exons[0], anno.Exons[0]
+		for _, exon := range anno.Exons {
+			if min > exon {
+				min = exon
+			}
+			if max < exon {
+				max = exon
+			}
+		}
+		return fmt.Sprintf("exon.%d_%d", min, max)
+	}
 }
 
 type Annotations []Annotation
 
 func (annos Annotations) IsSpecial() bool {
 	for _, anno := range annos {
-		if strings.Contains(anno.Region, "splic") || strings.Contains(anno.Region, "exon") {
+		if strings.Contains(anno.Region, "exon") {
 			return true
 		}
 	}
@@ -40,11 +54,10 @@ func (annos *Annotations) AnnoIntergeic() {
 	*annos = append(*annos, Annotation{Region: "intergenic"})
 }
 
-func (annos *Annotations) AnnoStream(snv Snv, refgenes core.Refgenes) {
+func (annos *Annotations) AnnoStream(cnv Cnv, refgenes core.Refgenes) {
 	for _, refgene := range refgenes {
 		for _, region := range refgene.Streams {
-			variant := snv.GetVariant()
-			if variant.Start <= region.End && variant.End >= region.Start {
+			if cnv.GetVariant().Start <= region.End && cnv.GetVariant().End >= region.Start {
 				*annos = append(*annos, Annotation{
 					Gene:       refgene.Gene,
 					EntrezId:   refgene.EntrezId,
@@ -58,34 +71,37 @@ func (annos *Annotations) AnnoStream(snv Snv, refgenes core.Refgenes) {
 	}
 }
 
-func (annos *Annotations) AnnoGene(snv Snv, refgenes core.Refgenes, splicingLen int) {
+func (annos *Annotations) AnnoGene(cnv Cnv, refgenes core.Refgenes) {
 	var cmplAnnos, incmplAnnos, unkAnnos Annotations
+	variant := cnv.GetVariant()
 	for _, refgene := range refgenes {
-		variant := snv.GetVariant()
 		if variant.End >= refgene.Position.ExonStart && variant.Start <= refgene.Position.ExonEnd {
 			anno := Annotation{
 				Gene:       refgene.Gene,
 				EntrezId:   refgene.EntrezId,
 				Transcript: refgene.Transcript,
 			}
+			if cnv.GetTypo() == "DEL" {
+				anno.Function = "Deletion"
+			} else {
+				anno.Function = "Duplication"
+			}
 			if refgene.Tag == "unk" {
 				anno.Region = "unkCDS"
 				unkAnnos = append(unkAnnos, anno)
 			} else {
-				switch snv.GetTypo() {
-				case "del":
-					anno.AnnoDel(snv, refgene, splicingLen)
-				case "ins":
-					anno.AnnoIns(snv, refgene, splicingLen)
-				case "snp":
-					anno.AnnoSnp(snv, refgene, splicingLen)
-				default:
-					anno.AnnoSnp(snv, refgene, splicingLen)
+				for _, region := range refgene.Regions {
+					if variant.Start <= region.End && variant.End >= region.Start {
+						anno.Region = region.Typo
+						if region.Typo == "cds" && refgene.Tag == "cmpl" {
+							anno.AddExon(region.ExonOrder)
+						}
+					}
 				}
-				if refgene.IsCmpl() {
+				if refgene.Tag == "cmpl" {
 					cmplAnnos = append(cmplAnnos, anno)
 				} else {
-					anno.Function = "incmplCDS"
+					anno.Region = "incmplCDS"
 					incmplAnnos = append(incmplAnnos, anno)
 				}
 			}

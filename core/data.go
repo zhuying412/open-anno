@@ -18,7 +18,7 @@ var (
 		"19": 59128983, "20": 63025520, "21": 48129895, "22": 51304566, "X": 155270560, "Y": 59373566,
 		"MT": 16569,
 	}
-	CodonDicT = map[string]byte{
+	CodonDict = map[string]byte{
 		"TTT": 'F', "TTC": 'F', "TTA": 'L', "TTG": 'L', "TCT": 'S', "TCC": 'S', "TCA": 'S', "TCG": 'S',
 		"TAT": 'Y', "TAC": 'Y', "TAA": '*', "TAG": '*', "TGT": 'C', "TGC": 'C', "TGA": '*', "TGG": 'W',
 		"CTT": 'L', "CTC": 'L', "CTA": 'L', "CTG": 'L', "CCT": 'P', "CCC": 'P', "CCA": 'P', "CCG": 'P',
@@ -28,7 +28,7 @@ var (
 		"GTT": 'V', "GTC": 'V', "GTA": 'V', "GTG": 'V', "GCT": 'A', "GCC": 'A', "GCA": 'A', "GCG": 'A',
 		"GAT": 'D', "GAC": 'D', "GAA": 'E', "GAG": 'E', "GGT": 'G', "GGC": 'G', "GGA": 'G', "GGG": 'G',
 	}
-	CodonMtDicT = map[string]byte{
+	CodonMtDict = map[string]byte{
 		"TTT": 'F', "TTC": 'F', "TTA": 'L', "TTG": 'L', "TCT": 'S', "TCC": 'S', "TCA": 'S', "TCG": 'S',
 		"TAT": 'Y', "TAC": 'Y', "TAA": '*', "TAG": '*', "TGT": 'C', "TGC": 'C', "TGA": 'W', "TGG": 'W',
 		"CTT": 'L', "CTC": 'L', "CTA": 'L', "CTG": 'L', "CCT": 'P', "CCC": 'P', "CCA": 'P', "CCG": 'P',

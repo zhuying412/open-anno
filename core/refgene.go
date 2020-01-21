@@ -45,31 +45,32 @@ type Refgene struct {
 
 type Refgenes []Refgene
 
-type RefgeneDict map[string]*Refgene
+type RefgeneDict map[string]Refgene
 
-func (regions Regions) GetPreNextRegion(currentIndex int, isForward bool) (bool, Region, bool, Region) {
-	var prevRegion, nextRegion Region
-	var hasPrev, hasNext bool
-	if isForward {
-		if currentIndex-1 >= 0 {
-			prevRegion = regions[currentIndex-1]
-			hasPrev = true
-		}
-		if currentIndex+1 < len(regions) {
-			nextRegion = regions[currentIndex+1]
-			hasNext = true
-		}
+func (regions Regions) GetPrev(currentIndex int, strand byte) (Region, bool) {
+	var index int
+	if strand == '+' {
+		index = currentIndex - 1
 	} else {
-		if currentIndex-1 >= 0 {
-			hasNext = true
-			nextRegion = regions[currentIndex-1]
-		}
-		if currentIndex+1 < len(regions) {
-			hasPrev = true
-			prevRegion = regions[currentIndex+1]
-		}
+		index = currentIndex + 1
 	}
-	return hasPrev, prevRegion, hasNext, nextRegion
+	if index >= 0 && index < len(regions) {
+		return regions[index], true
+	}
+	return Region{}, false
+}
+
+func (regions Regions) GetNext(currentIndex int, strand byte) (Region, bool) {
+	var index int
+	if strand == '+' {
+		index = currentIndex + 1
+	} else {
+		index = currentIndex - 1
+	}
+	if index >= 0 && index < len(regions) {
+		return regions[index], true
+	}
+	return Region{}, false
 }
 
 func (regions Regions) Len() int {
@@ -122,7 +123,7 @@ func (refgene Refgene) IsCmpl() bool {
 	return refgene.Tag == "cmpl"
 }
 
-func (refgene *Refgene) SetSequence(sequence Sequence, upDownStreamLen int) {
+func (refgene *Refgene) SetUpDownStream(upDownStreamLen int) {
 	stream1 := Region{
 		Start: refgene.Position.ExonStart - upDownStreamLen,
 		End:   refgene.Position.ExonStart - 1,
@@ -139,26 +140,24 @@ func (refgene *Refgene) SetSequence(sequence Sequence, upDownStreamLen int) {
 		stream2.Typo = "downstream"
 	}
 	refgene.Streams = Regions{stream1, stream2}
+}
+
+func (refgene *Refgene) SetSequence(sequence Sequence) {
 	if !sequence.IsEmpty() {
 		refgene.Mrna = sequence
-		if refgene.Tag == "unk" {
+		if refgene.Tag != "unk" {
 			for _, region := range refgene.Regions {
-				if region.Typo != "cds" {
-					continue
+				if region.Typo == "cds" {
+					seq := refgene.Mrna.GetSeq(region.Start-refgene.Position.ExonStart, region.End-region.Start+1)
+					refgene.Cdna.Push(seq)
 				}
-				seq := refgene.Mrna.GetSeq(region.Start-refgene.Position.ExonStart, region.End-region.Start+1)
-				refgene.Cdna.Push(seq)
 			}
 			if refgene.Strand == '-' {
 				refgene.Cdna.Reverse()
 			}
 		}
 		if !refgene.Cdna.IsEmpty() {
-			if refgene.Chrom == "MT" {
-				refgene.Protein = refgene.Cdna.Translate(true)
-			} else {
-				refgene.Protein = refgene.Cdna.Translate(false)
-			}
+			refgene.Protein = refgene.Cdna.Translate(refgene.Chrom == "MT")
 			if refgene.Protein.IsCmpl() {
 				refgene.Tag = "cmpl"
 			} else {
@@ -172,7 +171,7 @@ func (refgene *Refgene) SetSequence(sequence Sequence, upDownStreamLen int) {
 func (refgene *Refgene) Read(refgeneLine string, ncbiGene NcbiGene) {
 	field := strings.Split(refgeneLine, "\t")
 	refgene.Position.Read(field)
-	refgene.Chrom = field[2]
+	refgene.Chrom = strings.Replace(field[2], "chr", "", 1)
 	refgene.Transcript = field[1]
 	refgene.Strand = field[3][0]
 	refgene.Gene = field[12]
@@ -280,7 +279,7 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, ncbiGene NcbiGene) {
 				if refgene.Chrom == "M" || len(refgene.Chrom) > 2 {
 					continue
 				}
-				refgeneDict[refgene.GetSn()] = &refgene
+				refgeneDict[refgene.GetSn()] = refgene
 			} else {
 				if err == io.EOF {
 					break
@@ -294,10 +293,18 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, ncbiGene NcbiGene) {
 	}
 }
 
-func (refgeneDict RefgeneDict) SetSequence(mrna Fasta, upDownStreamLen int) {
-	for sn, _ := range refgeneDict {
+func (refgeneDict RefgeneDict) SetUpDownStream(upDownStreamLen int) {
+	for sn, refgene := range refgeneDict {
+		refgene.SetUpDownStream(upDownStreamLen)
+		refgeneDict[sn] = refgene
+	}
+}
+
+func (refgeneDict RefgeneDict) SetSequence(mrna Fasta) {
+	for sn, refgene := range refgeneDict {
 		if sequence, ok := mrna[sn]; ok {
-			refgeneDict[sn].SetSequence(sequence, upDownStreamLen)
+			refgene.SetSequence(sequence)
+			refgeneDict[sn] = refgene
 		}
 	}
 }

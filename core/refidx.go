@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -29,7 +30,7 @@ func (refidx Refidx) GetRefgenes(refgeneDict RefgeneDict) Refgenes {
 	var refgenes Refgenes
 	for _, transcript := range refidx.Transcripts {
 		if refgene, ok := refgeneDict[transcript]; ok {
-			refgenes = append(refgenes, *refgene)
+			refgenes = append(refgenes, refgene)
 		}
 	}
 	return refgenes
@@ -53,7 +54,7 @@ func (refidxs Refidxs) Swap(i, j int) {
 	refidxs[i], refidxs[j] = refidxs[j], refidxs[i]
 }
 
-func (refidxs Refidxs) Read(refidxFile string) {
+func (refidxs *Refidxs) Read(refidxFile string) {
 	if fp, err := os.Open(refidxFile); err == nil {
 		defer fp.Close()
 		reader := bufio.NewReader(fp)
@@ -71,6 +72,7 @@ func (refidxs Refidxs) Read(refidxFile string) {
 				if refidx.End, err = strconv.Atoi(field[2]); err != nil {
 					panic(err)
 				}
+				*refidxs = append(*refidxs, refidx)
 			} else {
 				if err == io.EOF {
 					break
@@ -79,6 +81,7 @@ func (refidxs Refidxs) Read(refidxFile string) {
 				}
 			}
 		}
+		sort.Sort(refidxs)
 	} else {
 		panic(err)
 	}

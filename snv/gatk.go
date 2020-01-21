@@ -20,15 +20,17 @@ type Information struct {
 	Ratio      float32
 }
 
-type Snv struct {
+type GatkSnv struct {
 	Variant     core.Variant
 	Information Information
 	OtherInfo   string
 }
 
-type Snvs []Snv
+func (snv GatkSnv) GetVariant() core.Variant {
+	return snv.Variant
+}
 
-func (snv Snv) GetTypo() string {
+func (snv GatkSnv) GetTypo() string {
 	var typo string
 	switch {
 	case snv.Variant.Ref.GetChar(0) == '-':
@@ -41,41 +43,56 @@ func (snv Snv) GetTypo() string {
 	return typo
 }
 
-func (snvs Snvs) Len() int {
-	return len(snvs)
+type GatkVcfLine struct {
+	Chrom        string
+	Pos          int
+	Ref          string
+	Alts         []string
+	GatkFilter   string
+	Qual         float32
+	InfoList     []string
+	FormatKeys   []string
+	FormatValues []string
+	Line         string
 }
 
-func (snvs Snvs) Less(i, j int) bool {
-	starti, endi := snvs[i].Variant.GetDigitalPosition()
-	startj, endj := snvs[j].Variant.GetDigitalPosition()
-	if starti == startj {
-		return endi < endj
+func (vcfLine *GatkVcfLine) readLine(line string) error {
+	field := strings.Split(line, "\t")
+	vcfLine.Line = line
+	vcfLine.Chrom = strings.Replace(field[0], "chr", "", 1)
+	vcfLine.Alts = strings.Split(field[4], ",")
+	vcfLine.Ref = field[3]
+	vcfLine.GatkFilter = field[6]
+	vcfLine.InfoList = strings.Split(field[7], ";")
+	vcfLine.FormatKeys = strings.Split(field[len(field)-2], ":")
+	vcfLine.FormatValues = strings.Split(field[len(field)-1], ":")
+	if qual, err := strconv.ParseFloat(field[5], 32); err == nil {
+		vcfLine.Qual = float32(qual)
 	} else {
-		return starti < startj
+		vcfLine.Qual = float32(-1)
 	}
-}
-
-func (snvs Snvs) Swap(i, j int) {
-	snvs[i], snvs[j] = snvs[j], snvs[i]
-}
-
-type Vcf struct {
-	File string
-}
-
-func (vcf Vcf) getGenotypes(info string, n int) []float32 {
-	genotypes := make([]float32, n)
-	for i := 0; i < n; i++ {
-		genotypes[i] = -1
+	if pos, err := strconv.Atoi(field[1]); err == nil {
+		vcfLine.Pos = pos
+	} else {
+		return err
 	}
-	for _, s := range strings.Split(info, ";") {
-		if strings.HasPrefix(s, "AF=") {
-			for i, _gt := range strings.Split(s[3:], ",") {
-				if i > n {
+	return nil
+}
+
+func (vcfLine GatkVcfLine) getGenotypes() []float32 {
+	count := len(vcfLine.Alts)
+	genotypes := make([]float32, count)
+	for i := 0; i < count; i++ {
+		genotypes[i] = float32(-1)
+	}
+	for _, info := range vcfLine.InfoList {
+		if strings.HasPrefix(info, "AF=") {
+			for i, gt := range strings.Split(info[3:], ",") {
+				if i > count {
 					break
 				}
-				if gt, err := strconv.ParseFloat(_gt, 32); err == nil {
-					genotypes[i] = float32(gt)
+				if _gt, err := strconv.ParseFloat(gt, 32); err == nil {
+					genotypes[i] = float32(_gt)
 				}
 			}
 			break
@@ -84,25 +101,24 @@ func (vcf Vcf) getGenotypes(info string, n int) []float32 {
 	return genotypes
 }
 
-func (vcf Vcf) getDepthRatios(formatKey string, formatValue string, n int) (int, []float32) {
-	ratios := make([]float32, n)
+func (vcfLine GatkVcfLine) getDepthRatios() (int, []float32) {
+	count := len(vcfLine.Alts)
+	ratios := make([]float32, count)
 	depth := -1
-	for i := 0; i < n; i++ {
+	for i := 0; i < count; i++ {
 		ratios[i] = float32(-1)
 	}
-	keys := strings.Split(formatKey, ":")
-	values := strings.Split(formatValue, ":")
-	for i, key := range keys {
+	for i, key := range vcfLine.FormatKeys {
 		if key == "DP" {
-			if d, err := strconv.Atoi(values[i]); err == nil {
-				depth = d
+			if dp, err := strconv.Atoi(vcfLine.FormatValues[i]); err == nil {
+				depth = dp
 			}
 		}
 		if key == "AD" {
 			sum := 0
-			counts := make([]int, n)
-			_counts := strings.Split(values[i], ",")
-			for i := 0; i <= n && i < len(_counts); i++ {
+			counts := make([]int, count)
+			_counts := strings.Split(vcfLine.FormatValues[i], ",")
+			for i := 0; i <= count && i < len(_counts); i++ {
 				if c, err := strconv.Atoi(_counts[i]); err == nil {
 					sum += c
 					if i > 0 {
@@ -111,7 +127,7 @@ func (vcf Vcf) getDepthRatios(formatKey string, formatValue string, n int) (int,
 				}
 			}
 			if sum > 0 {
-				for i := 0; i < n; i++ {
+				for i := 0; i < count; i++ {
 					ratios[i] = float32(counts[i]) / float32(sum)
 				}
 			}
@@ -120,47 +136,43 @@ func (vcf Vcf) getDepthRatios(formatKey string, formatValue string, n int) (int,
 	return depth, ratios
 }
 
-func (vcf Vcf) readLine(vcfLine string) Snvs {
-	field := strings.Split(vcfLine, "\t")
-	alts := strings.Split(field[4], ",")
-	genotypes := vcf.getGenotypes(field[7], len(alts))
-	depth, ratios := vcf.getDepthRatios(field[len(field)-2], field[len(field)-1], len(alts))
-	gatkFilter := field[6]
-	qual := float32(-1)
-	if q, err := strconv.ParseFloat(field[5], 32); err == nil {
-		qual = float32(q)
-	}
-	if pos, err := strconv.Atoi(field[1]); err == nil {
-		snvs := make(Snvs, len(alts))
-		for i, alt := range alts {
-			snvs[i].Variant = core.Variant{
-				Chrom: strings.Replace(field[0], "chr", "", 1),
-				Start: pos,
+func (vcfLine GatkVcfLine) getSnvs() Snvs {
+	var snvs Snvs
+	genotypes := vcfLine.getGenotypes()
+	depth, ratios := vcfLine.getDepthRatios()
+	for i, alt := range vcfLine.Alts {
+		if alt == "*" {
+			continue
+		}
+		snv := GatkSnv{
+			Variant: core.Variant{
+				Chrom: vcfLine.Chrom,
+				Start: vcfLine.Pos,
 				End:   0,
-				Ref:   core.Sequence(field[3]),
+				Ref:   core.Sequence(vcfLine.Ref),
 				Alt:   core.Sequence(alt),
-			}
-			snvs[i].Variant.ConvertSnv()
-			snvs[i].Information = Information{
+			},
+			Information: Information{
 				Depth:      depth,
-				Qual:       qual,
-				GatkFilter: gatkFilter,
+				Qual:       vcfLine.Qual,
+				GatkFilter: vcfLine.GatkFilter,
 				Genotype:   genotypes[i],
 				Ratio:      ratios[i],
-			}
-			snvs[i].OtherInfo = vcfLine
+			},
+			OtherInfo: vcfLine.Line,
 		}
-		return snvs
+		snv.Variant.ConvertSnv()
+		snvs = append(snvs, snv)
 	}
-	return Snvs{}
+	return snvs
 }
 
-func (vcf Vcf) ReadAll() Snvs {
-	var snvs Snvs
-	if fp, err := os.Open(vcf.File); err == nil {
+func (snvs *Snvs) ReadGatkVcfFile(vcfFile string) {
+	var gatkVcfLine GatkVcfLine
+	if fp, err := os.Open(vcfFile); err == nil {
 		defer fp.Close()
 		var lines [][]byte
-		if strings.HasSuffix(strings.ToLower(vcf.File), ".gz") {
+		if strings.HasSuffix(strings.ToLower(vcfFile), ".gz") {
 			if reader, _err := gzip.NewReader(fp); _err == nil {
 				if content, err := ioutil.ReadAll(reader); err == nil {
 					lines = bytes.Split(content, []byte{'\n'})
@@ -177,42 +189,12 @@ func (vcf Vcf) ReadAll() Snvs {
 			if len(line) == 0 || line[0] == '#' {
 				continue
 			}
-			field := strings.Split(string(line), "\t")
-			alts := strings.Split(field[4], ",")
-			genotypes := vcf.getGenotypes(field[7], len(alts))
-			depth, ratios := vcf.getDepthRatios(field[len(field)-2], field[len(field)-1], len(alts))
-			gatkFilter := field[6]
-			qual := float32(-1)
-			if q, err := strconv.ParseFloat(field[5], 32); err == nil {
-				qual = float32(q)
-			}
-			if pos, err := strconv.Atoi(field[1]); err == nil {
-				for i, alt := range alts {
-					var snv Snv
-					if alt == "*" {
-						continue
-					}
-					snv.Variant = core.Variant{
-						Chrom: strings.Replace(field[0], "chr", "", 1),
-						Start: pos,
-						End:   0,
-						Ref:   core.Sequence(field[3]),
-						Alt:   core.Sequence(alt),
-					}
-					snv.Variant.ConvertSnv()
-					snv.Information = Information{
-						Depth:      depth,
-						Qual:       qual,
-						GatkFilter: gatkFilter,
-						Genotype:   genotypes[i],
-						Ratio:      ratios[i],
-					}
-					snv.OtherInfo = string(line)
-					snvs = append(snvs, snv)
-				}
+			if err := gatkVcfLine.readLine(string(line)); err == nil {
+				*snvs = append(*snvs, gatkVcfLine.getSnvs()...)
 			}
 		}
+	} else {
+		panic(err)
 	}
-	sort.Sort(snvs)
-	return snvs
+	sort.Sort(*snvs)
 }

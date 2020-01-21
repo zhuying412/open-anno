@@ -10,6 +10,10 @@ import (
 
 type Sequence []byte
 
+func GetOne2Three(base byte) string {
+	return AaOne2ThreeDict[base]
+}
+
 func (seq Sequence) Reverse() {
 	length := len(seq)
 	tmpStr := make(Sequence, length)
@@ -28,14 +32,14 @@ func (seq Sequence) GetChar(index int) byte {
 }
 
 func (seq Sequence) GetSeq(index int, len int) Sequence {
-	if len < 0 {
+	if len < 0 || index+len >= seq.GetLen() {
 		return seq[index:]
 	}
 	return seq[index : index+len]
 }
 
-func (seq Sequence) GetIndex(char byte) int {
-	return bytes.IndexByte(seq, char)
+func (seq Sequence) GetIndex(base byte) int {
+	return bytes.IndexByte(seq, base)
 }
 
 func (seq Sequence) IsStartswith(prefix Sequence) bool {
@@ -102,26 +106,31 @@ func (seq Sequence) GetSnpSequence(pos int, alt byte) Sequence {
 
 func (seq Sequence) GetInsSequence(pos int, alt Sequence) Sequence {
 	newSeq := make(Sequence, seq.GetLen()+alt.GetLen())
-	copy(newSeq, seq[0:pos])
+	copy(newSeq, seq.GetSeq(0, pos))
 	copy(newSeq[pos:], alt)
-	copy(newSeq[pos+len(alt):], seq[pos:])
+	copy(newSeq[pos+len(alt):], seq.GetSeq(pos, -1))
 	return newSeq
 }
 
-func (seq Sequence) GetDelSequence(pos int, length int) Sequence {
-	newSeq := make(Sequence, seq.GetLen()-length)
-	copy(newSeq, seq[0:pos])
-	copy(newSeq[pos:], seq[pos+length:])
+func (seq Sequence) GetDelSequence(lenL int, lenR int) Sequence {
+	newSeq := make(Sequence, lenL+lenR)
+	copy(newSeq, seq.GetSeq(0, lenL))
+	copy(newSeq[lenL:], seq.GetSeq(seq.GetLen()-lenR, lenR))
 	return newSeq
 }
 
 func (seq Sequence) Translate(isMt bool) Sequence {
-	protein := make(Sequence, seq.GetLen()/3)
-	for i, j := 0, 0; i < seq.GetLen(); i, j = i+3, j+1 {
+	length := seq.GetLen()
+	protein := make(Sequence, length/3)
+	for i, j := 0, 0; i < length; i, j = i+3, j+1 {
+		var codonDict map[string]byte
 		if isMt {
-			protein[j] = CodonMtDicT[string(seq.GetSeq(i, 3))]
+			codonDict = CodonMtDict
 		} else {
-			protein[j] = CodonDicT[string(seq.GetSeq(i, 3))]
+			codonDict = CodonDict
+		}
+		if aa, ok := codonDict[string(seq.GetSeq(i, 3))]; ok {
+			protein[j] = aa
 		}
 	}
 	return protein
@@ -129,6 +138,14 @@ func (seq Sequence) Translate(isMt bool) Sequence {
 
 func (protein Sequence) IsCmpl() bool {
 	return bytes.IndexByte(protein, '*') != -1
+}
+
+func (protein Sequence) GetOne2Tree() string {
+	var buffer bytes.Buffer
+	for i := 0; i < protein.GetLen(); i++ {
+		buffer.WriteString(GetOne2Three(protein[i]))
+	}
+	return buffer.String()
 }
 
 type Fasta map[string]Sequence
@@ -152,7 +169,10 @@ func (fasta Fasta) Read(fastaFile string) {
 					name.Reset()
 					seq.Reset()
 					name.Write(line[1:])
+				} else {
+					seq.Write(line)
 				}
+
 			} else {
 				if err == io.EOF {
 					break

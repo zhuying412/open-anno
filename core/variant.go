@@ -74,7 +74,11 @@ func (variant *Variant) ConvertSnv() {
 	}
 	if variant.Ref.IsEmpty() {
 		variant.End = variant.Start
+		variant.Ref = Sequence{'-'}
 	} else {
 		variant.End = variant.Start + variant.Ref.GetLen() - 1
+	}
+	if variant.Alt.IsEmpty() {
+		variant.Alt = Sequence{'-'}
 	}
 }

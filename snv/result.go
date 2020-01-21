@@ -1,6 +1,7 @@
 package snv
 
 import (
+	"bytes"
 	"encoding/json"
 	"grandanno/core"
 	"os"
@@ -14,8 +15,11 @@ type Result struct {
 type Results []Result
 
 func (result Result) GetJson() string {
-	if data, err := json.Marshal(result); err == nil {
-		return string(data)
+	var buffer bytes.Buffer
+	jsonEncoder := json.NewEncoder(&buffer)
+	jsonEncoder.SetEscapeHTML(false)
+	if err := jsonEncoder.Encode(result); err == nil {
+		return buffer.String()
 	} else {
 		panic(err)
 	}
@@ -23,7 +27,7 @@ func (result Result) GetJson() string {
 
 func (results *Results) RunAnno(snvs Snvs, refgeneDict core.RefgeneDict, refidxs core.Refidxs, splicingLen int) {
 	for i, j := 0, 0; i < len(snvs) && j < len(refidxs); {
-		snvPos1, snvPos2 := snvs[i].Variant.GetDigitalPosition()
+		snvPos1, snvPos2 := snvs[i].GetVariant().GetDigitalPosition()
 		refPos1, refPos2 := refidxs[j].GetDigitalPosition()
 		if snvPos1 > refPos2 {
 			j++
