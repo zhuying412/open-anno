@@ -45,8 +45,8 @@ func (variant *Variant) ConvertSnv() {
 		} else {
 			var refRev, altRev Sequence
 			var subLen int
-			refRev.CopyFrom(variant.Ref)
-			altRev.CopyFrom(variant.Alt)
+			refRev = variant.Ref
+			altRev = variant.Alt
 			refRev.Reverse()
 			altRev.Reverse()
 			for i, subLen := 0, 0; i < variant.Ref.GetLen() && i < variant.Alt.GetLen(); i++ {
@@ -74,11 +74,11 @@ func (variant *Variant) ConvertSnv() {
 	}
 	if variant.Ref.IsEmpty() {
 		variant.End = variant.Start
-		variant.Ref = Sequence{'-'}
+		variant.Ref = "-"
 	} else {
 		variant.End = variant.Start + variant.Ref.GetLen() - 1
 	}
 	if variant.Alt.IsEmpty() {
-		variant.Alt = Sequence{'-'}
+		variant.Alt = "-"
 	}
 }
