@@ -21,8 +21,9 @@ type Refidxs []Refidx
 type RefidxDict map[string]Refidxs
 
 func (refidx Refidx) GetDigitalPosition() (int, int) {
-	start := ChromOrderDict[refidx.Chrom]*1e9 + refidx.Start
-	end := ChromOrderDict[refidx.Chrom]*1e9 + refidx.End
+	order, _ := Conf.Chrom.GetByName(refidx.Chrom)
+	start := order*1e9 + refidx.Start
+	end := order*1e9 + refidx.End
 	return start, end
 }
 

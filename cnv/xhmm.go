@@ -27,7 +27,7 @@ func (cnv XhmmCnv) GetVariant() core.Variant {
 }
 
 func (cnv XhmmCnv) GetTypo() string {
-	return string(bytes.Trim(cnv.Variant.Alt, "<>"))
+	return strings.Trim(string(cnv.Variant.Alt), "<>")
 }
 
 type XhmmCnvDict map[string]Cnvs

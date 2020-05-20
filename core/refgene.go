@@ -149,7 +149,7 @@ func (refgene *Refgene) SetSequence(sequence Sequence) {
 			for _, region := range refgene.Regions {
 				if region.Typo == "cds" {
 					seq := refgene.Mrna.GetSeq(region.Start-refgene.Position.ExonStart, region.End-region.Start+1)
-					refgene.Cdna.Push(seq)
+					refgene.Cdna.Join([]Sequence{seq})
 				}
 			}
 			if refgene.Strand == '-' {

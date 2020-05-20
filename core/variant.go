@@ -17,8 +17,9 @@ func (variant Variant) GetSn() string {
 }
 
 func (variant Variant) GetDigitalPosition() (int, int) {
-	start := ChromOrderDict[variant.Chrom]*1e9 + variant.Start
-	end := ChromOrderDict[variant.Chrom]*1e9 + variant.End
+	order, _ := Conf.Chrom.GetByName(variant.Chrom)
+	start := order*1e9 + variant.Start
+	end := order*1e9 + variant.End
 	return start, end
 }
 

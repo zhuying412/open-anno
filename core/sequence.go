@@ -12,7 +12,7 @@ type Base = byte
 type Sequence string
 
 func GetOne2Three(base Base) string {
-	return AaOne2ThreeDict[base]
+	return DataTbl.AA1to3[base]
 }
 
 func (seq Sequence) String() string {
@@ -108,13 +108,11 @@ func (seq Sequence) GetDelSequence(lenL int, lenR int) Sequence {
 func (seq Sequence) Translate(isMt bool) Sequence {
 	var buffer bytes.Buffer
 	for i := 0; i < seq.GetLen(); i += 3 {
-		var codonDict map[string]byte
+		codon := DataTbl.Codon
 		if isMt {
-			codonDict = CodonMtDict
-		} else {
-			codonDict = CodonDict
+			codon = DataTbl.CodonMt
 		}
-		if aa, ok := codonDict[seq.GetSeq(i, 3).String()]; ok {
+		if aa, ok := codon[seq.GetSeq(i, 3).String()]; ok {
 			buffer.WriteByte(aa)
 		}
 	}

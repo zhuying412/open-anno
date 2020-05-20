@@ -20,8 +20,9 @@ type Refidxs []Refidx
 type RefidxDict map[string]Refidxs
 
 func (refidx Refidx) GetDigitalPosition() (int, int) {
-	start := core.ChromOrderDict[refidx.Chrom]*1e9 + refidx.Start
-	end := core.ChromOrderDict[refidx.Chrom]*1e9 + refidx.End
+	order, _ := core.Conf.Chrom.GetByName(refidx.Chrom)
+	start := order*1e9 + refidx.Start
+	end := order*1e9 + refidx.End
 	return start, end
 }
 
@@ -57,17 +58,17 @@ func (refidxs Refidxs) SetTranscript(refgenes Refgenes, refidxsChannel chan Refi
 }
 
 func (refidxDict RefidxDict) Init(refidxStepLen int) {
-	for chrom, length := range core.ChromLengthDict {
-		for i := 0; i < length; i += refidxStepLen {
+	for _, chrom := range core.Conf.Chrom {
+		for i := 0; i < chrom.Length; i += refidxStepLen {
 			end := i + refidxStepLen
-			if end > length {
-				end = length
+			if end > chrom.Length {
+				end = chrom.Length
 			}
-			refdix := Refidx{Chrom: chrom, Start: i + 1, End: end}
-			if refidxs, ok := refidxDict[chrom]; ok {
-				refidxDict[chrom] = append(refidxs, refdix)
+			refdix := Refidx{Chrom: chrom.Name, Start: i + 1, End: end}
+			if refidxs, ok := refidxDict[chrom.Name]; ok {
+				refidxDict[chrom.Name] = append(refidxs, refdix)
 			} else {
-				refidxDict[chrom] = Refidxs{refdix}
+				refidxDict[chrom.Name] = Refidxs{refdix}
 			}
 		}
 	}
@@ -78,21 +79,22 @@ func (refidxDict RefidxDict) Write(refidxFile string, refgeneDict RefgeneDict) {
 	if err == nil {
 		defer fo.Close()
 		refidxsChannel := make(chan Refidxs)
-		for _, chrom := range core.ChromList {
+		chromList := core.Conf.Chrom.GetNames()
+		for _, chrom := range chromList {
 			refidxs := refidxDict[chrom]
 			refgenes := refgeneDict[chrom]
 			sort.Sort(refidxs)
 			sort.Sort(refgenes)
 			go refidxs.SetTranscript(refgenes, refidxsChannel)
 		}
-		for range core.ChromList {
+		for range chromList {
 			if refidxs, ok := <-refidxsChannel; ok {
 				refidxDict[refidxs[0].Chrom] = refidxs
 			} else {
 				break
 			}
 		}
-		for _, chrom := range core.ChromList {
+		for _, chrom := range chromList {
 			for _, refidx := range refidxDict[chrom] {
 				if len(refidx.Transcripts) > 0 {
 					if _, err := fo.WriteString(fmt.Sprintf(

@@ -17,7 +17,7 @@ type Refgene struct {
 	UpStream   int
 	DownStream int
 	Transcript string
-	Sequence   []byte
+	Sequence   core.Sequence
 }
 
 type Refgenes []Refgene
@@ -47,8 +47,9 @@ func (refgene Refgene) GetSn() string {
 }
 
 func (refgene Refgene) GetDigitalPosition() (int, int) {
-	start := core.ChromOrderDict[refgene.Chrom]*1e9 + refgene.UpStream
-	end := core.ChromOrderDict[refgene.Chrom]*1e9 + refgene.DownStream
+	order, _ := core.Conf.Chrom.GetByName(refgene.Chrom)
+	start := order*1e9 + refgene.UpStream
+	end := order*1e9 + refgene.DownStream
 	return start, end
 }
 
@@ -106,7 +107,7 @@ func (refgeneDict RefgeneDict) Read(refgeneFile string, upDownSteamLen int) {
 func (refgeneDict RefgeneDict) Write(reference core.Fasta, mrnaFile string) {
 	if fp, err := os.Create(mrnaFile); err == nil {
 		defer fp.Close()
-		for _, chrom := range core.ChromList {
+		for _, chrom := range core.Conf.Chrom.GetNames() {
 			sequence, ok1 := reference[chrom]
 			refgenes, ok2 := refgeneDict[chrom]
 			if ok1 && ok2 {
