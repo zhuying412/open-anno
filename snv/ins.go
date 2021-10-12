@@ -2,245 +2,258 @@ package snv
 
 import (
 	"fmt"
-	"grandanno/core"
+	"grandanno/gene"
+	"grandanno/seq"
 	"strings"
 )
 
-func (anno *Annotation) annoCdsChangeOfIns(pos int, alt core.Sequence, cdna core.Sequence, protein core.Sequence, isMt bool) {
-	var varCdna, varProtein core.Sequence
-	varCdna = cdna.GetInsSequence(pos, alt)
+func GetCdsChangeOfInsertion(pos int, alt seq.Sequence, cdna seq.Sequence, protein seq.Sequence, isMt bool) (event string, na_change string, aa_change string, region string) {
+	var varCdna, varProtein seq.Sequence
+	varCdna = cdna.ChangeWithIns(pos, alt)
 	if isMt {
 		varProtein = cdna.Translate(true)
 	} else {
 		varProtein = cdna.Translate(false)
 	}
-	for i := 0; i < cdna.GetLen(); i++ {
-		if cdna.GetChar(i) != varCdna.GetChar(i) {
-			anno.NaChange = fmt.Sprintf("c.%dins%s", i, varCdna.GetSeq(i, len(alt)))
+	for i := 0; i < cdna.Len(); i++ {
+		if cdna.Base(i) != varCdna.Base(i) {
+			aa_change = fmt.Sprintf("c.%dins%s", i, varCdna.SubSeq(i, len(alt)))
 			break
 		}
 	}
 	lenL, lenR := 0, 0
-	for i := 0; i < protein.GetLen(); i++ {
-		if protein.GetChar(i) != varProtein.GetChar(i) {
+	for i := 0; i < protein.Len(); i++ {
+		if protein.Base(i) != varProtein.Base(i) {
 			break
 		}
 		lenL++
 	}
-	if lenL == protein.GetLen() {
-		anno.Region = "utr3"
+	if lenL == protein.Len() {
+		region = "utr3"
 	} else {
-		if alt.GetLen()%3 == 0 {
-			for i := protein.GetLen() - 1; i >= 0; i-- {
-				if protein.GetChar(i) != varProtein.GetChar(i) {
+		if alt.Len()%3 == 0 {
+			for i := protein.Len() - 1; i >= 0; i-- {
+				if protein.Base(i) != varProtein.Base(i) {
 					break
 				}
 				lenR++
 			}
-			if lenL+lenR > protein.GetLen() {
-				lenR = protein.GetLen() - lenL
+			if lenL+lenR > protein.Len() {
+				lenR = protein.Len() - lenL
 			}
-			start, end1, end2 := lenL, protein.GetLen()-lenR, varProtein.GetLen()-lenR
-			altAa := varProtein.GetSeq(start, end2-start)
-			if varProtein.GetIndex('*') < 0 {
-				anno.Function = "ins_nonframeshift_stoploss"
+			start, end1, end2 := lenL, protein.Len()-lenR, varProtein.Len()-lenR
+			altAa := varProtein.SubSeq(start, end2-start)
+			if varProtein.Find('*') < 0 {
+				event = "ins_nonframeshift_stoploss"
 			} else {
-				if varProtein.GetIndex('*') < protein.GetLen()-1 {
-					anno.Function = "ins_nonframeshift_stopgain"
+				if varProtein.Find('*') < protein.Len()-1 {
+					event = "ins_nonframeshift_stopgain"
 				} else {
-					anno.Function = "ins_nonframeshift"
+					event = "ins_nonframeshift"
 				}
 			}
 			if start == end1 {
-				anno.AaChange = fmt.Sprintf(
+				aa_change = fmt.Sprintf(
 					"p.%s%d_%s%dins%s",
-					core.GetOne2Three(protein.GetChar(start-1)),
+					seq.AAMap[protein.Base(start-1)],
 					start,
-					core.GetOne2Three(protein.GetChar(start)),
+					seq.AAMap[protein.Base(start)],
 					start+1,
-					altAa.GetOne2Tree(),
+					altAa.ProteinOne2Tree(),
 				)
 			} else {
-				refAa := protein.GetSeq(start, end1-start)
-				anno.AaChange = fmt.Sprintf("p.%s%ddelins%s", refAa.GetOne2Tree(), start, altAa.GetOne2Tree())
+				refAa := protein.SubSeq(start, end1-start)
+				aa_change = fmt.Sprintf("p.%s%ddelins%s", refAa.ProteinOne2Tree(), start, altAa.ProteinOne2Tree())
 			}
 		} else {
 			start := lenL
-			if start < protein.GetLen() {
-				if stopIndex := varProtein.GetIndex('*'); stopIndex > -1 && stopIndex < protein.GetLen()-1 {
-					anno.Function = "ins_frameshift"
+			if start < protein.Len() {
+				if stopIndex := varProtein.Find('*'); stopIndex > -1 && stopIndex < protein.Len()-1 {
+					event = "ins_frameshift"
 				} else {
-					anno.Function = "ins_frameshift_stopgain"
+					event = "ins_frameshift_stopgain"
 				}
-				anno.AaChange = fmt.Sprintf(
+				aa_change = fmt.Sprintf(
 					"p.%s%d%sfs",
-					core.GetOne2Three(protein.GetChar(start)),
+					seq.AAMap[protein.Base(start)],
 					start+1,
-					core.GetOne2Three(varProtein.GetChar(start)),
+					seq.AAMap[varProtein.Base(start)],
 				)
 			}
 		}
 	}
+	return event, na_change, aa_change, region
 }
 
-func (anno *Annotation) annoInsForward(variant core.Variant, refgene core.Refgene, splicingLen int) {
+func NewAnnotationOfForwardInsertion(ins Snv, refgene gene.Refgene) (anno Annotation) {
 	cdna, protein := refgene.Cdna, refgene.Protein
-	alt := variant.Alt
+	alt := ins.Alt
 	pos, regionCount := 0, len(refgene.Regions)
 	for i := 0; i < regionCount; i++ {
 		region := refgene.Regions[i]
 		prevRegion, hasPrev := refgene.Regions.GetPrev(i, '+')
 		nextRegion, hasNext := refgene.Regions.GetNext(i, '+')
-		if region.Start > variant.Start+1 {
+		if region.Start > ins.Start+1 {
 			break
-		} else if region.End <= variant.Start {
-			if region.Typo == "cds" {
+		} else if region.End <= ins.Start {
+			if region.Type == "cds" {
 				pos += region.End - region.Start + 1
 			}
 		} else {
-			if region.Typo == "intron" {
-				distance1 := variant.Start - region.Start + 2
-				distance2 := variant.Start - region.Start + 1
-				if distance1 <= splicingLen && hasPrev {
+			if region.Type == "intron" {
+				distance1 := ins.Start - region.Start + 2
+				distance2 := ins.Start - region.Start + 1
+				if distance1 <= IntronDistance && hasPrev {
 					if distance1 <= 2 {
 						anno.Region = "splicing_site"
 					} else {
 						anno.Region = "splicing_region"
 					}
-					if prevRegion.Typo == "cds" {
+					if prevRegion.Type == "cds" {
 						if refgene.Tag == "cmpl" {
 							anno.SetExon(prevRegion.ExonOrder)
 							anno.NaChange = fmt.Sprintf("c.%d+%dins%s", pos, distance1, alt)
 						}
 					} else {
-						anno.Region = strings.Join([]string{prevRegion.Typo, anno.Region}, "_")
+						anno.Region = strings.Join([]string{prevRegion.Type, anno.Region}, "_")
 					}
-				} else if distance2 <= splicingLen && hasNext {
+				} else if distance2 <= IntronDistance && hasNext {
 					if distance2 <= 2 {
 						anno.Region = "splicing_site"
 					} else {
 						anno.Region = "splicing_region"
 					}
-					if nextRegion.Typo == "cds" {
+					if nextRegion.Type == "cds" {
 						if refgene.Tag == "cmpl" {
 							anno.SetExon(nextRegion.ExonOrder)
 							anno.NaChange = fmt.Sprintf("c.%d-%dins%s", pos+1, distance2, alt)
 						}
 					} else {
-						anno.Region = strings.Join([]string{nextRegion.Typo, anno.Region}, "_")
+						anno.Region = strings.Join([]string{nextRegion.Type, anno.Region}, "_")
 					}
 				} else {
 					anno.Region = "intronic"
 				}
-			} else if strings.HasPrefix(region.Typo, "utr") {
-				if variant.Start-region.Start+1 < splicingLen && hasPrev && prevRegion.Typo == "intron" {
-					anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
-				} else if region.End-variant.Start < splicingLen && hasNext && nextRegion.Typo == "intron" {
-					anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
+			} else if strings.HasPrefix(region.Type, "utr") {
+				if ins.Start-region.Start+1 < IntronDistance && hasPrev && prevRegion.Type == "intron" {
+					anno.Region = strings.Join([]string{region.Type, "exon_splicing"}, "_")
+				} else if region.End-ins.Start < IntronDistance && hasNext && nextRegion.Type == "intron" {
+					anno.Region = strings.Join([]string{region.Type, "exon_splicing"}, "_")
 				} else {
-					anno.Region = region.Typo
+					anno.Region = region.Type
 				}
 			} else {
-				if variant.Start-region.Start+1 < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+				if ins.Start-region.Start+1 < IntronDistance && hasPrev && prevRegion.Type == "intron" {
 					anno.Region = "CDS_splicing"
-				} else if region.End-variant.Start < splicingLen && hasNext && nextRegion.Typo == "intron" {
+				} else if region.End-ins.Start < IntronDistance && hasNext && nextRegion.Type == "intron" {
 					anno.Region = "CDS_splicing"
 				} else {
 					anno.Region = "exonic"
 				}
-				pos += variant.Start - region.Start + 1
+				pos += ins.Start - region.Start + 1
 				if refgene.Tag == "cmpl" {
 					anno.SetExon(region.ExonOrder)
-					if refgene.Chrom == "MT" {
-						anno.annoCdsChangeOfIns(pos, alt, cdna, protein, true)
-					} else {
-						anno.annoCdsChangeOfIns(pos, alt, cdna, protein, false)
+					var newRegion string
+					anno.Event, anno.NaChange, anno.AaChange, newRegion = GetCdsChangeOfInsertion(pos, alt, cdna, protein, refgene.Chrom == "MT")
+					if newRegion == "" {
+						anno.Region = newRegion
 					}
-
 				}
 			}
 		}
 	}
+	return anno
 }
 
-func (anno *Annotation) annoInsBackward(variant core.Variant, refgene core.Refgene, splicingLen int) {
+func NewAnnotationOfBackwardInsertion(ins Snv, refgene gene.Refgene) (anno Annotation) {
 	cdna, protein := refgene.Cdna, refgene.Protein
-	alt := variant.Alt
+	alt := ins.Alt
 	pos, regionCount := 0, len(refgene.Regions)
 	for i := regionCount - 1; i >= 0; i-- {
 		region := refgene.Regions[i]
 		prevRegion, hasPrev := refgene.Regions.GetPrev(i, '-')
 		nextRegion, hasNext := refgene.Regions.GetNext(i, '-')
-		if region.End < variant.Start {
+		if region.End < ins.Start {
 			break
-		} else if region.Start > variant.Start {
-			if region.Typo == "cds" {
+		} else if region.Start > ins.Start {
+			if region.Type == "cds" {
 				pos += region.End - region.Start + 1
 			}
 		} else {
-			if region.Typo == "intron" {
-				distance1 := variant.Start - region.Start + 2
-				distance2 := region.End - variant.Start + 1
-				if distance1 <= splicingLen && hasNext {
+			if region.Type == "intron" {
+				distance1 := ins.Start - region.Start + 2
+				distance2 := region.End - ins.Start + 1
+				if distance1 <= IntronDistance && hasNext {
 					if distance1 <= 2 {
 						anno.Region = "splicing_site"
 					} else {
 						anno.Region = "splicing_region"
 					}
-					if nextRegion.Typo == "cds" {
+					if nextRegion.Type == "cds" {
 						if refgene.Tag == "cmpl" {
 							anno.SetExon(nextRegion.ExonOrder)
 							anno.NaChange = fmt.Sprintf("c.%d-%dins%s", pos+1, distance1, alt)
 						}
 					} else {
-						anno.Region = strings.Join([]string{nextRegion.Typo, anno.Region}, "_")
+						anno.Region = strings.Join([]string{nextRegion.Type, anno.Region}, "_")
 					}
-				} else if distance2 <= splicingLen && hasPrev {
+				} else if distance2 <= IntronDistance && hasPrev {
 					if distance2 <= 2 {
 						anno.Region = "splicing_site"
 					} else {
 						anno.Region = "splicing_region"
 					}
-					if prevRegion.Typo == "cds" {
+					if prevRegion.Type == "cds" {
 						if refgene.Tag == "cmpl" {
 							anno.SetExon(prevRegion.ExonOrder)
 							anno.NaChange = fmt.Sprintf("c.%d-%dins%s", pos, distance2, alt)
 						}
 					} else {
-						anno.Region = strings.Join([]string{prevRegion.Typo, anno.Region}, "_")
+						anno.Region = strings.Join([]string{prevRegion.Type, anno.Region}, "_")
 					}
 				} else {
 					anno.Region = "intronic"
 				}
-			} else if strings.HasPrefix(region.Typo, "utr") {
-				if variant.Start-region.Start+1 < splicingLen && hasNext && nextRegion.Typo == "intron" {
-					anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
-				} else if region.End-variant.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
-					anno.Region = strings.Join([]string{region.Typo, "exon_splicing"}, "_")
+			} else if strings.HasPrefix(region.Type, "utr") {
+				if ins.Start-region.Start+1 < IntronDistance && hasNext && nextRegion.Type == "intron" {
+					anno.Region = strings.Join([]string{region.Type, "exon_splicing"}, "_")
+				} else if region.End-ins.Start < IntronDistance && hasPrev && prevRegion.Type == "intron" {
+					anno.Region = strings.Join([]string{region.Type, "exon_splicing"}, "_")
 				} else {
-					anno.Region = region.Typo
+					anno.Region = region.Type
 				}
 			} else {
-				if variant.Start-region.Start+1 < splicingLen && hasNext && nextRegion.Typo == "intron" {
+				if ins.Start-region.Start+1 < IntronDistance && hasNext && nextRegion.Type == "intron" {
 					anno.Region = "CDS_splicing"
-				} else if region.End-variant.Start < splicingLen && hasPrev && prevRegion.Typo == "intron" {
+				} else if region.End-ins.Start < IntronDistance && hasPrev && prevRegion.Type == "intron" {
 					anno.Region = "CDS_splicing"
 				} else {
 					anno.Region = "exonic"
 				}
-				pos += region.End - variant.Start
+				pos += region.End - ins.Start
 				if refgene.Tag == "cmpl" {
 					anno.SetExon(region.ExonOrder)
-					anno.annoCdsChangeOfIns(pos, alt, cdna, protein, refgene.Chrom == "MT")
+					var newRegion string
+					anno.Event, anno.NaChange, anno.AaChange, newRegion = GetCdsChangeOfInsertion(pos, alt, cdna, protein, refgene.Chrom == "MT")
+					if newRegion == "" {
+						anno.Region = newRegion
+					}
 				}
 			}
 		}
 	}
+	return anno
 }
-func (anno *Annotation) AnnoIns(ins Snv, refgene core.Refgene, splicingLen int) {
+
+func NewAnnotationOfInsertion(ins Snv, refgene gene.Refgene) Annotation {
+	var anno Annotation
 	if refgene.Strand == '+' {
-		anno.annoInsForward(ins.GetVariant(), refgene, splicingLen)
+		anno = NewAnnotationOfForwardInsertion(ins, refgene)
 	} else {
-		anno.annoInsBackward(ins.GetVariant(), refgene, splicingLen)
+		anno = NewAnnotationOfBackwardInsertion(ins, refgene)
 	}
+	anno.GeneSymbol = refgene.Gene
+	anno.GeneEntrezId = refgene.EntrezId
+	anno.Transcript = refgene.Transcript
+	return anno
 }

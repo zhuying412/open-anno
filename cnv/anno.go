@@ -2,32 +2,36 @@ package cnv
 
 import (
 	"fmt"
-	"grandanno/core"
+	"grandanno/gene"
 	"strings"
 )
 
 type Annotation struct {
-	Gene       string
-	EntrezId   int
-	Transcript string
-	Region     string
-	Function   string
-	Exons      []int
+	GeneSymbol   string `json:"gene_symbol"`
+	GeneEntrezId string `json:"gene_entrez_id"`
+	Transcript   string `json:"transcript"`
+	Region       string `json:"region"`
+	Function     string `json:"function"`
+	Exons        []int  `json:"exons"`
 }
 
-func (anno *Annotation) AddExon(exon int) {
-	anno.Exons = append(anno.Exons, exon)
+func (a *Annotation) AddExon(exon int) {
+
+	a.Exons = append(a.Exons, exon)
 }
 
-func (anno *Annotation) GetCds() string {
-	switch len(anno.Exons) {
+func (a Annotation) HasCoding() bool {
+	return strings.Contains(a.Region, "exon")
+}
+func (a *Annotation) GetCds() string {
+	switch len(a.Exons) {
 	case 0:
 		return "."
 	case 1:
-		return fmt.Sprintf("exon.%d", anno.Exons[0])
+		return fmt.Sprintf("exon.%d", a.Exons[0])
 	default:
-		min, max := anno.Exons[0], anno.Exons[0]
-		for _, exon := range anno.Exons {
+		min, max := a.Exons[0], a.Exons[0]
+		for _, exon := range a.Exons {
 			if min > exon {
 				min = exon
 			}
@@ -41,47 +45,47 @@ func (anno *Annotation) GetCds() string {
 
 type Annotations []Annotation
 
-func (annos Annotations) IsSpecial() bool {
-	for _, anno := range annos {
-		if strings.Contains(anno.Region, "exon") {
+func (a Annotations) HasCoding() bool {
+	for _, anno := range a {
+		if anno.HasCoding() {
 			return true
 		}
 	}
 	return false
 }
 
-func (annos *Annotations) AnnoIntergeic() {
-	*annos = append(*annos, Annotation{Region: "intergenic"})
+func NewAnnotationsInIntergeic() Annotations {
+	return Annotations{Annotation{Region: "intergenic"}}
 }
 
-func (annos *Annotations) AnnoStream(cnv Cnv, refgenes core.Refgenes) {
+func NewAnnotationsInUpDownStream(cnv Cnv, refgenes gene.Refgenes) Annotations {
+	annos := make(Annotations, 0)
 	for _, refgene := range refgenes {
 		for _, region := range refgene.Streams {
-			if cnv.GetVariant().Start <= region.End && cnv.GetVariant().End >= region.Start {
-				*annos = append(*annos, Annotation{
-					Gene:       refgene.Gene,
-					EntrezId:   refgene.EntrezId,
-					Transcript: refgene.Transcript,
-					Region:     region.Typo,
+			if cnv.Start <= region.End && cnv.End >= region.Start {
+				annos = append(annos, Annotation{
+					GeneSymbol:   refgene.Gene,
+					GeneEntrezId: refgene.EntrezId,
+					Transcript:   refgene.Transcript,
+					Region:       region.Type,
 				})
 				break
 			}
 		}
-
 	}
+	return annos
 }
 
-func (annos *Annotations) AnnoGene(cnv Cnv, refgenes core.Refgenes) {
-	var cmplAnnos, incmplAnnos, unkAnnos Annotations
-	variant := cnv.GetVariant()
+func NewAnnotationsInGene(cnv Cnv, refgenes gene.Refgenes) Annotations {
+	var cmplAnnos, incmplAnnos, unkAnnos, annos Annotations
 	for _, refgene := range refgenes {
-		if variant.End >= refgene.Position.ExonStart && variant.Start <= refgene.Position.ExonEnd {
+		if cnv.End >= refgene.Position.ExonStart && cnv.Start <= refgene.Position.ExonEnd {
 			anno := Annotation{
-				Gene:       refgene.Gene,
-				EntrezId:   refgene.EntrezId,
-				Transcript: refgene.Transcript,
+				GeneSymbol:   refgene.Gene,
+				GeneEntrezId: refgene.EntrezId,
+				Transcript:   refgene.Transcript,
 			}
-			if cnv.GetTypo() == "DEL" {
+			if cnv.Ref == "DEL" {
 				anno.Function = "Deletion"
 			} else {
 				anno.Function = "Duplication"
@@ -91,9 +95,9 @@ func (annos *Annotations) AnnoGene(cnv Cnv, refgenes core.Refgenes) {
 				unkAnnos = append(unkAnnos, anno)
 			} else {
 				for _, region := range refgene.Regions {
-					if variant.Start <= region.End && variant.End >= region.Start {
-						anno.Region = region.Typo
-						if region.Typo == "cds" && refgene.Tag == "cmpl" {
+					if cnv.Start <= region.End && cnv.End >= region.Start {
+						anno.Region = region.Type
+						if region.Type == "cds" && refgene.Tag == "cmpl" {
 							anno.AddExon(region.ExonOrder)
 						}
 					}
@@ -107,11 +111,12 @@ func (annos *Annotations) AnnoGene(cnv Cnv, refgenes core.Refgenes) {
 			}
 		}
 	}
-	*annos = append(*annos, cmplAnnos...)
-	if !(*annos).IsSpecial() {
-		*annos = append(*annos, incmplAnnos...)
+	annos = append(annos, cmplAnnos...)
+	if !annos.HasCoding() {
+		annos = append(annos, incmplAnnos...)
 	}
-	if len(*annos) == 0 {
-		*annos = append(*annos, unkAnnos...)
+	if len(annos) == 0 {
+		annos = append(annos, unkAnnos...)
 	}
+	return annos
 }

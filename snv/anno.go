@@ -2,100 +2,105 @@ package snv
 
 import (
 	"bytes"
-	"grandanno/core"
+	"grandanno/gene"
+	"log"
 	"strconv"
 	"strings"
 )
 
 type Annotation struct {
-	Gene       string
-	EntrezId   int
-	Transcript string
-	Exon       string
-	NaChange   string
-	AaChange   string
-	Region     string
-	Function   string
+	GeneSymbol   string `json:"gene_symbol"`
+	GeneEntrezId string `json:"gene_entrez_id"`
+	Transcript   string `json:"transcript"`
+	Exon         string `json:"exon"`
+	NaChange     string `json:"na_change"`
+	AaChange     string `json:"aa_change"`
+	Region       string `json:"region"`
+	Event        string `json:"event"`
 }
 
-func (anno *Annotation) SetExon(exonOrder int) {
+func (a *Annotation) SetExon(exonOrder int) {
 	var buffer bytes.Buffer
 	buffer.WriteString("exon")
 	buffer.WriteString(strconv.Itoa(exonOrder))
-	anno.Exon = buffer.String()
+	a.Exon = buffer.String()
+}
+
+func (a Annotation) InCodingOrSplicing() bool {
+	return strings.Contains(a.Region, "splic") || strings.Contains(a.Region, "exon")
 }
 
 type Annotations []Annotation
 
-func (annos Annotations) IsSpecial() bool {
-	for _, anno := range annos {
-		if strings.Contains(anno.Region, "splic") || strings.Contains(anno.Region, "exon") {
+func (a Annotations) HasCodingorSplicing() bool {
+	for _, anno := range a {
+		if anno.InCodingOrSplicing() {
 			return true
 		}
 	}
 	return false
 }
 
-func (annos *Annotations) AnnoIntergeic() {
-	*annos = append(*annos, Annotation{Region: "intergenic"})
+func NewAnnotationsInIntergeic() Annotations {
+	return Annotations{Annotation{Region: "intergenic"}}
 }
 
-func (annos *Annotations) AnnoStream(snv Snv, refgenes core.Refgenes) {
+func NewAnnotationsInUpDownStream(snv Snv, refgenes gene.Refgenes) Annotations {
+	annos := make(Annotations, 0)
 	for _, refgene := range refgenes {
 		for _, region := range refgene.Streams {
-			variant := snv.GetVariant()
-			if variant.Start <= region.End && variant.End >= region.Start {
-				*annos = append(*annos, Annotation{
-					Gene:       refgene.Gene,
-					EntrezId:   refgene.EntrezId,
-					Transcript: refgene.Transcript,
-					Region:     region.Typo,
+			if snv.Start <= region.End && snv.End >= region.Start {
+				annos = append(annos, Annotation{
+					GeneSymbol:   refgene.Gene,
+					GeneEntrezId: refgene.EntrezId,
+					Transcript:   refgene.Transcript,
+					Region:       region.Type,
 				})
 				break
 			}
 		}
-
 	}
+	return annos
 }
 
-func (annos *Annotations) AnnoGene(snv Snv, refgenes core.Refgenes, splicingLen int) {
-	var cmplAnnos, incmplAnnos, unkAnnos Annotations
+func NewAnnotationsInGene(snv Snv, refgenes gene.Refgenes) Annotations {
+	var annos, cmplAnnos, incmplAnnos, unkAnnos Annotations
 	for _, refgene := range refgenes {
-		variant := snv.GetVariant()
-		if variant.End >= refgene.Position.ExonStart && variant.Start <= refgene.Position.ExonEnd {
-			anno := Annotation{
-				Gene:       refgene.Gene,
-				EntrezId:   refgene.EntrezId,
-				Transcript: refgene.Transcript,
-			}
+		if snv.End >= refgene.Position.ExonStart && snv.Start <= refgene.Position.ExonEnd {
+			var anno Annotation
 			if refgene.Tag == "unk" {
-				anno.Region = "unkCDS"
-				unkAnnos = append(unkAnnos, anno)
+				unkAnnos = append(unkAnnos, Annotation{
+					GeneSymbol:   refgene.Gene,
+					GeneEntrezId: refgene.EntrezId,
+					Transcript:   refgene.Transcript,
+					Region:       "unkCDS",
+				})
 			} else {
-				switch snv.GetTypo() {
+				switch snv.Type() {
 				case "del":
-					anno.AnnoDel(snv, refgene, splicingLen)
+					anno = NewAnnotationOfDeletion(snv, refgene)
 				case "ins":
-					anno.AnnoIns(snv, refgene, splicingLen)
+					anno = NewAnnotationOfInsertion(snv, refgene)
 				case "snp":
-					anno.AnnoSnp(snv, refgene, splicingLen)
+					anno = NewAnnotationOfSNP(snv, refgene)
 				default:
-					anno.AnnoSnp(snv, refgene, splicingLen)
+					log.Panicf("Unknown SNV type:%s", snv.Type())
 				}
 				if refgene.IsCmpl() {
 					cmplAnnos = append(cmplAnnos, anno)
 				} else {
-					anno.Function = "incmplCDS"
+					anno.Event = "incmplCDS"
 					incmplAnnos = append(incmplAnnos, anno)
 				}
 			}
 		}
 	}
-	*annos = append(*annos, cmplAnnos...)
-	if !(*annos).IsSpecial() {
-		*annos = append(*annos, incmplAnnos...)
+	annos = append(annos, cmplAnnos...)
+	if !(annos).HasCodingorSplicing() {
+		annos = append(annos, incmplAnnos...)
 	}
-	if len(*annos) == 0 {
-		*annos = append(*annos, unkAnnos...)
+	if len(annos) == 0 {
+		annos = append(annos, unkAnnos...)
 	}
+	return annos
 }
