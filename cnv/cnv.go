@@ -1,13 +1,8 @@
 package cnv
 
 import (
-	"bufio"
 	"fmt"
 	"grandanno/db"
-	"io"
-	"log"
-	"os"
-	"strings"
 )
 
 type Cnv struct {
@@ -50,32 +45,21 @@ func (c Cnvs) Swap(i, j int) {
 	c[i], c[j] = c[j], c[i]
 }
 
-func NewCnvs(avinputFile string) Cnvs {
-	cnvs := make(Cnvs, 0)
-	if fp, err := os.Open(avinputFile); err == nil {
-		defer func(fp *os.File) {
-			err := fp.Close()
-			if err != nil {
-				log.Panic(err)
-			}
-		}(fp)
-		reader := bufio.NewReader(fp)
-		for {
-			if line, err := reader.ReadString('\n'); err == nil {
-				line = strings.TrimSpace(line)
-				if len(line) == 0 || line[0] == '#' {
-					continue
-				}
-			} else {
-				if err == io.EOF {
-					break
-				} else {
-					log.Panic(err)
-				}
-			}
-		}
+func NewCnv(chrom string, start int, end int, copyNumber int) Cnv {
+	var alt string
+	if copyNumber > 1 {
+		alt = "DUP"
+	} else if copyNumber < 1 {
+		alt = "DEL"
 	} else {
-		log.Panic(err)
+		alt = "DIP"
 	}
-	return cnvs
+	return Cnv{
+		Chrom:      chrom,
+		Start:      start,
+		End:        end,
+		Ref:        "DIP",
+		Alt:        alt,
+		CopyNumber: copyNumber,
+	}
 }

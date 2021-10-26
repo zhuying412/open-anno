@@ -1,9 +1,7 @@
 package cnv
 
 import (
-	"fmt"
 	"grandanno/gene"
-	"strings"
 )
 
 type Annotation struct {
@@ -11,35 +9,16 @@ type Annotation struct {
 	GeneEntrezId string `json:"gene_entrez_id"`
 	Transcript   string `json:"transcript"`
 	Region       string `json:"region"`
-	Function     string `json:"function"`
-	Exons        []int  `json:"exons"`
+	StartExon    int    `json:"StartExon"`
+	EndExon      int    `json:"end_exon"`
 }
 
-func (a *Annotation) AddExon(exon int) {
-
-	a.Exons = append(a.Exons, exon)
-}
-
-func (a Annotation) HasCoding() bool {
-	return strings.Contains(a.Region, "exon")
-}
-func (a *Annotation) GetCds() string {
-	switch len(a.Exons) {
-	case 0:
-		return "."
-	case 1:
-		return fmt.Sprintf("exon.%d", a.Exons[0])
-	default:
-		min, max := a.Exons[0], a.Exons[0]
-		for _, exon := range a.Exons {
-			if min > exon {
-				min = exon
-			}
-			if max < exon {
-				max = exon
-			}
-		}
-		return fmt.Sprintf("exon.%d_%d", min, max)
+func (a *Annotation) SetExon(exon int) {
+	if exon < a.StartExon {
+		a.StartExon = exon
+	}
+	if exon > a.EndExon {
+		a.EndExon = exon
 	}
 }
 
@@ -47,7 +26,7 @@ type Annotations []Annotation
 
 func (a Annotations) HasCoding() bool {
 	for _, anno := range a {
-		if anno.HasCoding() {
+		if anno.StartExon > 0 && anno.EndExon > 0 {
 			return true
 		}
 	}
@@ -85,24 +64,19 @@ func NewAnnotationsInGene(cnv Cnv, refgenes gene.Refgenes) Annotations {
 				GeneEntrezId: refgene.EntrezId,
 				Transcript:   refgene.Transcript,
 			}
-			if cnv.Ref == "DEL" {
-				anno.Function = "Deletion"
-			} else {
-				anno.Function = "Duplication"
-			}
-			if refgene.Tag == "unk" {
-				anno.Region = "unkCDS"
+			if refgene.IsUnk() {
+				anno.Region = "ncRNA"
 				unkAnnos = append(unkAnnos, anno)
 			} else {
 				for _, region := range refgene.Regions {
 					if cnv.Start <= region.End && cnv.End >= region.Start {
-						anno.Region = region.Type
-						if region.Type == "CDS" && refgene.Tag == "cmpl" {
-							anno.AddExon(region.ExonOrder)
+						if region.IsCDS() {
+							anno.SetExon(region.ExonOrder)
 						}
 					}
 				}
-				if refgene.Tag == "cmpl" {
+				if refgene.IsCmpl() {
+					anno.Region = "Gene"
 					cmplAnnos = append(cmplAnnos, anno)
 				} else {
 					anno.Region = "incmplCDS"

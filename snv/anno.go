@@ -73,7 +73,7 @@ func NewAnnotationsInGene(snv Snv, refgenes gene.Refgenes) Annotations {
 					GeneSymbol:   refgene.Gene,
 					GeneEntrezId: refgene.EntrezId,
 					Transcript:   refgene.Transcript,
-					Region:       "unkCDS",
+					Region:       "ncRNA",
 				})
 			} else {
 				switch snv.Type() {

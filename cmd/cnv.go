@@ -20,18 +20,12 @@ func NewCnvCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				cnv.AnnoCnv(
-					cmd.Flag("database").Value.String(),
-					cmd.Flag("genome").Value.String(),
-					cmd.Flag("input").Value.String(),
-					cmd.Flag("output").Value.String(),
-				)
+				cnv.AnnoCnv(cmd.Flag("input").Value.String(), cmd.Flag("output").Value.String())
 			}
 		},
 	}
 	cmd.Flags().StringP("input", "i", "", "SNV input file")
 	cmd.Flags().StringP("output", "o", "", "Annotated ouput file")
 	cmd.Flags().StringP("database", "d", "", "Database Path")
-	cmd.Flags().StringP("genome", "g", "hg19", "Genome Version")
 	return cmd
 }
