@@ -20,6 +20,7 @@ func NewCnvCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
+				InitViper(cmd.Flag("database").Value.String())
 				cnv.AnnoCnv(cmd.Flag("input").Value.String(), cmd.Flag("output").Value.String())
 			}
 		},
