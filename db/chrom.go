@@ -27,11 +27,11 @@ func (c Chromosomes) GetByName(name string) (int, Chromosome) {
 	return 0, Chromosome{}
 }
 
-func NewChromosomesFromReferenceDict(referenceDictPath string) Chromosomes {
+func ReadReferenceDictFile(referenceDictPath string) Chromosomes {
 	chroms := make(Chromosomes, 0)
 	fi, err := os.Open(referenceDictPath)
 	if err != nil {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	defer func(fi *os.File) {
 		err := fi.Close()
@@ -59,7 +59,7 @@ func NewChromosomesFromReferenceDict(referenceDictPath string) Chromosomes {
 			if err == io.EOF {
 				break
 			} else {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}
 	}

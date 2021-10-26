@@ -35,12 +35,16 @@ func (r Refgene) IsCmpl() bool {
 	return r.Tag == "cmpl"
 }
 
+func (r Refgene) IsUnk() bool {
+	return r.Tag == "unk"
+}
+
 func (r *Refgene) SetSequence(sequence seq.Sequence) {
 	if !sequence.IsEmpty() {
 		r.Mrna = sequence
 		if r.Tag != "unk" {
 			for _, region := range r.Regions {
-				if region.Type == "cds" {
+				if region.Type == "CDS" {
 					r.Cdna.Join(r.Mrna.SubSeq(region.Start-r.Position.ExonStart, region.End-region.Start+1))
 				}
 			}
@@ -56,6 +60,8 @@ func (r *Refgene) SetSequence(sequence seq.Sequence) {
 				r.Tag = "incmpl"
 				r.Protein.Clear()
 			}
+		} else {
+			r.Tag = "unk"
 		}
 	}
 }
@@ -93,18 +99,18 @@ func NewRefgene(refgeneLine string) Refgene {
 			var typo string
 			if refgene.Position.CdsStart > end {
 				if refgene.Strand == '+' {
-					typo = "utr5"
+					typo = "UTR5"
 				} else {
-					typo = "utr3"
+					typo = "UTR3"
 				}
 			} else if refgene.Position.CdsEnd < start {
 				if refgene.Strand == '-' {
-					typo = "utr5"
+					typo = "UTR5"
 				} else {
-					typo = "utr3"
+					typo = "UTR3"
 				}
 			} else {
-				typo = "cds"
+				typo = "CDS"
 			}
 			refgene.Regions = append(refgene.Regions, Region{
 				Start:     start,
@@ -113,43 +119,43 @@ func NewRefgene(refgeneLine string) Refgene {
 				ExonOrder: exonOrder,
 			})
 		} else {
-			utrType1, utrType2 := "", ""
+			UTRType1, UTRType2 := "", ""
 			cdsStart, cdsEnd := start, end
 			if start < refgene.Position.CdsStart && refgene.Position.CdsStart < end {
 				if refgene.Strand == '+' {
-					utrType1 = "utr5"
+					UTRType1 = "UTR5"
 				} else {
-					utrType2 = "utr3"
+					UTRType1 = "UTR3"
 				}
 				cdsStart = refgene.Position.CdsStart
 			}
 			if start < refgene.Position.CdsEnd && refgene.Position.CdsEnd < end {
 				if refgene.Strand == '+' {
-					utrType2 = "utr3"
+					UTRType2 = "UTR3"
 				} else {
-					utrType2 = "utr5"
+					UTRType2 = "UTR5"
 				}
 				cdsEnd = refgene.Position.CdsEnd
 			}
-			if utrType1 != "" {
+			if UTRType1 != "" {
 				refgene.Regions = append(refgene.Regions, Region{
 					Start:     start,
 					End:       refgene.Position.CdsStart - 1,
-					Type:      utrType1,
+					Type:      UTRType1,
 					ExonOrder: exonOrder,
 				})
 			}
 			refgene.Regions = append(refgene.Regions, Region{
 				Start:     cdsStart,
 				End:       cdsEnd,
-				Type:      "cds",
+				Type:      "CDS",
 				ExonOrder: exonOrder,
 			})
-			if utrType2 != "" {
+			if UTRType2 != "" {
 				refgene.Regions = append(refgene.Regions, Region{
 					Start:     refgene.Position.CdsEnd + 1,
 					End:       end,
-					Type:      utrType2,
+					Type:      UTRType2,
 					ExonOrder: exonOrder,
 				})
 			}
@@ -179,13 +185,13 @@ type Refgenes []Refgene
 
 type RefgeneMap map[string]Refgene
 
-func NewRefgeneMap(refgeneFile string) RefgeneMap {
+func ReadRefgeneFile(refgeneFile string) RefgeneMap {
 	refgeneMap := make(RefgeneMap)
 	if fp, err := os.Open(refgeneFile); err == nil {
 		defer func(fp *os.File) {
 			err := fp.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fp)
 		reader := bufio.NewReader(fp)
@@ -204,14 +210,14 @@ func NewRefgeneMap(refgeneFile string) RefgeneMap {
 				if err == io.EOF {
 					break
 				} else {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 			}
 		}
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
-	return RefgeneMap{}
+	return refgeneMap
 }
 
 func (r *RefgeneMap) SetSequence(mrna seq.Fasta) {
@@ -221,6 +227,16 @@ func (r *RefgeneMap) SetSequence(mrna seq.Fasta) {
 			(*r)[sn] = refgene
 		}
 	}
+}
+
+func (r RefgeneMap) FilterByChrom(chrom string) RefgeneMap {
+	refgeneMap := make(RefgeneMap)
+	for sn, refgene := range r {
+		if refgene.Chrom == chrom {
+			refgeneMap[sn] = refgene
+		}
+	}
+	return refgeneMap
 }
 
 func (r RefgeneMap) FindMany(sns []string) (refgenes Refgenes) {

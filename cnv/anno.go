@@ -97,7 +97,7 @@ func NewAnnotationsInGene(cnv Cnv, refgenes gene.Refgenes) Annotations {
 				for _, region := range refgene.Regions {
 					if cnv.Start <= region.End && cnv.End >= region.Start {
 						anno.Region = region.Type
-						if region.Type == "cds" && refgene.Tag == "cmpl" {
+						if region.Type == "CDS" && refgene.Tag == "cmpl" {
 							anno.AddExon(region.ExonOrder)
 						}
 					}

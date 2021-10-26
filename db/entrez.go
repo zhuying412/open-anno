@@ -10,16 +10,16 @@ import (
 
 type EntrezIdMap map[string]string
 
-func NewEntrezIDMap(symboToIdPath string) EntrezIdMap {
+func ReadSymboToIdFile(symboToIdPath string) EntrezIdMap {
 	entrezIdMap := make(EntrezIdMap)
 	fi, err := os.Open(symboToIdPath)
 	if err != nil {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	defer func(fi *os.File) {
 		err := fi.Close()
 		if err != nil {
-			log.Panic(err.Error())
+			log.Panic(err)
 		}
 	}(fi)
 	reader := bufio.NewReader(fi)
@@ -32,7 +32,7 @@ func NewEntrezIDMap(symboToIdPath string) EntrezIdMap {
 			if err == io.EOF {
 				break
 			} else {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}
 	}

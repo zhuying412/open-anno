@@ -17,7 +17,7 @@ type OpenAnno struct {
 func (o OpenAnno) Json() string {
 	data, err := json.Marshal(o)
 	if err != nil {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	return string(data)
 }
@@ -58,12 +58,12 @@ func WriteAnnotations(annos []OpenAnno, outJsonFile string) {
 		defer func(fp *os.File) {
 			err := fp.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fp)
 		for _, result := range annos {
 			if _, err := fp.WriteString(result.Json() + "\n"); err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}
 	}

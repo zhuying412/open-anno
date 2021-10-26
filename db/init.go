@@ -1,12 +1,12 @@
 package db
 
 import (
-	"fmt"
+	"github.com/spf13/viper"
 	"grandanno/seq"
 	"log"
+	"os"
+	"path"
 )
-
-var DB Database
 
 var ChromArray Chromosomes
 
@@ -16,28 +16,57 @@ var RefIndexStepLen int
 
 var SymbolToEntrezId EntrezIdMap
 
-func InitDatabase(databasePath string, genomeVersion string) {
-	DB = NewDatabase(databasePath, genomeVersion)
-	DB.Check()
-	ChromArray = NewChromosomesFromReferenceDict(DB.ReferenceDictFile())
+var RefgeneIndexes RefIndexes
+
+func InitChromArray() {
+	refDictFile := path.Join(viper.GetString("db.path"), viper.GetString("db.reference_dict"))
+	log.Printf("read %s\n", refDictFile)
+	ChromArray = ReadReferenceDictFile(refDictFile)
 }
 
-func PrepareDatabase(databasePath string, genomeVersion string) {
-	DB = NewDatabase(databasePath, genomeVersion)
-	ChromArray = NewChromosomesFromReferenceDict(DB.ReferenceDictFile())
+func InitSymbolToEntrezId() {
+	symbolToEntrezIdFile := path.Join(viper.GetString("db.path"), viper.GetString("db.gene_symbol_to_entrez_id"))
+	log.Printf("read %s\n", symbolToEntrezIdFile)
+	SymbolToEntrezId = ReadSymboToIdFile(symbolToEntrezIdFile)
+}
+
+func InitRefIndex() {
+	refIndexFile := path.Join(viper.GetString("db.path"), viper.GetString("db.refgene_index"))
+	log.Printf("read %s\n", refIndexFile)
+	RefgeneIndexes = ReadRefIndexFile(refIndexFile)
+}
+
+func InitDBParam() {
+	UpDownStreamLen = viper.GetInt("param.up_down_stream_length")
+	RefIndexStepLen = viper.GetInt("param.refgene_index_step_length")
+}
+
+func PrepareDatabase() {
+	InitChromArray()
+	InitDBParam()
+	// reference
+	refenceFastaFile := path.Join(viper.GetString("db.path"), viper.GetString("db.reference"))
+	log.Printf("read %s\n", refenceFastaFile)
+	reference := seq.ReadFastaFile(refenceFastaFile)
+	// refgene
+	refgeneFile := path.Join(viper.GetString("db.path"), viper.GetString("db.refgene"))
+	log.Printf("read %s\n", refgeneFile)
+	refgenes := ReadRefgeneFile(refgeneFile)
 	// mRNA
-	log.Printf("start read %s\n", DB.ReferenceFastaFile())
-	reference := seq.NewFasta(DB.ReferenceFastaFile())
-	fmt.Printf("start read %s\n", DB.RefgeneFile())
-	refgenes := NewRefgenes(DB.RefgeneFile())
-	fmt.Printf("start write %s\n", DB.MrnaFastaFile())
-	WriteMranFasta(refgenes, reference, DB.MrnaFastaFile())
+	mrnaFastaDir := path.Join(viper.GetString("db.path"), viper.GetString("db.mrna_directory"))
+	log.Printf("init and write mRNA to %s\n", mrnaFastaDir)
+	if _, err := os.Stat(mrnaFastaDir); os.IsNotExist(err) {
+		if err = os.MkdirAll(mrnaFastaDir, os.ModePerm); err != nil {
+			log.Panic(err)
+		}
+	}
+	mrnaFasta := NewMrnaFastaMap(refgenes, reference)
+	for chrom, fasta := range mrnaFasta {
+		mrnaFastaFile := path.Join(mrnaFastaDir, "chr"+chrom+".fa")
+		seq.CreateFastaFile(fasta, mrnaFastaFile)
+	}
 	// Reference Index
-	fmt.Printf("start init and write %s\n", DB.RefIndexFile())
-	CreateRefIndex(refgenes, DB.RefIndexFile())
-}
-
-func init() {
-	UpDownStreamLen = 3000
-	RefIndexStepLen = 300000
+	refIndexFile := path.Join(viper.GetString("db.path"), viper.GetString("db.refgene_index"))
+	log.Printf("init and write %s\n", refIndexFile)
+	CreateRefIndexFile(refgenes, refIndexFile)
 }

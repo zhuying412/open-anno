@@ -37,13 +37,6 @@ func (r *RefIndex) SetTranscript(refgenes Refgenes) {
 
 type RefIndexes []RefIndex
 
-func (r RefIndexes) SetTranscript(refgenes Refgenes, refIndexesChannel chan RefIndexes) {
-	for i := 0; i < len(r); i++ {
-		r[i].SetTranscript(refgenes)
-	}
-	refIndexesChannel <- r
-}
-
 func (r RefIndexes) Len() int {
 	return len(r)
 }
@@ -62,6 +55,16 @@ func (r RefIndexes) Swap(i, j int) {
 	r[i], r[j] = r[j], r[i]
 }
 
+func (r RefIndexes) FilterByChrom(chrom string) RefIndexes {
+	refIndexes := make(RefIndexes, 0)
+	for _, refIndex := range r {
+		if refIndex.Chrom == chrom {
+			refIndexes = append(refIndexes, refIndex)
+		}
+	}
+	return refIndexes
+}
+
 func InitRefIndexes() RefIndexes {
 	refIndexes := make(RefIndexes, 0)
 	for _, chrom := range ChromArray {
@@ -78,13 +81,13 @@ func InitRefIndexes() RefIndexes {
 	return refIndexes
 }
 
-func NewRefIndexes(refIndexFile string) RefIndexes {
+func ReadRefIndexFile(refIndexFile string) RefIndexes {
 	refIndexes := make(RefIndexes, 0)
 	if fp, err := os.Open(refIndexFile); err == nil {
 		defer func(fp *os.File) {
 			err := fp.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fp)
 		reader := bufio.NewReader(fp)
@@ -97,11 +100,11 @@ func NewRefIndexes(refIndexFile string) RefIndexes {
 				fields := strings.Split(line, "\t")
 				start, err := strconv.Atoi(fields[1])
 				if err != nil {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 				end, err := strconv.Atoi(fields[2])
 				if err != nil {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 				refIndexes = append(refIndexes, RefIndex{
 					Chrom: fields[0], Start: start, End: end, Transcripts: strings.Split(fields[3], ","),
@@ -110,24 +113,25 @@ func NewRefIndexes(refIndexFile string) RefIndexes {
 				if err == io.EOF {
 					break
 				} else {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 			}
 		}
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
+	sort.Sort(refIndexes)
 	return refIndexes
 }
 
-func CreateRefIndex(refgenes Refgenes, refgeneIndexFile string) {
+func CreateRefIndexFile(refgenes Refgenes, refgeneIndexFile string) {
 	refIndexes := InitRefIndexes()
 	fo, err := os.Create(refgeneIndexFile)
 	if err == nil {
 		defer func(fo *os.File) {
 			err := fo.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fo)
 		refgeneMap := make(map[string]Refgenes)
@@ -146,28 +150,24 @@ func CreateRefIndex(refgenes Refgenes, refgeneIndexFile string) {
 				refIndexMap[refIndex.Chrom] = RefIndexes{refIndex}
 			}
 		}
-		refIndexesChannel := make(chan RefIndexes)
 		for _, chrom := range ChromArray {
-			go refIndexMap[chrom.Name].SetTranscript(refgeneMap[chrom.Name], refIndexesChannel)
-		}
-		for _, _ = range ChromArray {
-			if refIndexes_callback, ok := <-refIndexesChannel; ok {
-				for _, refIndex := range refIndexes_callback {
-					if len(refIndex.Transcripts) > 0 {
+			chromRefIndexes, ok1 := refIndexMap[chrom.Name]
+			chromRefgenes, ok2 := refgeneMap[chrom.Name]
+			if ok1 && ok2 {
+				for _, chromRefIndex := range chromRefIndexes {
+					chromRefIndex.SetTranscript(chromRefgenes)
+					if len(chromRefIndex.Transcripts) > 0 {
 						if _, err := fo.WriteString(fmt.Sprintf(
 							"%s\t%d\t%d\t%s\n",
-							refIndex.Chrom, refIndex.Start, refIndex.End,
-							strings.Join(refIndex.Transcripts, ","),
+							chromRefIndex.Chrom, chromRefIndex.Start, chromRefIndex.End,
+							strings.Join(chromRefIndex.Transcripts, ","),
 						)); err != nil {
-							log.Panic(err.Error())
+							log.Panic(err)
 						}
 					}
 				}
-
-			} else {
-				break
 			}
+
 		}
-		close(refIndexesChannel)
 	}
 }

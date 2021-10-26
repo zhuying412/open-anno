@@ -1,0 +1,11 @@
+db:
+  reference: hg19.fa
+  reference_dict: hg19.dict
+  mrna_directory: hg19_mRNA
+  gene_symbol_to_entrez_id: hg19_gene_symbol_to_entrezid.txt
+  refgene: hg19_refGene_ensMT.txt
+  refgene_index: hg19_refGene_ensMT.idx
+param:
+  up_down_stream_length = 3000
+  refgene_index_step_length = 300000
+  splicing_distance = 2

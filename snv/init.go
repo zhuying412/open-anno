@@ -1,33 +1,58 @@
 package snv
 
 import (
+	"github.com/spf13/viper"
 	"grandanno/db"
 	"grandanno/gene"
 	"grandanno/seq"
 	"log"
+	"path"
 )
 
-var IntronDistance int
+var SplicingDistance int
 
-func AnnoSnv(databasePath string, genomeVersion string, avinputPath string, outputPath string) {
-	db.DB = db.NewDatabase(databasePath, genomeVersion)
-	db.ChromArray = db.NewChromosomesFromReferenceDict(db.DB.ReferenceDictFile())
-	// mRNA
-	log.Printf("start read %s\n", db.DB.MrnaFastaFile())
-	mrna := seq.NewFasta(db.DB.MrnaFastaFile())
-	log.Printf("start read %s\n", db.DB.RefIndexFile())
-	refIndexes := db.NewRefIndexes(db.DB.RefIndexFile())
-	log.Printf("start read %s\n", db.DB.RefgeneFile())
-	refgeneMap := gene.NewRefgeneMap(db.DB.RefgeneFile())
-	refgeneMap.SetSequence(mrna)
-	log.Printf("start read %s\n", avinputPath)
-	snvs := NewSnvs(avinputPath)
-	log.Print("run annotate")
-	annos := RunAnnotate(snvs, refgeneMap, refIndexes)
-	log.Printf("write outputPath %s\n", avinputPath)
-	WriteAnnotations(annos, outputPath)
+func InitSnvParam() {
+	SplicingDistance = viper.GetInt("param.splicing_distance")
+}
+
+func AnnoSnv(inputPath string, outputPath string) {
+	// param
+	db.InitDBParam()
+	InitSnvParam()
+	// chrom
+	db.InitChromArray()
+	// entrez_id
+	db.InitSymbolToEntrezId()
+	// refgene index
+	db.InitRefIndex()
+	// refgene
+	refgeneFile := path.Join(viper.GetString("db.path"), viper.GetString("db.refgene"))
+	log.Printf("read %s\n", refgeneFile)
+	allRefgeneMap := gene.ReadRefgeneFile(refgeneFile)
+	// avinput
+	log.Printf("read %s\n", inputPath)
+	allInputs := ReadInputFile(inputPath)
+	allResults := make([]Result, 0)
+	for _, chrom := range db.ChromArray {
+		inputs := allInputs.FilterByChrom(chrom.Name)
+		if len(inputs) == 0 {
+			continue
+		}
+		mrnaFastaDir := path.Join(viper.GetString("db.path"), viper.GetString("db.mrna_directory"))
+		mrnaFastaFile := path.Join(mrnaFastaDir, "chr"+chrom.Name+".fa")
+		log.Printf("read %s\n", mrnaFastaFile)
+		mrna := seq.ReadFastaFile(mrnaFastaFile)
+		log.Printf("annotate chr%s\n", chrom.Name)
+		refgeneMap := allRefgeneMap.FilterByChrom(chrom.Name)
+		refIndexes := db.RefgeneIndexes.FilterByChrom(chrom.Name)
+		refgeneMap.SetSequence(mrna)
+		results := RunAnnotate(inputs, refgeneMap, refIndexes)
+		allResults = append(allResults, results...)
+	}
+	log.Printf("write output %s\n", outputPath)
+	CreateAnnotationFile(allResults, outputPath)
 }
 
 func init() {
-	IntronDistance = 30
+	SplicingDistance = 2
 }

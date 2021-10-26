@@ -68,7 +68,7 @@ func NewAnnotationsInGene(snv Snv, refgenes gene.Refgenes) Annotations {
 	for _, refgene := range refgenes {
 		if snv.End >= refgene.Position.ExonStart && snv.Start <= refgene.Position.ExonEnd {
 			var anno Annotation
-			if refgene.Tag == "unk" {
+			if refgene.IsUnk() {
 				unkAnnos = append(unkAnnos, Annotation{
 					GeneSymbol:   refgene.Gene,
 					GeneEntrezId: refgene.EntrezId,
@@ -78,11 +78,11 @@ func NewAnnotationsInGene(snv Snv, refgenes gene.Refgenes) Annotations {
 			} else {
 				switch snv.Type() {
 				case "del":
-					anno = NewAnnotationOfDeletion(snv, refgene)
+					anno = NewAnnotationOfDel(snv, refgene)
 				case "ins":
-					anno = NewAnnotationOfInsertion(snv, refgene)
+					anno = NewAnnotationOfIns(snv, refgene)
 				case "snp":
-					anno = NewAnnotationOfSNP(snv, refgene)
+					anno = NewAnnotationOfSnp(snv, refgene)
 				default:
 					log.Panicf("Unknown SNV type:%s", snv.Type())
 				}

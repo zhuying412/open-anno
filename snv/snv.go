@@ -1,23 +1,17 @@
 package snv
 
 import (
-	"bufio"
 	"fmt"
 	"grandanno/db"
 	"grandanno/seq"
-	"io"
-	"log"
-	"os"
-	"strconv"
-	"strings"
 )
 
 type Snv struct {
-	Chrom string
-	Start int
-	End   int
-	Ref   seq.Sequence
-	Alt   seq.Sequence
+	Chrom string       `json:"chrom"`
+	Start int          `json:"start"`
+	End   int          `json:"end"`
+	Ref   seq.Sequence `json:"ref"`
+	Alt   seq.Sequence `json:"alt"`
 }
 
 func (s Snv) SN() string {
@@ -105,13 +99,13 @@ func NewSnv(chrom string, pos int, ref seq.Sequence, alt seq.Sequence) Snv {
 
 type Snvs []Snv
 
-func (snvs Snvs) Len() int {
-	return len(snvs)
+func (s Snvs) Len() int {
+	return len(s)
 }
 
-func (snvs Snvs) Less(i, j int) bool {
-	starti, endi := snvs[i].Range()
-	startj, endj := snvs[j].Range()
+func (s Snvs) Less(i, j int) bool {
+	starti, endi := s[i].Range()
+	startj, endj := s[j].Range()
 	if starti == startj {
 		return endi < endj
 	} else {
@@ -119,44 +113,6 @@ func (snvs Snvs) Less(i, j int) bool {
 	}
 }
 
-func (snvs Snvs) Swap(i, j int) {
-	snvs[i], snvs[j] = snvs[j], snvs[i]
-}
-
-func NewSnvs(avinputFile string) Snvs {
-	snvs := make(Snvs, 0)
-	if fp, err := os.Open(avinputFile); err == nil {
-		defer func(fp *os.File) {
-			err := fp.Close()
-			if err != nil {
-				log.Panic(err.Error())
-			}
-		}(fp)
-		reader := bufio.NewReader(fp)
-		for {
-			if line, err := reader.ReadString('\n'); err == nil {
-				line = strings.TrimSpace(line)
-				if len(line) == 0 || line[0] == '#' {
-					continue
-				}
-				fields := strings.Split(line, "\t")
-				for _, alt := range strings.Split(fields[4], ",") {
-					if pos, err := strconv.Atoi(fields[1]); err != nil {
-						log.Panic(err.Error())
-					} else {
-						snvs = append(snvs, NewSnv(fields[0], pos, seq.Sequence(fields[3]), seq.Sequence(alt)))
-					}
-				}
-			} else {
-				if err == io.EOF {
-					break
-				} else {
-					log.Panic(err.Error())
-				}
-			}
-		}
-	} else {
-		log.Panic(err.Error())
-	}
-	return snvs
+func (s Snvs) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }

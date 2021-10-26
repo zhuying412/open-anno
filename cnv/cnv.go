@@ -56,7 +56,7 @@ func NewCnvs(avinputFile string) Cnvs {
 		defer func(fp *os.File) {
 			err := fp.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fp)
 		reader := bufio.NewReader(fp)
@@ -70,12 +70,12 @@ func NewCnvs(avinputFile string) Cnvs {
 				if err == io.EOF {
 					break
 				} else {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 			}
 		}
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	return cnvs
 }

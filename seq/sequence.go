@@ -3,6 +3,7 @@ package seq
 import (
 	"bytes"
 	"log"
+	"reflect"
 	"strings"
 )
 
@@ -26,15 +27,17 @@ func (s Sequence) SubSeq(index int, len int) (sub Sequence) {
 }
 
 func (s Sequence) Find(sub interface{}) (i int) {
-	switch v := sub.(type) {
+	switch sub.(type) {
 	case string:
 		i = strings.Index(string(s), sub.(string))
+	case int32:
+		i = strings.Index(string(s), string([]byte{byte(sub.(int32))}))
 	case Base:
 		i = strings.Index(string(s), string(sub.(Base)))
 	case Sequence:
 		i = strings.Index(string(s), string(sub.(Sequence)))
 	default:
-		log.Fatalf("%v is not string, Base or Sequence", v)
+		log.Panicf("%v(%v) is not string, Base or Sequence", reflect.TypeOf(sub).Name(), sub)
 	}
 	return i
 }
@@ -109,15 +112,17 @@ func (s *Sequence) Reverse() {
 }
 
 func (s *Sequence) Replace(sub interface{}, count int) {
-	switch v := sub.(type) {
+	switch sub.(type) {
 	case string:
 		*s = Sequence(strings.Replace(string(*s), sub.(string), "", count))
+	case int32:
+		*s = Sequence(strings.Replace(string(*s), string([]byte{byte(sub.(int32))}), "", count))
 	case Base:
 		*s = Sequence(strings.Replace(string(*s), string(sub.(Base)), "", count))
 	case Sequence:
 		*s = Sequence(strings.Replace(string(*s), string(sub.(Sequence)), "", count))
 	default:
-		log.Fatalf("%v is not string, Base or Sequence", v)
+		log.Panicf("%v(%v) is not string, Base or Sequence", reflect.TypeOf(sub).Name(), sub)
 	}
 }
 

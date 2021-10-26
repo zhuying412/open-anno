@@ -3,7 +3,6 @@ package db
 import (
 	"bufio"
 	"fmt"
-	"grandanno/seq"
 	"io"
 	"log"
 	"os"
@@ -29,12 +28,12 @@ func NewRefgene(refgeneLine string) Refgene {
 	if start, err := strconv.Atoi(field[4]); err == nil {
 		refgene.Start = start + 1
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	if end, err := strconv.Atoi(field[5]); err == nil {
 		refgene.End = end
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	refgene.UpStream = refgene.Start - UpDownStreamLen
 	refgene.DownStream = refgene.End + UpDownStreamLen
@@ -72,13 +71,13 @@ func (refgenes Refgenes) Swap(i, j int) {
 	refgenes[i], refgenes[j] = refgenes[j], refgenes[i]
 }
 
-func NewRefgenes(refgeneFile string) Refgenes {
+func ReadRefgeneFile(refgeneFile string) Refgenes {
 	refgenes := make(Refgenes, 0)
 	if fp, err := os.Open(refgeneFile); err == nil {
 		defer func(fp *os.File) {
 			err := fp.Close()
 			if err != nil {
-				log.Panic(err.Error())
+				log.Panic(err)
 			}
 		}(fp)
 		reader := bufio.NewReader(fp)
@@ -93,34 +92,13 @@ func NewRefgenes(refgeneFile string) Refgenes {
 				if err == io.EOF {
 					break
 				} else {
-					log.Panic(err.Error())
+					log.Panic(err)
 				}
 			}
 		}
 	} else {
-		log.Panic(err.Error())
+		log.Panic(err)
 	}
 	sort.Sort(refgenes)
 	return refgenes
-}
-
-func WriteMranFasta(refgenes Refgenes, reference seq.Fasta, mrnaFile string) {
-	if fp, err := os.Create(mrnaFile); err == nil {
-		defer func(fp *os.File) {
-			err := fp.Close()
-			if err != nil {
-				log.Panic(err.Error())
-			}
-		}(fp)
-		for _, refgene := range refgenes {
-			if chromSeq, ok := reference[refgene.Chrom]; ok {
-				if _, err := fp.WriteString(">" + refgene.SN() + "\n"); err != nil {
-					log.Panic(err.Error())
-				}
-				if _, err := fp.WriteString(string(chromSeq.SubSeq(refgene.Start-1, refgene.End-refgene.Start+1)) + "\n"); err != nil {
-					log.Panic(err.Error())
-				}
-			}
-		}
-	}
 }
