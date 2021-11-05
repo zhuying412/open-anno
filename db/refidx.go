@@ -18,18 +18,9 @@ type RefIndex struct {
 	Transcripts []string
 }
 
-func (r RefIndex) Range() (int, int) {
-	order, _ := ChromArray.GetByName(r.Chrom)
-	start := order*1e9 + r.Start
-	end := order*1e9 + r.End
-	return start, end
-}
-
 func (r *RefIndex) SetTranscript(refgenes Refgenes) {
 	for _, refgene := range refgenes {
-		starti, endi := r.Range()
-		startj, endj := refgene.Range()
-		if starti <= endj && endi >= startj {
+		if r.Chrom == refgene.Chrom && r.Start <= refgene.End && r.End >= refgene.Start {
 			r.Transcripts = append(r.Transcripts, refgene.SN())
 		}
 	}
@@ -42,13 +33,17 @@ func (r RefIndexes) Len() int {
 }
 
 func (r RefIndexes) Less(i, j int) bool {
-	starti, endi := r[i].Range()
-	startj, endj := r[j].Range()
-	if starti == startj {
-		return endi < endj
-	} else {
+	orderChromi, _ := ChromArray.GetByName(r[i].Chrom)
+	orderChromj, _ := ChromArray.GetByName(r[j].Chrom)
+	if orderChromi != orderChromj {
+		return orderChromi < orderChromj
+	}
+	starti, endi := r[i].Start, r[i].End
+	startj, endj := r[j].Start, r[j].End
+	if starti != startj {
 		return starti < startj
 	}
+	return endi < endj
 }
 
 func (r RefIndexes) Swap(i, j int) {

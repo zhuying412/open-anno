@@ -44,31 +44,28 @@ func (r Refgene) SN() string {
 	return fmt.Sprintf("%s|%s:%d:%d", r.Transcript, r.Chrom, r.Start, r.End)
 }
 
-func (r Refgene) Range() (int, int) {
-	order, _ := ChromArray.GetByName(r.Chrom)
-	start := order*1e9 + r.UpStream
-	end := order*1e9 + r.DownStream
-	return start, end
-}
-
 type Refgenes []Refgene
 
 func (refgenes Refgenes) Len() int {
 	return len(refgenes)
 }
 
-func (refgenes Refgenes) Less(i, j int) bool {
-	starti, endi := refgenes[i].Range()
-	startj, endj := refgenes[j].Range()
-	if starti == startj {
-		return endi < endj
-	} else {
+func (r Refgenes) Less(i, j int) bool {
+	orderChromi, _ := ChromArray.GetByName(r[i].Chrom)
+	orderChromj, _ := ChromArray.GetByName(r[j].Chrom)
+	if orderChromi != orderChromj {
+		return orderChromi < orderChromj
+	}
+	starti, endi := r[i].Start, r[i].End
+	startj, endj := r[j].Start, r[j].End
+	if starti != startj {
 		return starti < startj
 	}
+	return endi < endj
 }
 
-func (refgenes Refgenes) Swap(i, j int) {
-	refgenes[i], refgenes[j] = refgenes[j], refgenes[i]
+func (r Refgenes) Swap(i, j int) {
+	r[i], r[j] = r[j], r[i]
 }
 
 func ReadRefgeneFile(refgeneFile string) Refgenes {

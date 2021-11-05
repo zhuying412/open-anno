@@ -1,9 +1,16 @@
-package snv
+package input
 
 import (
+	"bufio"
 	"fmt"
 	"grandanno/db"
 	"grandanno/seq"
+	"io"
+	"log"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
 )
 
 type Snv struct {
@@ -16,13 +23,6 @@ type Snv struct {
 
 func (s Snv) SN() string {
 	return fmt.Sprintf("%s:%d:%d:%s:%s", s.Chrom, s.Start, s.End, s.Ref, s.Alt)
-}
-
-func (s Snv) Range() (int, int) {
-	order, _ := db.ChromArray.GetByName(s.Chrom)
-	start := order*1e9 + s.Start
-	end := order*1e9 + s.End
-	return start, end
 }
 
 func (s Snv) Type() string {
@@ -104,15 +104,76 @@ func (s Snvs) Len() int {
 }
 
 func (s Snvs) Less(i, j int) bool {
-	starti, endi := s[i].Range()
-	startj, endj := s[j].Range()
-	if starti == startj {
-		return endi < endj
-	} else {
+	orderChromi, _ := db.ChromArray.GetByName(s[i].Chrom)
+	orderChromj, _ := db.ChromArray.GetByName(s[j].Chrom)
+	if orderChromi != orderChromj {
+		return orderChromi < orderChromj
+	}
+	starti, endi := s[i].Start, s[i].End
+	startj, endj := s[j].Start, s[j].End
+	if starti != startj {
 		return starti < startj
 	}
+	return endi < endj
 }
 
 func (s Snvs) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+type SnvInput struct {
+	Snv       Snv       `json:"snv"`
+	OtherInfo OtherInfo `json:"other_info"`
+}
+
+func (s Snvs) FilterByChrom(chrom string) Snvs {
+	snvs := make(Snvs, 0)
+	for _, snv := range s {
+		if snv.Chrom == chrom {
+			snvs = append(snvs, snv)
+		}
+	}
+	return snvs
+}
+
+func ReadSnvInputFile(avinputFile string) (Snvs, OtherInfoMap) {
+	snvs := make(Snvs, 0)
+	infoMap := make(OtherInfoMap)
+	if fp, err := os.Open(avinputFile); err == nil {
+		defer func(fp *os.File) {
+			err := fp.Close()
+			if err != nil {
+				log.Panic(err)
+			}
+		}(fp)
+		reader := bufio.NewReader(fp)
+		for {
+			if line, err := reader.ReadString('\n'); err == nil {
+				line = strings.TrimSpace(line)
+				if len(line) == 0 || line[0] == '#' {
+					continue
+				}
+				fields := strings.Split(line, "\t")
+				for _, alt := range strings.Split(fields[4], ",") {
+					if pos, err := strconv.Atoi(fields[1]); err != nil {
+						log.Panic(err)
+					} else {
+						snv := NewSnv(fields[0], pos, seq.Sequence(fields[3]), seq.Sequence(alt))
+						snvs = append(snvs, snv)
+						infoMap[snv.SN()] = NewOtherInfo(fields[5])
+					}
+				}
+			} else {
+				if err == io.EOF {
+					break
+				} else {
+					log.Panic(err)
+				}
+			}
+		}
+	} else {
+		log.Panic(err)
+	}
+	sort.Sort(snvs)
+	return snvs, infoMap
 }

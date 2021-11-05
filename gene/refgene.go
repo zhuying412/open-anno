@@ -181,8 +181,6 @@ func NewRefgene(refgeneLine string) Refgene {
 	return refgene
 }
 
-type Refgenes []Refgene
-
 type RefgeneMap map[string]Refgene
 
 func ReadRefgeneFile(refgeneFile string) RefgeneMap {
@@ -239,8 +237,8 @@ func (r RefgeneMap) FilterByChrom(chrom string) RefgeneMap {
 	return refgeneMap
 }
 
-func (r RefgeneMap) FindMany(sns []string) (refgenes Refgenes) {
-	refgenes = make(Refgenes, 0)
+func (r RefgeneMap) FindMany(sns []string) (refgenes []Refgene) {
+	refgenes = make([]Refgene, 0)
 	for _, sn := range sns {
 		if refgene, ok := r[sn]; ok {
 			refgenes = append(refgenes, refgene)

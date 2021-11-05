@@ -3,11 +3,12 @@ package snv
 import (
 	"fmt"
 	"grandanno/gene"
+	"grandanno/input"
 	"grandanno/seq"
 	"strings"
 )
 
-func NewAnnotationOfCnsIns(ins Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno Annotation) {
+func NewAnnotationOfCnsIns(ins input.Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno GeneAnno) {
 	region := refgene.Regions[regionIndex]
 	var pos int
 	anno.SetExon(region.ExonOrder)
@@ -93,8 +94,8 @@ func NewAnnotationOfCnsIns(ins Snv, refgene gene.Refgene, regionIndex int, exonL
 	return anno
 }
 
-func NewAnnotationOfIns(ins Snv, refgene gene.Refgene) Annotation {
-	var anno Annotation
+func NewAnnotationOfIns(ins input.Snv, refgene gene.Refgene) GeneAnno {
+	var anno GeneAnno
 	regionIndex, exonLen := FindRegion(ins.Start, refgene.Regions, refgene.Strand)
 	region := refgene.Regions[regionIndex]
 	if region.Type == "intron" {

@@ -5,6 +5,8 @@ db:
   gene_symbol_to_entrez_id: hg19_gene_symbol_to_entrezid.txt
   refgene: hg19_refGene_ensMT.txt
   refgene_index: hg19_refGene_ensMT.idx
+  filter_based:
+    - name: gnomad_exome
 param:
   up_down_stream_length = 3000
   refgene_index_step_length = 300000

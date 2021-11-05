@@ -2,9 +2,44 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-	"grandanno/cnv"
+	"github.com/spf13/viper"
+	"grandanno/db"
+	"grandanno/gene"
+	"grandanno/gene_based/cnv"
+	"grandanno/input"
+	"grandanno/output"
 	"log"
+	"path"
 )
+
+func AnnoCnv(inputPath string, outputPath string) {
+	// param
+	db.InitDBParam()
+	// chrom
+	db.InitChromArray()
+	// entrez_id
+	db.InitSymbolToEntrezId()
+	// refgene index
+	refIndexes := db.GetRefIndexes()
+	// refgene
+	refgeneFile := path.Join(viper.GetString("db.path"), viper.GetString("db.refgene"))
+	log.Printf("read %s\n", refgeneFile)
+	refgeneMap := gene.ReadRefgeneFile(refgeneFile)
+	// input
+	log.Printf("read %s\n", inputPath)
+	cnvs, infoMap := input.ReadCnvInputFile(inputPath)
+	geneAnnoMap := cnv.NewGeneAnnoMap(cnvs, refgeneMap, refIndexes)
+	log.Printf("write output %s\n", outputPath)
+	outputs := make(output.CnvOutputs, 0)
+	for _, c := range cnvs {
+		outputs = append(outputs, output.CnvOutput{
+			Cnv:       c,
+			GeneAnnos: geneAnnoMap[c.SN()],
+			OtherInfo: infoMap[c.SN()],
+		})
+	}
+	output.CreateOutputFile(outputs, outputPath)
+}
 
 func NewCnvCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -21,7 +56,7 @@ func NewCnvCmd() *cobra.Command {
 				}
 			} else {
 				InitViper(cmd.Flag("database").Value.String())
-				cnv.AnnoCnv(cmd.Flag("input").Value.String(), cmd.Flag("output").Value.String())
+				AnnoCnv(cmd.Flag("input").Value.String(), cmd.Flag("output").Value.String())
 			}
 		},
 	}

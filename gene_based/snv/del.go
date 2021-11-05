@@ -3,12 +3,13 @@ package snv
 import (
 	"fmt"
 	"grandanno/gene"
+	"grandanno/input"
 	"grandanno/seq"
 	"sort"
 	"strings"
 )
 
-func NewAnnotationOfIntronDel(del Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno Annotation) {
+func NewAnnotationOfIntronDel(del input.Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno GeneAnno) {
 	region := refgene.Regions[regionIndex]
 	prevRegion, _ := refgene.Regions.GetPrev(regionIndex, refgene.Strand)
 	nextRegion, _ := refgene.Regions.GetNext(regionIndex, refgene.Strand)
@@ -43,7 +44,7 @@ func NewAnnotationOfIntronDel(del Snv, refgene gene.Refgene, regionIndex int, ex
 	return anno
 }
 
-func NewAnnotationOfMultiRegionDel(regions gene.Regions) (anno Annotation) {
+func NewAnnotationOfMultiRegionDel(regions gene.Regions) (anno GeneAnno) {
 	regionTypes := make([]string, 0)
 	for _, region := range regions {
 		if sort.SearchStrings(regionTypes, region.Type) != -1 {
@@ -55,7 +56,7 @@ func NewAnnotationOfMultiRegionDel(regions gene.Regions) (anno Annotation) {
 	return anno
 }
 
-func NewAnnotationOfCdsDel(del Snv, refgene gene.Refgene, lenL int, lenR int, regions gene.Regions) (anno Annotation) {
+func NewAnnotationOfCdsDel(del input.Snv, refgene gene.Refgene, lenL int, lenR int, regions gene.Regions) (anno GeneAnno) {
 	lenL, lenR = GetExonLen(lenL, lenR, del.Start, del.End, regions, refgene.Strand)
 	cdna, protein := refgene.Cdna, refgene.Protein
 	newCdna := cdna.ChangeWithDel(lenL, lenR)
@@ -214,8 +215,8 @@ func GetExonLen(lenL int, lenR int, start int, end int, regions gene.Regions, st
 	return lenL, lenR
 }
 
-func NewAnnotationOfDel(del Snv, refgene gene.Refgene) Annotation {
-	var anno Annotation
+func NewAnnotationOfDel(del input.Snv, refgene gene.Refgene) GeneAnno {
+	var anno GeneAnno
 	regionIndexes, lenL, lenR := FindRegions(del.Start, del.End, refgene.Regions, '+')
 	regions := make(gene.Regions, 0)
 	for _, i := range regionIndexes {

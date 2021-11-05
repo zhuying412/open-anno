@@ -17,4 +17,5 @@ func init() {
 	RootCmd.AddCommand(NewPrepareCmd())
 	RootCmd.AddCommand(NewSnvCmd())
 	RootCmd.AddCommand(NewCnvCmd())
+	RootCmd.AddCommand(NewIndexDatabaseCmd())
 }

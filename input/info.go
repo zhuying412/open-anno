@@ -1,4 +1,4 @@
-package snv
+package input
 
 import "strings"
 
@@ -15,3 +15,5 @@ func NewOtherInfo(info string) OtherInfo {
 	}
 	return otherinfo
 }
+
+type OtherInfoMap map[string]OtherInfo

@@ -3,11 +3,12 @@ package snv
 import (
 	"fmt"
 	"grandanno/gene"
+	"grandanno/input"
 	"grandanno/seq"
 	"strings"
 )
 
-func NewAnnotationOfIntronSnp(snp Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno Annotation) {
+func NewAnnotationOfIntronSnp(snp input.Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno GeneAnno) {
 	region := refgene.Regions[regionIndex]
 	prevRegion, _ := refgene.Regions.GetPrev(regionIndex, refgene.Strand)
 	nextRegion, _ := refgene.Regions.GetNext(regionIndex, refgene.Strand)
@@ -48,13 +49,13 @@ func NewAnnotationOfIntronSnp(snp Snv, refgene gene.Refgene, regionIndex int, ex
 	return anno
 }
 
-func NewAnnotationOfUtrSnp(refgene gene.Refgene, regionIndex int) (anno Annotation) {
+func NewAnnotationOfUtrSnp(refgene gene.Refgene, regionIndex int) (anno GeneAnno) {
 	region := refgene.Regions[regionIndex]
 	anno.Region = region.Type
-	return Annotation{Region: region.Type}
+	return GeneAnno{Region: region.Type}
 }
 
-func NewAnnotationOfCdsSnp(snp Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno Annotation) {
+func NewAnnotationOfCdsSnp(snp input.Snv, refgene gene.Refgene, regionIndex int, exonLen int) (anno GeneAnno) {
 	region := refgene.Regions[regionIndex]
 	var pos int
 	anno.SetExon(region.ExonOrder)
@@ -111,8 +112,8 @@ func FindRegion(pos int, regions gene.Regions, strand byte) (index int, exonLen 
 	return index, exonLen
 }
 
-func NewAnnotationOfSnp(snp Snv, refgene gene.Refgene) Annotation {
-	var anno Annotation
+func NewAnnotationOfSnp(snp input.Snv, refgene gene.Refgene) GeneAnno {
+	var anno GeneAnno
 	regionIndex, exonLen := FindRegion(snp.Start, refgene.Regions, refgene.Strand)
 	region := refgene.Regions[regionIndex]
 	if region.Type == "intron" {
