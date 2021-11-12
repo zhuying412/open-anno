@@ -1,13 +1,10 @@
 db:
   reference: hg19.fa
   reference_dict: hg19.dict
-  mrna_directory: hg19_mRNA
-  gene_symbol_to_entrez_id: hg19_gene_symbol_to_entrezid.txt
-  refgene: hg19_refGene_ensMT.txt
-  refgene_index: hg19_refGene_ensMT.idx
+  gene_entrez: hg19_gene_symbol_to_entrezid.txt
+  transcript:
+    refgene: hg19_refgene_transcript
   filter_based:
-    - name: gnomad_exome
+    gnomad_exome: hg19_gnomad_exome
 param:
-  up_down_stream_length = 3000
-  refgene_index_step_length = 300000
   splicing_distance = 2

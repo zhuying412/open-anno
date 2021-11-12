@@ -1,12 +1,12 @@
 package main
 
 import (
-	"grandanno/cmd"
+	"OpenAnno/command"
 	"log"
 )
 
 func main() {
-	err := cmd.RootCmd.Execute()
+	err := command.RootCmd.Execute()
 	if err != nil {
 		log.Panic(err)
 	}
