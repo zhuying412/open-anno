@@ -9,22 +9,20 @@ import (
 
 func (a *GeneAnnoItem) AnnoInCDS(ins variant.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
 	region := trans.Regions[regionIndex]
-	var pos int
-	a.SetExon(region.ExonOrder)
-	a.SetRegion("exonic")
-	if trans.Strand == '+' {
-		pos = exonLen + ins.Start - region.Start + 1
-	} else {
+	pos, alt := exonLen+ins.Start-region.Start+1, ins.Alt
+	if trans.Strand == '-' {
+		alt.ReverseComplementing()
 		pos = exonLen + region.End - ins.Start
 	}
+	a.SetExon(region.ExonOrder)
+	a.SetRegion("exonic")
 	if trans.IsCmpl() {
 		cdna, protein := trans.Cdna, trans.Protein
-		newCdna := cdna.ChangeWithIns(pos, ins.Alt)
+		newCdna := cdna.ChangeWithIns(pos, alt)
 		newProtein := newCdna.Translate(ins.Chrom == "MT")
-
 		for i := 0; i < cdna.Len(); i++ {
 			if cdna.Base(i) != newCdna.Base(i) {
-				a.SetAAChange(fmt.Sprintf("c.%dins%s", i, newCdna.SubSeq(i, ins.Alt.Len())))
+				a.SetAAChange(fmt.Sprintf("c.%dins%s", i, newCdna.SubSeq(i, alt.Len())))
 				break
 			}
 		}
@@ -36,7 +34,7 @@ func (a *GeneAnnoItem) AnnoInCDS(ins variant.Snv, trans transcript.Transcript, r
 			lenL++
 		}
 		if lenL < protein.Len() {
-			if ins.Alt.Len()%3 == 0 {
+			if alt.Len()%3 == 0 {
 				if newProtein.Find('*') < 0 {
 					a.SetEvent("ins_nonframeshift_stoploss")
 				} else if newProtein.Find('*') < protein.Len()-1 {

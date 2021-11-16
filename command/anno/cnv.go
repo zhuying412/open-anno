@@ -21,7 +21,7 @@ func AnnoCnv(inputFile string, outputFile string) {
 		subCnvs := cnvs.FilterByChrom(chrom.Name)
 		for key, val := range viper.GetStringMapString("transcript") {
 			transMap, transIndexes := readTranscriptDir(databaseDir, val, chrom.Name)
-			log.Printf("run annotate of %s", chrom.Name)
+			log.Printf("run gene anno in chr%s", chrom)
 			geneAnnoMap := cnv.RunAnnotate(subCnvs, transMap, transIndexes)
 			for _, _cnv := range subCnvs {
 				annoMap[_cnv.SN()][key] = geneAnnoMap[_cnv.SN()]

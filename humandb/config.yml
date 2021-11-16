@@ -5,6 +5,6 @@ db:
   transcript:
     refgene: hg19_refgene_transcript
   filter_based:
-    gnomad_exome: hg19_gnomad_exome
+    gnomad_exome: hg19_gnomad211_exome
 param:
   splicing_distance = 2

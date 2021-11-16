@@ -71,7 +71,7 @@ func (a *GeneAnnoItem) AnnoInCDS(del variant.Snv, trans transcript.Transcript, l
 		}
 		start, end1, end2 := lenl+1, lenp-lenr, lenvp-lenr
 		if newProtein.Find('*') < 0 {
-			a.SetNAChange("del_nonframeshift_stoploss")
+			a.SetEvent("del_nonframeshift_stoploss")
 		} else if newProtein.Find('*') < lenvp-1 {
 			a.SetEvent("del_nonframeshift_stopgain")
 		} else if protein.Base(0) != protein.Base(0) {

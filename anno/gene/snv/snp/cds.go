@@ -9,17 +9,16 @@ import (
 
 func (a *GeneAnnoItem) AnnoInCDS(snp variant.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
 	region := trans.Regions[regionIndex]
-	var pos int
-	a.SetExon(region.ExonOrder)
-	a.SetRegion("exonic")
-	if trans.Strand == '+' {
-		pos = exonLen + snp.Start - region.Start + 1
-	} else {
+	pos, alt := exonLen+snp.Start-region.Start+1, snp.Alt
+	if trans.Strand == '-' {
+		alt.ReverseComplementing()
 		pos = exonLen + region.End - snp.Start + 1
 	}
+	a.SetExon(region.ExonOrder)
+	a.SetRegion("exonic")
 	if trans.IsCmpl() {
 		cdna, protein := trans.Cdna, trans.Protein
-		newCdna := cdna.ChangeWithSnp(pos, snp.Alt.Base(0))
+		newCdna := cdna.ChangeWithSnp(pos, alt.Base(0))
 		newProtein := newCdna.Translate(snp.Chrom == "MT")
 		for i := 0; i < cdna.Len(); i++ {
 			if j, na1, na2 := i/3, cdna.Base(i), newCdna.Base(i); na1 != na2 && j < protein.Len() {

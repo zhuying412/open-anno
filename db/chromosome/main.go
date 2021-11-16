@@ -17,7 +17,7 @@ var ChromList Chromosomes
 func Init() {
 	if len(ChromList) == 0 {
 		refDictFile := path.Join(viper.GetString("db.path"), viper.GetString("db.reference_dict"))
-		log.Printf("read %s\n", refDictFile)
+		log.Printf("read %s", refDictFile)
 		ChromList = ReadReferenceDictFile(refDictFile)
 	}
 }

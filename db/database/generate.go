@@ -14,7 +14,7 @@ func Generate(databaseFile string, outdir string) {
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("read %s\n", databaseFile)
+	log.Printf("read %s", databaseFile)
 	handlerMap := make(map[string]*os.File)
 	fp, err := os.Open(databaseFile)
 	if err != nil {

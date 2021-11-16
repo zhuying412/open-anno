@@ -11,7 +11,7 @@ var SymbolToEntrezId EntrezIdMap
 func Init() {
 	if len(SymbolToEntrezId) == 0 {
 		symbolToEntrezIdFile := path.Join(viper.GetString("db.path"), viper.GetString("db.gene_entrez"))
-		log.Printf("read %s\n", symbolToEntrezIdFile)
+		log.Printf("read %s", symbolToEntrezIdFile)
 		SymbolToEntrezId = ReadSymboToIdFile(symbolToEntrezIdFile)
 	}
 }

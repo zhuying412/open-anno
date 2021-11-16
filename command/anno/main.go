@@ -14,17 +14,17 @@ import (
 
 func readTranscriptDir(databaseDir string, name string, chrom string) (transcript.TranscriptMap, index.TranscriptIndexes) {
 	transFile := path.Join(databaseDir, name, "chr"+chrom+".json")
-	log.Printf("read %s", transFile)
-	transMap := transcript.ReadTranscriptJSON(transFile)
 	transIndexFile := path.Join(databaseDir, name, "chr"+chrom+".idx.json")
-	log.Printf("read %s", transIndexFile)
+	log.Printf("read gene anno file %s", transFile)
+	transMap := transcript.ReadTranscriptJSON(transFile)
 	transIndexes := index.ReadTranscriptIndexJSON(transIndexFile)
 	return transMap, transIndexes
 }
 
 func runFilterAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.IVariants, databaseDir string, chrom string) {
-	for key, val := range viper.GetStringMapString("filter_based") {
+	for key, val := range viper.GetStringMapString("db.filter_based") {
 		databaseFile := path.Join(databaseDir, val, "chr"+chrom+".txt")
+		log.Printf("run filter based anno with %s", databaseFile)
 		filterAnnoMap := database.RunFilterAnnotate(variants, databaseFile)
 		for i := 0; i < variants.Len(); i++ {
 			sn := variants.GetVariant(i).SN()
@@ -34,8 +34,9 @@ func runFilterAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.I
 }
 
 func runRegionAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.IVariants, databaseDir string, chrom string) {
-	for key, val := range viper.GetStringMapString("region_based") {
+	for key, val := range viper.GetStringMapString("db.region_based") {
 		databaseFile := path.Join(databaseDir, val, "chr"+chrom+".txt")
+		log.Printf("run region based anno with %s", databaseFile)
 		regionAnnoMap := database.RunRegionAnnotate(variants, databaseFile)
 		for i := 0; i < variants.Len(); i++ {
 			sn := variants.GetVariant(i).SN()

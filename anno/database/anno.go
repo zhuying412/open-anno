@@ -26,13 +26,14 @@ func ReadLine(reader *bufio.Reader, headers *[]string, vari *variant.Variant, an
 				log.Panic(err)
 			}
 		}
-		fields = strings.Split(line, "\t")
+		line = strings.TrimSpace(line)
 		if len(line) == 0 || line[0] == '#' {
 			if len(*headers) == 0 {
-				*headers = fields
+				*headers = strings.Split(line, "\t")
 			}
 			continue
 		}
+		fields = strings.Split(line, "\t")
 		*vari = variant.NewVariant(fields[0], fields[1], fields[2], fields[3], fields[4])
 		for i := 5; i < len(fields); i++ {
 			(*anno)[(*headers)[i]] = fields[i]

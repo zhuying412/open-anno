@@ -45,8 +45,8 @@ func NewSnv(chrom string, pos int, ref seq.Sequence, alt seq.Sequence) Snv {
 			var refRev, altRev seq.Sequence
 			var subLen int
 			refRev, altRev = ref, alt
-			refRev.Reverse(false)
-			altRev.Reverse(false)
+			refRev.Reverse()
+			altRev.Reverse()
 			for i, subLen := 0, 0; i < ref.Len() && i < alt.Len(); i++ {
 				if refRev.Base(i) != altRev.Base(i) {
 					break

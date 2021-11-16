@@ -52,8 +52,8 @@ func (t *Transcript) SetSequence(sequence seq.Sequence) {
 			}
 		}
 		if t.Strand == '-' {
-			t.Mrna.Reverse(true)
-			t.Cdna.Reverse(true)
+			t.Mrna.ReverseComplementing()
+			t.Cdna.ReverseComplementing()
 		}
 		if !t.Cdna.IsEmpty() {
 			t.Protein = t.Cdna.Translate(t.Chrom == "MT")

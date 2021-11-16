@@ -12,9 +12,9 @@ func Generate(refgeneFile string, transcriptDir string, upDownStreamLen int, ind
 	if err != nil {
 		log.Panic(err)
 	}
-	log.Printf("read %s\n", refgeneFile)
+	log.Printf("read %s", refgeneFile)
 	transcripts := ReadRefgeneFile(refgeneFile, upDownStreamLen)
-	log.Print("init transcript indexes\n")
+	log.Print("init transcript indexes")
 	indexes := InitTranscriptIndexes(indexStepLen)
 	for _, chrom := range chromosome.ChromList {
 		outfile := path.Join(transcriptDir, "chr"+chrom.Name+".idx.json")
@@ -22,7 +22,7 @@ func Generate(refgeneFile string, transcriptDir string, upDownStreamLen int, ind
 		if os.IsExist(err) {
 			continue
 		}
-		log.Printf("write %s\n", outfile)
+		log.Printf("write %s", outfile)
 		subTranscripts := transcripts.FilterByChrom(chrom.Name)
 		subIndexes := indexes.FilterByChrom(chrom.Name)
 		if subTranscripts.Len() > 0 && subIndexes.Len() > 0 {
