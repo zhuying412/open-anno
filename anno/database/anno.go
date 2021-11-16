@@ -3,19 +3,40 @@ package database
 import (
 	"OpenAnno/anno"
 	"OpenAnno/variant"
+	"bufio"
+	"io"
+	"log"
+	"strings"
 )
 
-type IAnno interface {
-	anno.IAnno
-	Set(key string, val string)
-	ProcessOverlap()
+type DBAnno map[string]string
+
+func (f DBAnno) AnnoType() anno.AnnoType {
+	return anno.AnnoType_DB
 }
 
-func ReadFilterBasedFields(headers []string, fields []string) (variant.Variant, FilterBasedAnno) {
-	_anno := make(FilterBasedAnno)
-	_variant := variant.NewVariant(fields[0], fields[1], fields[2], fields[3], fields[4])
-	for i := 5; i < len(fields); i++ {
-		_anno[headers[i]] = fields[i]
+func ReadLine(reader *bufio.Reader, headers *[]string, vari *variant.Variant, anno *DBAnno) error {
+	var fields []string
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				return err
+			} else {
+				log.Panic(err)
+			}
+		}
+		fields = strings.Split(line, "\t")
+		if len(line) == 0 || line[0] == '#' {
+			if len(*headers) == 0 {
+				*headers = fields
+			}
+			continue
+		}
+		*vari = variant.NewVariant(fields[0], fields[1], fields[2], fields[3], fields[4])
+		for i := 5; i < len(fields); i++ {
+			(*anno)[(*headers)[i]] = fields[i]
+		}
+		return nil
 	}
-	return _variant, _anno
 }

@@ -3,6 +3,7 @@ package prepare
 import (
 	"OpenAnno/command/viper"
 	"OpenAnno/db/chromosome"
+	"OpenAnno/db/gene"
 	"OpenAnno/db/transcript"
 	"OpenAnno/db/transcript/index"
 	"github.com/spf13/cobra"
@@ -28,6 +29,7 @@ func NewPrepareTranscriptCmd() *cobra.Command {
 			} else {
 				viper.InitViper(database)
 				chromosome.Init()
+				gene.Init()
 				transcript.Generate(refgene, reference, outdir, stream)
 				index.Generate(refgene, outdir, stream, step)
 			}
@@ -37,7 +39,7 @@ func NewPrepareTranscriptCmd() *cobra.Command {
 	cmd.Flags().StringP("refgene", "g", "", "RefGene File")
 	cmd.Flags().StringP("outdir", "o", "", "Output Directory of Transcript Database")
 	cmd.Flags().StringP("database", "d", "", "Database Path")
-	cmd.Flags().IntP("stream", "l1", 3000, "Up/Down Stream Length")
-	cmd.Flags().IntP("step", "l2", 300000, "Transcript Index Step Length")
+	cmd.Flags().IntP("stream", "l", 3000, "Up/Down Stream Length")
+	cmd.Flags().IntP("step", "L", 300000, "Transcript Index Step Length")
 	return cmd
 }

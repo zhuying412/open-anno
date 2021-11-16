@@ -3,11 +3,11 @@ package snp
 import (
 	"OpenAnno/db/transcript"
 	"OpenAnno/seq"
-	snv2 "OpenAnno/variant"
+	"OpenAnno/variant"
 	"fmt"
 )
 
-func (a *GeneAnnoItem) AnnoInCDS(snp snv2.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
+func (a *GeneAnnoItem) AnnoInCDS(snp variant.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
 	region := trans.Regions[regionIndex]
 	var pos int
 	a.SetExon(region.ExonOrder)

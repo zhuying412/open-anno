@@ -2,8 +2,7 @@ package anno
 
 import (
 	"OpenAnno/anno"
-	"OpenAnno/anno/fitler"
-	"OpenAnno/anno/region"
+	"OpenAnno/anno/database"
 	"OpenAnno/db/transcript"
 	"OpenAnno/db/transcript/index"
 	"OpenAnno/variant"
@@ -17,7 +16,7 @@ func readTranscriptDir(databaseDir string, name string, chrom string) (transcrip
 	transFile := path.Join(databaseDir, name, "chr"+chrom+".json")
 	log.Printf("read %s", transFile)
 	transMap := transcript.ReadTranscriptJSON(transFile)
-	transIndexFile := path.Join(databaseDir, name, "chr"+chrom+"idx.json")
+	transIndexFile := path.Join(databaseDir, name, "chr"+chrom+".idx.json")
 	log.Printf("read %s", transIndexFile)
 	transIndexes := index.ReadTranscriptIndexJSON(transIndexFile)
 	return transMap, transIndexes
@@ -26,7 +25,7 @@ func readTranscriptDir(databaseDir string, name string, chrom string) (transcrip
 func runFilterAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.IVariants, databaseDir string, chrom string) {
 	for key, val := range viper.GetStringMapString("filter_based") {
 		databaseFile := path.Join(databaseDir, val, "chr"+chrom+".txt")
-		filterAnnoMap := fitler.RunAnnotate(variants, databaseFile)
+		filterAnnoMap := database.RunFilterAnnotate(variants, databaseFile)
 		for i := 0; i < variants.Len(); i++ {
 			sn := variants.GetVariant(i).SN()
 			(*annoMap)[sn][key] = filterAnnoMap[sn]
@@ -37,7 +36,7 @@ func runFilterAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.I
 func runRegionAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.IVariants, databaseDir string, chrom string) {
 	for key, val := range viper.GetStringMapString("region_based") {
 		databaseFile := path.Join(databaseDir, val, "chr"+chrom+".txt")
-		regionAnnoMap := region.RunAnnotate(variants, databaseFile)
+		regionAnnoMap := database.RunRegionAnnotate(variants, databaseFile)
 		for i := 0; i < variants.Len(); i++ {
 			sn := variants.GetVariant(i).SN()
 			(*annoMap)[sn][key] = regionAnnoMap[sn]

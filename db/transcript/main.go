@@ -48,7 +48,7 @@ func NewPosition(refgeneLineField []string) Position {
 
 func ReadRefgeneLine(refgeneLine string, upDownStreamLen int) Transcript {
 	field := strings.Split(refgeneLine, "\t")
-	refgene := Transcript{
+	trans := Transcript{
 		Position:   NewPosition(field),
 		Chrom:      strings.Replace(field[2], "chr", "", 1),
 		Transcript: field[1],
@@ -57,34 +57,34 @@ func ReadRefgeneLine(refgeneLine string, upDownStreamLen int) Transcript {
 		Tag:        field[13],
 		EntrezId:   gene.SymbolToEntrezId.GetEntrezId(field[12]),
 	}
-	exonNum := len(refgene.Position.ExonStarts)
+	exonNum := len(trans.ExonStarts)
 	for i := 0; i < exonNum; i++ {
 		if i > 0 {
 			region := Region{
-				Start: refgene.Position.ExonEnds[i-1] + 1,
-				End:   refgene.Position.ExonStarts[i] - 1,
+				Start: trans.ExonEnds[i-1] + 1,
+				End:   trans.ExonStarts[i] - 1,
 				Type:  "intron",
 			}
-			refgene.Regions = append(refgene.Regions, region)
+			trans.Regions = append(trans.Regions, region)
 		}
 		var exonOrder int
-		if refgene.Strand == '+' {
+		if trans.Strand == '+' {
 			exonOrder = i + 1
 		} else {
 			exonOrder = exonNum - 1
 		}
-		start, end := refgene.Position.ExonStarts[i], refgene.Position.ExonEnds[i]
-		if refgene.Position.CdsStart > end || refgene.Position.CdsEnd < start ||
-			refgene.Position.CdsStart <= start && end <= refgene.Position.CdsEnd {
+		start, end := trans.ExonStarts[i], trans.ExonEnds[i]
+		if trans.CdsStart > end || trans.CdsEnd < start ||
+			trans.CdsStart <= start && end <= trans.CdsEnd {
 			var typo string
-			if refgene.Position.CdsStart > end {
-				if refgene.Strand == '+' {
+			if trans.CdsStart > end {
+				if trans.Strand == '+' {
 					typo = "UTR5"
 				} else {
 					typo = "UTR3"
 				}
-			} else if refgene.Position.CdsEnd < start {
-				if refgene.Strand == '-' {
+			} else if trans.CdsEnd < start {
+				if trans.Strand == '-' {
 					typo = "UTR5"
 				} else {
 					typo = "UTR3"
@@ -92,7 +92,7 @@ func ReadRefgeneLine(refgeneLine string, upDownStreamLen int) Transcript {
 			} else {
 				typo = "CDS"
 			}
-			refgene.Regions = append(refgene.Regions, Region{
+			trans.Regions = append(trans.Regions, Region{
 				Start:     start,
 				End:       end,
 				Type:      typo,
@@ -101,39 +101,39 @@ func ReadRefgeneLine(refgeneLine string, upDownStreamLen int) Transcript {
 		} else {
 			UTRType1, UTRType2 := "", ""
 			cdsStart, cdsEnd := start, end
-			if start < refgene.Position.CdsStart && refgene.Position.CdsStart < end {
-				if refgene.Strand == '+' {
+			if start <= trans.CdsStart && trans.CdsStart <= end {
+				if trans.Strand == '+' {
 					UTRType1 = "UTR5"
 				} else {
 					UTRType1 = "UTR3"
 				}
-				cdsStart = refgene.Position.CdsStart
+				cdsStart = trans.CdsStart
 			}
-			if start < refgene.Position.CdsEnd && refgene.Position.CdsEnd < end {
-				if refgene.Strand == '+' {
+			if start <= trans.CdsEnd && trans.CdsEnd <= end {
+				if trans.Strand == '+' {
 					UTRType2 = "UTR3"
 				} else {
 					UTRType2 = "UTR5"
 				}
-				cdsEnd = refgene.Position.CdsEnd
+				cdsEnd = trans.CdsEnd
 			}
 			if UTRType1 != "" {
-				refgene.Regions = append(refgene.Regions, Region{
+				trans.Regions = append(trans.Regions, Region{
 					Start:     start,
-					End:       refgene.Position.CdsStart - 1,
+					End:       trans.CdsStart - 1,
 					Type:      UTRType1,
 					ExonOrder: exonOrder,
 				})
 			}
-			refgene.Regions = append(refgene.Regions, Region{
+			trans.Regions = append(trans.Regions, Region{
 				Start:     cdsStart,
 				End:       cdsEnd,
 				Type:      "CDS",
 				ExonOrder: exonOrder,
 			})
 			if UTRType2 != "" {
-				refgene.Regions = append(refgene.Regions, Region{
-					Start:     refgene.Position.CdsEnd + 1,
+				trans.Regions = append(trans.Regions, Region{
+					Start:     trans.CdsEnd + 1,
 					End:       end,
 					Type:      UTRType2,
 					ExonOrder: exonOrder,
@@ -141,24 +141,24 @@ func ReadRefgeneLine(refgeneLine string, upDownStreamLen int) Transcript {
 			}
 		}
 	}
-	sort.Sort(refgene.Regions)
+	sort.Sort(trans.Regions)
 	stream1 := Region{
-		Start: refgene.Position.ExonStart - upDownStreamLen,
-		End:   refgene.Position.ExonStart - 1,
+		Start: trans.ExonStart - upDownStreamLen,
+		End:   trans.ExonStart - 1,
 	}
 	stream2 := Region{
-		Start: refgene.Position.ExonEnd + 1,
-		End:   refgene.Position.ExonEnd + upDownStreamLen,
+		Start: trans.ExonEnd + 1,
+		End:   trans.ExonEnd + upDownStreamLen,
 	}
-	if refgene.Strand == '+' {
+	if trans.Strand == '+' {
 		stream1.Type = "upstream"
 		stream2.Type = "downstream"
 	} else {
 		stream1.Type = "upstream"
 		stream2.Type = "downstream"
 	}
-	refgene.Streams = Regions{stream1, stream2}
-	return refgene
+	trans.Streams = Regions{stream1, stream2}
+	return trans
 }
 
 func ReadRefgeneFile(refgeneFile string, upDownStreamLen int) Transcripts {
@@ -212,7 +212,7 @@ func ReadTranscriptJSON(transcriptFile string) TranscriptMap {
 	transMap := make(TranscriptMap)
 	for {
 		line, err := reader.ReadBytes('\n')
-		if err == nil {
+		if err != nil {
 			if err == io.EOF {
 				break
 			} else {
@@ -245,13 +245,17 @@ func CreateTranscriptJSON(transcripts []Transcript, chromSeq seq.Sequence, trans
 		}
 	}(fo)
 	for _, trans := range transcripts {
-		sequence := chromSeq.SubSeq(trans.Position.ExonStart-1, trans.Position.ExonEnd-trans.Position.ExonStart+1)
+		sequence := chromSeq.SubSeq(trans.ExonStart-1, trans.ExonEnd-trans.ExonStart+1)
 		trans.SetSequence(sequence)
 		contents, err := json.Marshal(trans)
 		if err != nil {
 			log.Panic(err)
 		}
 		_, err = fo.Write(contents)
+		if err != nil {
+			log.Panic(err)
+		}
+		_, err = fo.Write([]byte{'\n'})
 		if err != nil {
 			log.Panic(err)
 		}

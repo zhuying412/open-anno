@@ -7,22 +7,22 @@ import (
 	"os"
 )
 
-func RunAnnotate(variants variant.IVariants, databaseFile string) map[string]IAnno {
+func RunFilterAnnotate(variants variant.IVariants, databaseFile string) map[string]DBAnno {
 	fi, err := os.Open(databaseFile)
 	if err != nil {
 		log.Panic(err)
 	}
 	defer func(fp *os.File) {
-		err = fp.Close()
+		err := fp.Close()
 		if err != nil {
 			log.Panic(err)
 		}
 	}(fi)
 	reader := bufio.NewReader(fi)
-	annoMap := make(map[string]IAnno)
-	var headers []string
 	var _variant variant.Variant
-	var _anno IAnno
+	var _anno DBAnno
+	var headers []string
+	annoMap := make(map[string]DBAnno)
 	for i := 0; i < variants.Len(); {
 		if ReadLine(reader, &headers, &_variant, &_anno) != nil {
 			break
@@ -35,7 +35,14 @@ func RunAnnotate(variants variant.IVariants, databaseFile string) map[string]IAn
 				break
 			}
 		} else {
-			_anno.ProcessOverlap()
+			if cmp == variant.VarCmp_EQ {
+				annoMap[variants.GetVariant(i).SN()] = _anno
+				i++
+			} else {
+				if ReadLine(reader, &headers, &_variant, &_anno) != nil {
+					break
+				}
+			}
 		}
 	}
 	return annoMap

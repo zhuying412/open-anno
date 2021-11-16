@@ -5,7 +5,6 @@ import (
 	"OpenAnno/anno/gene/cnv"
 	viper2 "OpenAnno/command/viper"
 	"OpenAnno/db/chromosome"
-	"OpenAnno/db/gene"
 	"OpenAnno/variant"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -50,7 +49,6 @@ func NewAnnoCnvCmd() *cobra.Command {
 			} else {
 				viper2.InitViper(database)
 				chromosome.Init()
-				gene.Init()
 				AnnoCnv(input, output)
 			}
 		},

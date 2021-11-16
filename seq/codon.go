@@ -28,3 +28,5 @@ var AAMap = map[Base]string{
 	'P': "Pro", 'S': "Ser", 'T': "Thr", 'W': "Trp", 'Y': "Tyr", 'V': "Val", 'X': "Ter",
 	'*': "Ter",
 }
+
+var NAMap = map[Base]Base{'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}

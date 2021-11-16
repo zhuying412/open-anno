@@ -3,7 +3,7 @@ package del
 import (
 	"OpenAnno/db/transcript"
 	"OpenAnno/seq"
-	snv2 "OpenAnno/variant"
+	"OpenAnno/variant"
 	"fmt"
 )
 
@@ -29,7 +29,7 @@ func GetExonLen(lenL int, lenR int, start int, end int, regions transcript.Regio
 	return lenL, lenR
 }
 
-func (a *GeneAnnoItem) AnnoInCDS(del snv2.Snv, trans transcript.Transcript, lenL int, lenR int, regions transcript.Regions) {
+func (a *GeneAnnoItem) AnnoInCDS(del variant.Snv, trans transcript.Transcript, lenL int, lenR int, regions transcript.Regions) {
 	lenL, lenR = GetExonLen(lenL, lenR, del.Start, del.End, regions, trans.Strand)
 	cdna, protein := trans.Cdna, trans.Protein
 	newCdna := cdna.ChangeWithDel(lenL, lenR)

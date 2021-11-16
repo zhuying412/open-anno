@@ -103,10 +103,14 @@ func (s Sequence) ProteinOne2Tree() string {
 	return buffer.String()
 }
 
-func (s *Sequence) Reverse() {
+func (s *Sequence) Reverse(IsComplementary bool) {
 	var buffer bytes.Buffer
 	for i := s.Len() - 1; i >= 0; i-- {
-		buffer.WriteByte(s.Base(i))
+		if IsComplementary {
+			buffer.WriteByte(NAMap[s.Base(i)])
+		} else {
+			buffer.WriteByte(s.Base(i))
+		}
 	}
 	*s = Sequence(buffer.String())
 }

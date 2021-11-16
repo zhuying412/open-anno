@@ -2,6 +2,7 @@ package anno
 
 import (
 	"OpenAnno/variant"
+	"bytes"
 	"encoding/json"
 	"log"
 	"os"
@@ -25,11 +26,14 @@ func CreateResultJSON(results []Result, resultFile string) {
 		}
 	}(fo)
 	for _, result := range results {
-		contents, err := json.Marshal(result)
+		var buffer bytes.Buffer
+		jsonEncoder := json.NewEncoder(&buffer)
+		jsonEncoder.SetEscapeHTML(false)
+		err = jsonEncoder.Encode(result)
 		if err != nil {
 			log.Panic(err)
 		}
-		_, err = fo.Write(contents)
+		_, err = fo.Write(buffer.Bytes())
 		if err != nil {
 			log.Panic(err)
 		}

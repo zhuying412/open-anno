@@ -15,9 +15,11 @@ import (
 var ChromList Chromosomes
 
 func Init() {
-	refDictFile := path.Join(viper.GetString("db.path"), viper.GetString("db.reference_dict"))
-	log.Printf("read %s\n", refDictFile)
-	ChromList = ReadReferenceDictFile(refDictFile)
+	if len(ChromList) == 0 {
+		refDictFile := path.Join(viper.GetString("db.path"), viper.GetString("db.reference_dict"))
+		log.Printf("read %s\n", refDictFile)
+		ChromList = ReadReferenceDictFile(refDictFile)
+	}
 }
 
 func ReadReferenceDictFile(referenceDictPath string) Chromosomes {

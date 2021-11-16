@@ -15,12 +15,12 @@ type Position struct {
 }
 
 type Transcript struct {
-	Chrom      string       `json:"chrom"`
-	Strand     byte         `json:"strand"`
-	Gene       string       `json:"gene"`
-	EntrezId   string       `json:"entrez_id"`
-	Transcript string       `json:"transcript"`
-	Position   Position     `json:"position"`
+	Chrom      string `json:"chrom"`
+	Strand     byte   `json:"strand"`
+	Gene       string `json:"gene"`
+	EntrezId   string `json:"entrez_id"`
+	Transcript string `json:"transcript"`
+	Position   `json:"position"`
 	Regions    Regions      `json:"regions"`
 	Streams    Regions      `json:"streams"`
 	Tag        string       `json:"tag"`
@@ -30,7 +30,7 @@ type Transcript struct {
 }
 
 func (t Transcript) SN() string {
-	return fmt.Sprintf("%s|%s:%d:%d", t.Transcript, t.Chrom, t.Position.ExonStart, t.Position.ExonEnd)
+	return fmt.Sprintf("%s|%s:%d:%d", t.Transcript, t.Chrom, t.ExonStart, t.ExonEnd)
 }
 
 func (t Transcript) IsCmpl() bool {
@@ -47,12 +47,13 @@ func (t *Transcript) SetSequence(sequence seq.Sequence) {
 		if t.Tag != "unk" {
 			for _, region := range t.Regions {
 				if region.Type == "CDS" {
-					t.Cdna.Join(t.Mrna.SubSeq(region.Start-t.Position.ExonStart, region.End-region.Start+1))
+					t.Cdna.Join(t.Mrna.SubSeq(region.Start-t.ExonStart, region.End-region.Start+1))
 				}
 			}
-			if t.Strand == '-' {
-				t.Cdna.Reverse()
-			}
+		}
+		if t.Strand == '-' {
+			t.Mrna.Reverse(true)
+			t.Cdna.Reverse(true)
 		}
 		if !t.Cdna.IsEmpty() {
 			t.Protein = t.Cdna.Translate(t.Chrom == "MT")
@@ -75,7 +76,7 @@ func (Transcripts Transcripts) Len() int {
 }
 
 func (t Transcripts) Less(i, j int) bool {
-	return t[i].Position.ExonStart < t[j].Position.ExonStart || t[i].Position.ExonEnd < t[j].Position.ExonEnd
+	return t[i].ExonStart < t[j].ExonStart || t[i].ExonEnd < t[j].ExonEnd
 }
 
 func (t Transcripts) Swap(i, j int) {

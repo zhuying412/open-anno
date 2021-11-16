@@ -7,14 +7,7 @@ import (
 	"OpenAnno/db/transcript"
 	"OpenAnno/db/transcript/index"
 	"OpenAnno/variant"
-	"github.com/spf13/viper"
 )
-
-var SplicingDistance int
-
-func Init() {
-	SplicingDistance = viper.GetInt("param.splicing_distance")
-}
 
 func NewGeneAnnoItem(snvType variant.SnvType) IGeneAnnoItem {
 	if snvType == variant.SnvType_DEL {
@@ -51,7 +44,7 @@ func NewGeneAnnosInUpDownStream(snv variant.Snv, transcripts transcript.Transcri
 func NewGeneAnnosInGene(snv variant.Snv, transcripts transcript.Transcripts) GeneAnno {
 	var _anno, cmplAnno, incmplAnno, unkAnno GeneAnno
 	for _, trans := range transcripts {
-		if snv.End >= trans.Position.ExonStart && snv.Start <= trans.Position.ExonEnd {
+		if snv.End >= trans.ExonStart && snv.Start <= trans.ExonEnd {
 			annoItem := NewGeneAnnoItem(snv.Type())
 			if trans.IsUnk() {
 				annoItem.SetGene(trans)
@@ -79,6 +72,7 @@ func NewGeneAnnosInGene(snv variant.Snv, transcripts transcript.Transcripts) Gen
 }
 
 func RunAnnotate(snvs variant.Snvs, transMap transcript.TranscriptMap, transIndexes index.TranscriptIndexes) map[string]GeneAnno {
+	snp.Init()
 	annoMap := make(map[string]GeneAnno)
 	for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
 		if snvs[i].Start > transIndexes[j].End {

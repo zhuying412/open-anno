@@ -1,13 +1,13 @@
 package del
 
 import (
-	"OpenAnno/anno/gene/snv"
+	"OpenAnno/anno/gene/snv/snp"
 	"OpenAnno/db/transcript"
-	snv2 "OpenAnno/variant"
+	"OpenAnno/variant"
 	"fmt"
 )
 
-func (a *GeneAnnoItem) AnnoInIntron(del snv2.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
+func (a *GeneAnnoItem) AnnoInIntron(del variant.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
 	region := trans.Regions[regionIndex]
 	prevRegion, _ := trans.Regions.GetPrev(regionIndex, trans.Strand)
 	nextRegion, _ := trans.Regions.GetNext(regionIndex, trans.Strand)
@@ -22,11 +22,12 @@ func (a *GeneAnnoItem) AnnoInIntron(del snv2.Snv, trans transcript.Transcript, r
 		closestRegion, pos, flag = nextRegion, exonLen+1, '-'
 	}
 	a.SetRegion("intronic")
-	if startDistance <= snv.SplicingDistance || endDistance <= snv.SplicingDistance {
+	if startDistance <= snp.SplicingDistance || endDistance <= snp.SplicingDistance {
 		a.SetRegion("splicing")
 		if !closestRegion.IsCDS() {
 			a.SetRegion(closestRegion.Type + "_splicing")
 		}
+		a.SetEvent("splicing")
 	}
 	if closestRegion.IsCDS() {
 		a.SetExon(closestRegion.ExonOrder)

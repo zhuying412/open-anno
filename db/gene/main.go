@@ -9,7 +9,9 @@ import (
 var SymbolToEntrezId EntrezIdMap
 
 func Init() {
-	symbolToEntrezIdFile := path.Join(viper.GetString("db.path"), viper.GetString("db.gene_entrez"))
-	log.Printf("read %s\n", symbolToEntrezIdFile)
-	SymbolToEntrezId = ReadSymboToIdFile(symbolToEntrezIdFile)
+	if len(SymbolToEntrezId) == 0 {
+		symbolToEntrezIdFile := path.Join(viper.GetString("db.path"), viper.GetString("db.gene_entrez"))
+		log.Printf("read %s\n", symbolToEntrezIdFile)
+		SymbolToEntrezId = ReadSymboToIdFile(symbolToEntrezIdFile)
+	}
 }

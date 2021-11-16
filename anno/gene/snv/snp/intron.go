@@ -1,13 +1,12 @@
 package snp
 
 import (
-	"OpenAnno/anno/gene/snv"
 	"OpenAnno/db/transcript"
-	snv2 "OpenAnno/variant"
+	"OpenAnno/variant"
 	"fmt"
 )
 
-func (a *GeneAnnoItem) AnnoInIntron(snp snv2.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
+func (a *GeneAnnoItem) AnnoInIntron(snp variant.Snv, trans transcript.Transcript, regionIndex int, exonLen int) {
 	region := trans.Regions[regionIndex]
 	prevRegion, _ := trans.Regions.GetPrev(regionIndex, trans.Strand)
 	nextRegion, _ := trans.Regions.GetNext(regionIndex, trans.Strand)
@@ -31,17 +30,19 @@ func (a *GeneAnnoItem) AnnoInIntron(snp snv2.Snv, trans transcript.Transcript, r
 		flag = '-'
 	}
 	a.SetRegion("intronic")
-	if distance <= snv.SplicingDistance {
+	if distance <= SplicingDistance {
 		a.SetRegion("splicing")
 		if !closestRegion.IsCDS() {
 			a.SetRegion(closestRegion.Type + "_splicing")
 		}
+		a.SetEvent("splicing")
 	}
 	if closestRegion.IsCDS() {
 		a.SetExon(closestRegion.ExonOrder)
-		if snp.Type() == "snp" {
+		if snp.Type() == variant.SnvType_SNP {
 			a.SetNAChange(fmt.Sprintf("c.%d%c%d%s>%s", pos, flag, distance, snp.Ref, snp.Alt))
-		} else {
+		}
+		if snp.Type() == variant.SnvType_INS {
 			a.SetNAChange(fmt.Sprintf("c.%d%c%dins%s", pos, flag, distance, snp.Alt))
 		}
 	}

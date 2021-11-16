@@ -45,8 +45,8 @@ func NewSnv(chrom string, pos int, ref seq.Sequence, alt seq.Sequence) Snv {
 			var refRev, altRev seq.Sequence
 			var subLen int
 			refRev, altRev = ref, alt
-			refRev.Reverse()
-			altRev.Reverse()
+			refRev.Reverse(false)
+			altRev.Reverse(false)
 			for i, subLen := 0, 0; i < ref.Len() && i < alt.Len(); i++ {
 				if refRev.Base(i) != altRev.Base(i) {
 					break
@@ -112,7 +112,7 @@ func ReadSnvFile(snvFile string) (Snvs, OtherInfoMap) {
 	snvs := make(Snvs, 0)
 	infoMap := make(OtherInfoMap)
 	fi, err := os.Open(snvFile)
-	if err == nil {
+	if err != nil {
 		log.Panic(err)
 	}
 	defer func(fp *os.File) {

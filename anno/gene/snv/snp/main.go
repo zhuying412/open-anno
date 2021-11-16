@@ -4,9 +4,16 @@ import (
 	"OpenAnno/db/transcript"
 	"OpenAnno/variant"
 	"bytes"
+	"github.com/spf13/viper"
 	"strconv"
 	"strings"
 )
+
+var SplicingDistance int
+
+func Init() {
+	SplicingDistance = viper.GetInt("param.splicing_distance")
+}
 
 type GeneAnnoItem struct {
 	GeneSymbol   string `json:"gene_symbol"`

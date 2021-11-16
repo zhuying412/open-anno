@@ -3,7 +3,7 @@ package del
 import (
 	"OpenAnno/anno/gene/snv/snp"
 	"OpenAnno/db/transcript"
-	snv2 "OpenAnno/variant"
+	"OpenAnno/variant"
 	"strings"
 )
 
@@ -11,7 +11,7 @@ type GeneAnnoItem struct {
 	snp.GeneAnnoItem
 }
 
-func (a *GeneAnnoItem) AnnoInGene(del snv2.Snv, refgene transcript.Transcript) {
+func (a *GeneAnnoItem) AnnoInGene(del variant.Snv, refgene transcript.Transcript) {
 	a.GeneSymbol = refgene.Gene
 	a.GeneEntrezId = refgene.EntrezId
 	a.Transcript = refgene.Transcript

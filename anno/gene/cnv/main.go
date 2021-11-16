@@ -29,7 +29,7 @@ func NewGeneAnnoInUpDownStream(cnv variant.Cnv, transcripts []transcript.Transcr
 func NewGeneAnnoInGene(cnv variant.Cnv, transcripts []transcript.Transcript) GeneAnno {
 	var cmplAnnos, incmplAnnos, unkAnnos, annos GeneAnno
 	for _, trans := range transcripts {
-		if cnv.End >= trans.Position.ExonStart && cnv.Start <= trans.Position.ExonEnd {
+		if cnv.End >= trans.ExonStart && cnv.Start <= trans.ExonEnd {
 			var _anno GeneAnnoItem
 			_anno.SetGene(trans)
 			if trans.IsUnk() {

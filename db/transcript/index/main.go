@@ -96,7 +96,7 @@ func ReadTranscriptIndexJSON(transcriptIndexFile string) TranscriptIndexes {
 	indexes := make(TranscriptIndexes, 0)
 	for {
 		line, err := reader.ReadBytes('\n')
-		if err == nil {
+		if err != nil {
 			if err == io.EOF {
 				break
 			} else {
@@ -137,6 +137,10 @@ func CreateTranscriptIndexJSON(indexes TranscriptIndexes, transcripts Transcript
 				log.Panic(err)
 			}
 			_, err = fo.Write(contents)
+			if err != nil {
+				log.Panic(err)
+			}
+			_, err = fo.Write([]byte{'\n'})
 			if err != nil {
 				log.Panic(err)
 			}
