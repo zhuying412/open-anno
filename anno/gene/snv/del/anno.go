@@ -2,9 +2,8 @@ package del
 
 import (
 	"OpenAnno/anno/gene/snv/snp"
-	"OpenAnno/db/transcript"
-	"OpenAnno/variant"
-	"strings"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/variant"
 )
 
 type GeneAnnoItem struct {
@@ -23,9 +22,9 @@ func (a *GeneAnnoItem) AnnoInGene(del variant.Snv, refgene transcript.Transcript
 	if len(regionIndexes) == 1 {
 		regionIndex := regionIndexes[0]
 		region := refgene.Regions[regionIndex]
-		if region.Type == "intron" {
+		if region.IsIntron() {
 			a.AnnoInIntron(del, refgene, regionIndex, lenL)
-		} else if strings.HasPrefix(region.Type, "UTR") {
+		} else if region.IsUTR() {
 			a.AnnoInUTR(refgene, regionIndex)
 		} else {
 			a.AnnoInCDS(del, refgene, lenL, lenR, regions)

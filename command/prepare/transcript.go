@@ -2,10 +2,8 @@ package prepare
 
 import (
 	"OpenAnno/command/viper"
-	"OpenAnno/db/chromosome"
-	"OpenAnno/db/gene"
+	"OpenAnno/db"
 	"OpenAnno/db/transcript"
-	"OpenAnno/db/transcript/index"
 	"github.com/spf13/cobra"
 	"log"
 )
@@ -28,10 +26,10 @@ func NewPrepareTranscriptCmd() *cobra.Command {
 				}
 			} else {
 				viper.InitViper(database)
-				chromosome.Init()
-				gene.Init()
-				transcript.Generate(refgene, reference, outdir, stream)
-				index.Generate(refgene, outdir, stream, step)
+				db.InitChrom()
+				db.InitGene()
+				transcript.CreateTranscriptJSON(refgene, reference, outdir, stream)
+				transcript.CreateTranscriptIndexJSON(refgene, outdir, stream, step)
 			}
 		},
 	}

@@ -1,9 +1,9 @@
 package del
 
 import (
-	"OpenAnno/db/transcript"
-	"OpenAnno/seq"
-	"OpenAnno/variant"
+	"OpenAnno/pkg/seq"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/variant"
 	"fmt"
 )
 

@@ -1,8 +1,8 @@
 package snp
 
 import (
-	"OpenAnno/db/transcript"
-	"OpenAnno/variant"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/variant"
 	"bytes"
 	"github.com/spf13/viper"
 	"strconv"
@@ -65,9 +65,9 @@ func (a *GeneAnnoItem) AnnoInGene(snp variant.Snv, trans transcript.Transcript) 
 	a.Transcript = trans.Transcript
 	regionIndex, exonLen := trans.Regions.FindOne(snp.Start, trans.Strand)
 	region := trans.Regions[regionIndex]
-	if region.Type == "intron" {
+	if region.IsIntron() {
 		a.AnnoInIntron(snp, trans, regionIndex, exonLen)
-	} else if strings.HasPrefix(region.Type, "UTR") {
+	} else if region.IsUTR() {
 		a.AnnoInUTR(trans, regionIndex)
 	} else {
 		a.AnnoInCDS(snp, trans, regionIndex, exonLen)

@@ -1,8 +1,8 @@
 package snp
 
 import (
-	"OpenAnno/db/transcript"
-	"OpenAnno/variant"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/variant"
 	"fmt"
 )
 
@@ -32,7 +32,7 @@ func (a *GeneAnnoItem) AnnoInIntron(snp variant.Snv, trans transcript.Transcript
 	if distance <= SplicingDistance {
 		a.SetRegion("splicing")
 		if !closestRegion.IsCDS() {
-			a.SetRegion(closestRegion.Type + "_splicing")
+			a.SetRegion(string(closestRegion.Type) + "_splicing")
 		}
 		a.SetEvent("splicing")
 	}

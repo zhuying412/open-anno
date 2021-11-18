@@ -1,7 +1,7 @@
 package prepare
 
 import (
-	"OpenAnno/db/database"
+	"OpenAnno/db"
 	"github.com/spf13/cobra"
 	"log"
 )
@@ -19,7 +19,7 @@ func NewPrepareDatabaseCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				database.Generate(input, outdir)
+				db.SplitDatabase(input, outdir)
 			}
 		},
 	}

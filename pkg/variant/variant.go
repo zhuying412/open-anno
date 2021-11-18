@@ -1,8 +1,10 @@
 package variant
 
 import (
-	"OpenAnno/seq"
+	"OpenAnno/pkg/seq"
 	"fmt"
+	"log"
+	"strconv"
 )
 
 type VarType string
@@ -66,4 +68,18 @@ func (v Variant) Compare(start int, end int, ref seq.Sequence, alt seq.Sequence)
 		}
 		return VarCmp_OV
 	}
+}
+
+func NewVariant(chrom string, start string, end string, ref string, alt string) Variant {
+	_variant := Variant{Chrom: chrom, Ref: seq.Sequence(ref), Alt: seq.Sequence(alt)}
+	var err error
+	_variant.Start, err = strconv.Atoi(start)
+	if err != nil {
+		log.Panic(err)
+	}
+	_variant.End, err = strconv.Atoi(end)
+	if err != nil {
+		log.Panic(err)
+	}
+	return _variant
 }

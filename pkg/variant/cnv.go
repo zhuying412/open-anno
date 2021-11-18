@@ -1,7 +1,7 @@
 package variant
 
 import (
-	"OpenAnno/db/chromosome"
+	"OpenAnno/pkg/seq"
 )
 
 type CnvType string
@@ -38,9 +38,7 @@ func (c Cnvs) Len() int {
 }
 
 func (c Cnvs) Less(i, j int) bool {
-	chromOrderi, _ := chromosome.ChromList.GetByName(c[i].Chrom)
-	chromOrderj, _ := chromosome.ChromList.GetByName(c[j].Chrom)
-	return chromOrderi < chromOrderj || c[i].Start < c[j].Start || c[j].End < c[j].End
+	return c[i].Start < c[j].Start || c[j].End < c[j].End
 
 }
 
@@ -56,4 +54,25 @@ func (c Cnvs) FilterByChrom(chrom string) Cnvs {
 		}
 	}
 	return cnvs
+}
+
+func NewCnv(chrom string, start int, end int, copyNumber int) Cnv {
+	var alt string
+	if copyNumber > 1 {
+		alt = "DUP"
+	} else if copyNumber < 1 {
+		alt = "DEL"
+	} else {
+		alt = "DIP"
+	}
+	return Cnv{
+		Variant: Variant{
+			Chrom: chrom,
+			Start: start,
+			End:   end,
+			Ref:   "DIP",
+			Alt:   seq.Sequence(alt),
+		},
+		CopyNumber: copyNumber,
+	}
 }

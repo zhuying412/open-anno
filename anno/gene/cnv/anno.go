@@ -2,16 +2,16 @@ package cnv
 
 import (
 	"OpenAnno/anno"
-	"OpenAnno/db/transcript"
+	"OpenAnno/pkg/transcript"
 )
 
 type GeneAnnoItem struct {
-	GeneSymbol   string `json:"gene_symbol"`
-	GeneEntrezId string `json:"gene_entrez_id"`
-	Transcript   string `json:"transcript"`
-	Region       string `json:"region"`
-	StartExon    int    `json:"StartExon"`
-	EndExon      int    `json:"end_exon"`
+	GeneSymbol   string                `json:"gene_symbol"`
+	GeneEntrezId string                `json:"gene_entrez_id"`
+	Transcript   string                `json:"transcript"`
+	Region       transcript.RegionType `json:"region"`
+	StartExon    int                   `json:"StartExon"`
+	EndExon      int                   `json:"end_exon"`
 }
 
 func (a *GeneAnnoItem) SetGene(trans transcript.Transcript) {
@@ -29,7 +29,7 @@ func (a *GeneAnnoItem) SetExon(exon int) {
 	}
 }
 
-func (a *GeneAnnoItem) SetRegion(region string) {
+func (a *GeneAnnoItem) SetRegion(region transcript.RegionType) {
 	a.Region = region
 }
 

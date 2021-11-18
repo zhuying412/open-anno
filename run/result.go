@@ -1,7 +1,8 @@
-package anno
+package run
 
 import (
-	"OpenAnno/variant"
+	"OpenAnno/anno"
+	"OpenAnno/pkg/variant"
 	"bytes"
 	"encoding/json"
 	"log"
@@ -9,9 +10,9 @@ import (
 )
 
 type Result struct {
-	Variant    variant.IVariant  `json:"variant"`
-	Annotation map[string]IAnno  `json:"annotation"`
-	OtherInfo  variant.OtherInfo `json:"other_info"`
+	Variant    variant.IVariant      `json:"variant"`
+	Annotation map[string]anno.IAnno `json:"annotation"`
+	OtherInfo  OtherInfo             `json:"other_info"`
 }
 
 func CreateResultJSON(results []Result, resultFile string) {

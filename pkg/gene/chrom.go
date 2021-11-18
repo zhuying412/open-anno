@@ -1,4 +1,4 @@
-package chromosome
+package gene
 
 import (
 	"log"

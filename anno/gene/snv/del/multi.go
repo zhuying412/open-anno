@@ -1,7 +1,7 @@
 package del
 
 import (
-	"OpenAnno/db/transcript"
+	"OpenAnno/pkg/transcript"
 	"sort"
 	"strings"
 )
@@ -9,8 +9,8 @@ import (
 func (a *GeneAnnoItem) AnnoInMulti(regions transcript.Regions) {
 	regionTypes := make([]string, 0)
 	for _, region := range regions {
-		if sort.SearchStrings(regionTypes, region.Type) != -1 {
-			regionTypes = append(regionTypes, region.Type)
+		if sort.SearchStrings(regionTypes, string(region.Type)) != -1 {
+			regionTypes = append(regionTypes, string(region.Type))
 		}
 	}
 	sort.Strings(regionTypes)

@@ -3,9 +3,11 @@ package anno
 import (
 	"OpenAnno/anno"
 	"OpenAnno/anno/database"
-	"OpenAnno/db/transcript"
-	"OpenAnno/db/transcript/index"
-	"OpenAnno/variant"
+	transcript2 "OpenAnno/db/transcript"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/transcript/index"
+	"OpenAnno/pkg/variant"
+	"OpenAnno/run"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"log"
@@ -16,8 +18,8 @@ func readTranscriptDir(databaseDir string, name string, chrom string) (transcrip
 	transFile := path.Join(databaseDir, name, "chr"+chrom+".json")
 	transIndexFile := path.Join(databaseDir, name, "chr"+chrom+".idx.json")
 	log.Printf("read gene anno file %s", transFile)
-	transMap := transcript.ReadTranscriptJSON(transFile)
-	transIndexes := index.ReadTranscriptIndexJSON(transIndexFile)
+	transMap := transcript2.ReadTranscriptJSON(transFile)
+	transIndexes := transcript2.ReadTranscriptIndexJSON(transIndexFile)
 	return transMap, transIndexes
 }
 
@@ -46,18 +48,18 @@ func runRegionAnno(annoMap *map[string]map[string]anno.IAnno, variants variant.I
 
 }
 
-func writeResult(variants variant.IVariants, annoMap map[string]map[string]anno.IAnno, infoMap variant.OtherInfoMap, outputFile string) {
+func writeResult(variants variant.IVariants, annoMap map[string]map[string]anno.IAnno, infoMap run.OtherInfoMap, outputFile string) {
 	log.Printf("write result to %s", outputFile)
-	results := make([]anno.Result, 0)
+	results := make([]run.Result, 0)
 	for i := 0; i < variants.Len(); i++ {
 		_variant := variants.GetVariant(i)
-		results = append(results, anno.Result{
+		results = append(results, run.Result{
 			Variant:    _variant,
 			Annotation: annoMap[_variant.SN()],
 			OtherInfo:  infoMap[_variant.SN()],
 		})
 	}
-	anno.CreateResultJSON(results, outputFile)
+	run.CreateResultJSON(results, outputFile)
 }
 
 func NewAnnoCmd() *cobra.Command {

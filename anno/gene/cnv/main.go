@@ -1,9 +1,9 @@
 package cnv
 
 import (
-	"OpenAnno/db/transcript"
-	"OpenAnno/db/transcript/index"
-	"OpenAnno/variant"
+	"OpenAnno/pkg/transcript"
+	"OpenAnno/pkg/transcript/index"
+	"OpenAnno/pkg/variant"
 )
 
 func NewGeneAnnoInIntergeic() GeneAnno {

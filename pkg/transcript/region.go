@@ -1,24 +1,31 @@
 package transcript
 
-import "strings"
+type RegionType string
+
+const (
+	RegionType_CDS    RegionType = "CDS"
+	RegionType_UTR3   RegionType = "UTR3"
+	RegionType_UTR5   RegionType = "UTR5"
+	RegionType_INTRON RegionType = "intron"
+)
 
 type Region struct {
-	Start     int    `json:"start"`
-	End       int    `json:"end"`
-	Type      string `json:"type"`
-	ExonOrder int    `json:"exon_order"`
+	Start     int        `json:"start"`
+	End       int        `json:"end"`
+	Type      RegionType `json:"type"`
+	ExonOrder int        `json:"exon_order"`
 }
 
 func (r Region) IsCDS() bool {
-	return r.Type == "CDS"
+	return r.Type == RegionType_CDS
 }
 
 func (r Region) IsUTR() bool {
-	return strings.HasPrefix(r.Type, "UTR")
+	return r.Type == RegionType_UTR3 || r.Type == RegionType_UTR5
 }
 
 func (r Region) IsIntron() bool {
-	return r.Type == "intron"
+	return r.Type == RegionType_INTRON
 }
 
 type Regions []Region

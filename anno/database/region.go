@@ -1,7 +1,7 @@
 package database
 
 import (
-	"OpenAnno/variant"
+	"OpenAnno/pkg/variant"
 	"bufio"
 	"log"
 	"os"

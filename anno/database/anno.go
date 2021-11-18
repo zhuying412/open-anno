@@ -2,7 +2,7 @@ package database
 
 import (
 	"OpenAnno/anno"
-	"OpenAnno/variant"
+	"OpenAnno/pkg/variant"
 	"bufio"
 	"io"
 	"log"

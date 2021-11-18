@@ -1,5 +1,10 @@
 package index
 
+import (
+	"OpenAnno/pkg/gene"
+	"sort"
+)
+
 type TranscriptIndex struct {
 	Chrom       string   `json:"chrom"`
 	Start       int      `json:"start"`
@@ -37,4 +42,20 @@ func (t TranscriptIndexes) FilterByChrom(chrom string) TranscriptIndexes {
 		}
 	}
 	return transIndexes
+}
+
+func InitTranscriptIndexes(indexStepLen int, chromList gene.Chromosomes) TranscriptIndexes {
+	indexes := make(TranscriptIndexes, 0)
+	for _, chrom := range chromList {
+		for i := 0; i < chrom.Length; i += indexStepLen {
+			end := i + indexStepLen
+			if end > chrom.Length {
+				end = chrom.Length
+			}
+			index := TranscriptIndex{Chrom: chrom.Name, Start: i + 1, End: end}
+			indexes = append(indexes, index)
+		}
+	}
+	sort.Sort(indexes)
+	return indexes
 }
