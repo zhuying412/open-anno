@@ -1,6 +1,6 @@
 package seq
 
-var codonMap = map[Sequence]Base{
+var NAtoAATable = map[string]byte{
 	"TTT": 'F', "TTC": 'F', "TTA": 'L', "TTG": 'L', "TCT": 'S', "TCC": 'S', "TCA": 'S', "TCG": 'S',
 	"TAT": 'Y', "TAC": 'Y', "TAA": '*', "TAG": '*', "TGT": 'C', "TGC": 'C', "TGA": '*', "TGG": 'W',
 	"CTT": 'L', "CTC": 'L', "CTA": 'L', "CTG": 'L', "CCT": 'P', "CCC": 'P', "CCA": 'P', "CCG": 'P',
@@ -11,7 +11,7 @@ var codonMap = map[Sequence]Base{
 	"GAT": 'D', "GAC": 'D', "GAA": 'E', "GAG": 'E', "GGT": 'G', "GGC": 'G', "GGA": 'G', "GGG": 'G',
 }
 
-var codonMtMap = map[Sequence]Base{
+var MitoNAtoAATable = map[string]byte{
 	"TTT": 'F', "TTC": 'F', "TTA": 'L', "TTG": 'L', "TCT": 'S', "TCC": 'S', "TCA": 'S', "TCG": 'S',
 	"TAT": 'Y', "TAC": 'Y', "TAA": '*', "TAG": '*', "TGT": 'C', "TGC": 'C', "TGA": 'W', "TGG": 'W',
 	"CTT": 'L', "CTC": 'L', "CTA": 'L', "CTG": 'L', "CCT": 'P', "CCC": 'P', "CCA": 'P', "CCG": 'P',
@@ -22,11 +22,11 @@ var codonMtMap = map[Sequence]Base{
 	"GAT": 'D', "GAC": 'D', "GAA": 'E', "GAG": 'E', "GGT": 'G', "GGC": 'G', "GGA": 'G', "GGG": 'G',
 }
 
-var AAMap = map[Base]string{
+var AAMap = map[byte]string{
 	'A': "Ala", 'R': "Arg", 'N': "Asn", 'D': "Asp", 'C': "Cys", 'Q': "Gln", 'E': "Glu",
 	'G': "Gly", 'H': "His", 'I': "Ile", 'L': "Leu", 'K': "Lys", 'M': "Met", 'F': "Phe",
 	'P': "Pro", 'S': "Ser", 'T': "Thr", 'W': "Trp", 'Y': "Tyr", 'V': "Val", 'X': "Ter",
 	'*': "Ter",
 }
 
-var NAMap = map[Base]Base{'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+var ATGCs = map[byte]byte{'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}

@@ -1,0 +1,6 @@
+{
+  "go.gopath": "~/.go/",
+  "go.goroot": "~/.go/current",
+  "go.autocompleteUnimportedPackages": true,
+  "go.lintTool": "golint"
+}

@@ -1,85 +1,89 @@
 package variant
 
 import (
-	"OpenAnno/pkg/seq"
+	"bufio"
 	"fmt"
-	"log"
+	"os"
 	"strconv"
+	"strings"
 )
-
-type VarType string
 
 const (
-	VarType_SNV    VarType = "SNV"
-	VarType_CNV    VarType = "CNV"
-	VarType_COMMON VarType = "COMMON"
+	VType_SNP = "SNP"
+	VType_INS = "INS"
+	VType_DEL = "DEL"
+	VType_DUP = "DUP"
 )
-
-type VarCmp string
-
-const (
-	VarCmp_LT  VarCmp = "LT"
-	VarCmp_GT  VarCmp = "GT"
-	VarCmp_EQ  VarCmp = "EQ"
-	VarCmp_EQP VarCmp = "EQP"
-	VarCmp_OV  VarCmp = "OV"
-)
-
-type IVariant interface {
-	SN() string
-	VarType() VarType
-	Compare(start int, end int, ref seq.Sequence, alt seq.Sequence) VarCmp
-}
-
-type IVariants interface {
-	GetVariant(i int) IVariant
-	Len() int
-	Less(i, j int) bool
-	Swap(i, j int)
-}
 
 type Variant struct {
-	Chrom string       `json:"chrom"`
-	Start int          `json:"start"`
-	End   int          `json:"end"`
-	Ref   seq.Sequence `json:"ref"`
-	Alt   seq.Sequence `json:"alt"`
+	Chrom     string   `json:"chrom"`
+	Start     int      `json:"start"`
+	End       int      `json:"end"`
+	Ref       string   `json:"ref"`
+	Alt       string   `json:"alt"`
+	Otherinfo []string `json:"otherinfo"`
 }
 
-func (v Variant) SN() string {
-	return fmt.Sprintf("%s:%d:%d:%s:%s", v.Chrom, v.Start, v.End, v.Ref, v.Alt)
-}
-
-func (v Variant) VarType() VarType {
-	return VarType_COMMON
-}
-
-func (v Variant) Compare(start int, end int, ref seq.Sequence, alt seq.Sequence) VarCmp {
-	if v.End < start {
-		return VarCmp_LT
-	} else if v.Start > end {
-		return VarCmp_GT
-	} else {
-		if v.Start == start && v.End == end {
-			if v.Ref.IsEqual(ref) && v.Alt.IsEqual(alt) {
-				return VarCmp_EQ
-			}
-			return VarCmp_EQP
+func (this Variant) Type() string {
+	if this.Ref == "DIP" {
+		if this.Alt == "DEL" {
+			return VType_DEL
 		}
-		return VarCmp_OV
+		return VType_DUP
 	}
+	if this.Alt == "-" {
+		return VType_DEL
+	} else if this.Ref == "-" {
+		return VType_INS
+	}
+	return VType_SNP
 }
 
-func NewVariant(chrom string, start string, end string, ref string, alt string) Variant {
-	_variant := Variant{Chrom: chrom, Ref: seq.Sequence(ref), Alt: seq.Sequence(alt)}
-	var err error
-	_variant.Start, err = strconv.Atoi(start)
+func (this Variant) ID() string {
+	return fmt.Sprintf("%s:%d-%d:%s/%s", this.Chrom, this.Start, this.End, this.Ref, this.Alt)
+}
+
+type Variants []Variant
+
+func (this Variants) Len() int           { return len(this) }
+func (this Variants) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
+func (this Variants) Less(i, j int) bool { return this[i].Start < this[j].Start }
+
+func ReadAvinput(avinput string) (map[string]Variants, error) {
+	variants := make(map[string]Variants)
+	fi, err := os.Open(avinput)
 	if err != nil {
-		log.Panic(err)
+		return variants, err
 	}
-	_variant.End, err = strconv.Atoi(end)
-	if err != nil {
-		log.Panic(err)
+	defer fi.Close()
+	scanner := bufio.NewScanner(fi)
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), "\t")
+		chrom := fields[0]
+		if chrom[0] == '#' {
+			continue
+		}
+		start, err := strconv.Atoi(fields[1])
+		if err != nil {
+			return variants, err
+		}
+		end, err := strconv.Atoi(fields[2])
+		if err != nil {
+			return variants, err
+		}
+		variant := Variant{
+			Chrom:     fields[0],
+			Start:     start,
+			End:       end,
+			Ref:       fields[3],
+			Alt:       fields[4],
+			Otherinfo: fields[5:],
+		}
+		if vars, ok := variants[chrom]; ok {
+			variants[chrom] = append(vars, variant)
+		} else {
+			variants[chrom] = Variants{variant}
+		}
 	}
-	return _variant
+	return variants, err
 }

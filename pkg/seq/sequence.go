@@ -2,151 +2,117 @@ package seq
 
 import (
 	"bytes"
-	"log"
-	"reflect"
-	"strings"
+	"fmt"
+	"open-anno/pkg"
+	"regexp"
 )
 
-type Base = byte
-
-type Sequence string
-
-func (s Sequence) Len() int {
-	return len(s)
-}
-
-func (s Sequence) Base(i int) Base {
-	return s[i]
-}
-
-func (s Sequence) SubSeq(index int, len int) (sub Sequence) {
-	if len < 0 || index+len >= s.Len() {
-		len = s.Len() - index
-	}
-	return s[index : index+len]
-}
-
-func (s Sequence) Find(sub interface{}) (i int) {
-	switch sub.(type) {
-	case string:
-		i = strings.Index(string(s), sub.(string))
-	case int32:
-		i = strings.Index(string(s), string([]byte{byte(sub.(int32))}))
-	case Base:
-		i = strings.Index(string(s), string(sub.(Base)))
-	case Sequence:
-		i = strings.Index(string(s), string(sub.(Sequence)))
-	default:
-		log.Panicf("%v(%v) is not string, Base or Sequence", reflect.TypeOf(sub).Name(), sub)
-	}
-	return i
-}
-
-func (s Sequence) Startswith(sub Sequence) bool {
-	return strings.HasPrefix(string(s), string(sub))
-}
-
-func (s Sequence) Endswith(sub Sequence) bool {
-	return strings.HasSuffix(string(s), string(sub))
-}
-
-func (s Sequence) IsEqual(t Sequence) bool {
-	return string(s) == string(t)
-}
-
-func (s Sequence) IsEmpty() bool {
-	return s.Len() == 0
-}
-
-func (s Sequence) Translate(isMt bool) Sequence {
+// RevComp 反向互补
+func RevComp(sequence string) string {
 	var buffer bytes.Buffer
-	for i := 0; i < s.Len(); i += 3 {
-		codon := codonMap
-		if isMt {
-			codon = codonMtMap
-		}
-		if aa, ok := codon[s.SubSeq(i, 3)]; ok {
-			buffer.WriteByte(aa)
-		}
-	}
-	return Sequence(buffer.String())
-}
-
-func (s Sequence) ChangeWithSnp(pos int, alt Base) Sequence {
-	var buffer bytes.Buffer
-	buffer.WriteString(string(s.SubSeq(0, pos-1)))
-	buffer.WriteByte(alt)
-	buffer.WriteString(string(s.SubSeq(pos, -1)))
-	return Sequence(buffer.String())
-}
-
-func (s Sequence) ChangeWithIns(pos int, alt Sequence) Sequence {
-	var buffer bytes.Buffer
-	buffer.WriteString(string(s.SubSeq(0, pos)))
-	buffer.WriteString(string(alt))
-	buffer.WriteString(string(s.SubSeq(pos, -1)))
-	return Sequence(buffer.String())
-}
-
-func (s Sequence) ChangeWithDel(lenL int, lenR int) Sequence {
-	var buffer bytes.Buffer
-	buffer.WriteString(string(s.SubSeq(0, lenL)))
-	buffer.WriteString(string(s.SubSeq(s.Len()-lenR, lenR)))
-	return Sequence(buffer.String())
-}
-
-func (s Sequence) ProteinOne2Tree() string {
-	var buffer bytes.Buffer
-	for i := 0; i < s.Len(); i++ {
-		buffer.WriteString(AAMap[s.Base(i)])
+	for i := len(sequence) - 1; i >= 0; i-- {
+		buffer.WriteByte(ATGCs[sequence[i]])
 	}
 	return buffer.String()
 }
 
-func (s *Sequence) Reverse() {
+// Translate 翻译蛋白
+func Translate(sequence string, mt bool) string {
 	var buffer bytes.Buffer
-	for i := s.Len() - 1; i >= 0; i-- {
-		buffer.WriteByte(s.Base(i))
+	length := len(sequence)
+	for i := 0; i < length; i += 3 {
+		j := i + 3
+		if j > length {
+			j = length
+		}
+		var aa byte
+		if mt {
+			aa = MitoNAtoAATable[sequence[i:j]]
+		} else {
+			aa = NAtoAATable[sequence[i:j]]
+		}
+		buffer.WriteByte(aa)
 	}
-	*s = Sequence(buffer.String())
+	return buffer.String()
 }
 
-func (s *Sequence) ReverseComplementing() {
+// AAName 氨基酸名称
+func AAName[T byte | string](bases T, aashort bool) string {
 	var buffer bytes.Buffer
-	for i := s.Len() - 1; i >= 0; i-- {
-		buffer.WriteByte(NAMap[s.Base(i)])
+	sequence := string(bases)
+	for i := 0; i < len(sequence); i += 3 {
+		if aashort {
+			buffer.WriteByte(sequence[i])
+		} else {
+			buffer.WriteString(AAMap[sequence[i]])
+
+		}
 	}
-	*s = Sequence(buffer.String())
+	return buffer.String()
 }
 
-func (s *Sequence) Replace(sub interface{}, count int) {
-	switch sub.(type) {
-	case string:
-		*s = Sequence(strings.Replace(string(*s), sub.(string), "", count))
-	case int32:
-		*s = Sequence(strings.Replace(string(*s), string([]byte{byte(sub.(int32))}), "", count))
-	case Base:
-		*s = Sequence(strings.Replace(string(*s), string(sub.(Base)), "", count))
-	case Sequence:
-		*s = Sequence(strings.Replace(string(*s), string(sub.(Sequence)), "", count))
-	default:
-		log.Panicf("%v(%v) is not string, Base or Sequence", reflect.TypeOf(sub).Name(), sub)
-	}
-}
-
-func (s *Sequence) Clear() {
-	*s = ""
-}
-
-func (s *Sequence) Join(seqs ...Sequence) {
+// Substitute 替换碱基
+func Substitute(sequence string, pos int, base string) string {
 	var buffer bytes.Buffer
-	buffer.WriteString(string(*s))
-	for _, seq := range seqs {
-		buffer.WriteString(string(seq))
-	}
-	*s = Sequence(buffer.String())
+	buffer.WriteString(sequence[0 : pos-1])
+	buffer.WriteString(base)
+	buffer.WriteString(string(sequence[pos:]))
+	return buffer.String()
 }
 
-func (s Sequence) IsProteinCmpl() bool {
-	return s.Find('*') != -1
+// Insert 插入碱基
+func Insert(sequence string, pos int, bases string) string {
+	var buffer bytes.Buffer
+	buffer.WriteString(sequence[0:pos])
+	buffer.WriteString(bases)
+	buffer.WriteString(sequence[pos:])
+	return buffer.String()
+}
+
+// Delete 删除碱基
+func Delete(sequence string, start int, end int) string {
+	var buffer bytes.Buffer
+	buffer.WriteString(sequence[0 : start-1])
+	buffer.WriteString(sequence[end:])
+	return buffer.String()
+}
+
+// DupUnit Dup的单位元件：如 ATGATGATG->ATG
+func DupUnit(sequence string) string {
+	var unit string
+	for i := 0; i <= len(sequence); i++ {
+		unit = sequence[0 : i+1]
+		match, _ := regexp.MatchString(fmt.Sprintf(`^(%s)+$`, unit), sequence)
+		if match {
+			break
+		}
+	}
+	return unit
+}
+
+// DifferenceSimple 比较两个序列，返回第一个差异位置
+func DifferenceSimple(sequence1 string, sequence2 string) int {
+	minLen := pkg.Min(len(sequence1), len(sequence2))
+	pos := 0
+	for i := 0; i < minLen && sequence1[i] == sequence2[i]; i++ {
+		pos++
+	}
+	return pos + 1
+}
+
+// Difference 比较两个序列，返回差异序列的第一个差异位置、及各自最后一个差异位置
+func Difference(sequence1 string, sequence2 string) (int, int, int) {
+	minLen := pkg.Min(len(sequence1), len(sequence2))
+	lLen, rLen := 0, 0
+	for i := 0; i < minLen && sequence1[i] == sequence2[i]; i++ {
+		lLen++
+	}
+	for i, j := len(sequence1)-1, len(sequence2)-1; i >= 0 && j >= 0 && sequence1[i] == sequence2[j]; i, j = i-1, j-1 {
+		rLen++
+	}
+	if lLen+rLen > minLen {
+		rLen = minLen - lLen
+	}
+	return lLen + 1, len(sequence1) - rLen, len(sequence2) - rLen
+	// return lLen, rLen
 }
