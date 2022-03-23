@@ -3,6 +3,7 @@ package variant
 import (
 	"bufio"
 	"fmt"
+	"open-anno/pkg/gene"
 	"os"
 	"strconv"
 	"strings"
@@ -48,47 +49,15 @@ func (this Variant) ID() string {
 	return fmt.Sprintf("%s:%d-%d:%s/%s", this.Chrom, this.Start, this.End, this.Ref, this.Alt)
 }
 
-func (this Variant) CMP(v Variant) string {
-	if this.Start == v.Start {
-		if this.End == v.End {
-			if this.Ref == v.Ref {
-				if this.Alt == v.Alt {
-					return VCMP_EQ
-				} else {
-					if this.Alt < v.Alt {
-						return VCMP_LT
-					} else {
-						return VCMP_GT
-					}
-				}
-			} else {
-				if this.Ref < v.Ref {
-					return VCMP_LT
-				} else {
-					return VCMP_GT
-				}
-			}
-		} else {
-			if this.End < v.End {
-				return VCMP_LT
-			} else {
-				return VCMP_GT
-			}
-		}
-	} else {
-		if this.Start < v.Start {
-			return VCMP_LT
-		} else {
-			return VCMP_GT
-		}
-	}
+func (this Variant) GetBaseVar() (string, int, int, string, string) {
+	return this.Chrom, this.Start, this.End, this.Ref, this.Alt
 }
 
 type Variants []Variant
 
 func (this Variants) Len() int           { return len(this) }
 func (this Variants) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
-func (this Variants) Less(i, j int) bool { return this[i].CMP(this[j]) == VCMP_LT }
+func (this Variants) Less(i, j int) bool { return CompareVar(this[i], this[j]) == VCMP_LT }
 
 func ReadVariantLine(line string) (Variant, error) {
 	fields := strings.Split(line, "\t")
@@ -127,6 +96,9 @@ func ReadAvinput(avinput string) (map[string]Variants, error) {
 		if err != nil {
 			return variants, err
 		}
+		if _, ok := gene.GENOME[variant.Chrom]; ok {
+			continue
+		}
 		if vars, ok := variants[variant.Chrom]; ok {
 			variants[variant.Chrom] = append(vars, variant)
 		} else {
@@ -134,4 +106,47 @@ func ReadAvinput(avinput string) (map[string]Variants, error) {
 		}
 	}
 	return variants, err
+}
+
+type ICompareVar interface {
+	GetBaseVar() (string, int, int, string, string)
+}
+
+func CompareVar(v1 ICompareVar, v2 ICompareVar) string {
+	_, start1, end1, ref1, alt1 := v1.GetBaseVar()
+	_, start2, end2, ref2, alt2 := v2.GetBaseVar()
+
+	if start1 == start2 {
+		if end1 == end2 {
+			if ref1 == ref2 {
+				if alt1 == alt2 {
+					return VCMP_EQ
+				} else {
+					if alt1 < alt2 {
+						return VCMP_LT
+					} else {
+						return VCMP_GT
+					}
+				}
+			} else {
+				if ref1 < ref2 {
+					return VCMP_LT
+				} else {
+					return VCMP_GT
+				}
+			}
+		} else {
+			if end1 < end2 {
+				return VCMP_LT
+			} else {
+				return VCMP_GT
+			}
+		}
+	} else {
+		if start1 < start2 {
+			return VCMP_LT
+		} else {
+			return VCMP_GT
+		}
+	}
 }

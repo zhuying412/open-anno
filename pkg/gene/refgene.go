@@ -106,9 +106,13 @@ func ReadRefgene(refgeneFile string) (Transcripts, error) {
 	scanner := bufio.NewScanner(fi)
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
+		chrom := strings.Replace(fields[2], "chr", "", -1)
+		if _, ok := GENOME[chrom]; !ok {
+			continue
+		}
 		transcript := Transcript{
 			Name:         fields[1],
-			Chrom:        strings.Replace(fields[2], "chr", "", -1),
+			Chrom:        chrom,
 			Strand:       fields[3],
 			Gene:         fields[12],
 			CdsStartStat: fields[13],

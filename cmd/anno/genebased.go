@@ -88,7 +88,7 @@ func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
 	varType = strings.ToLower(varType)
 	cmd := &cobra.Command{
-		Use:   fmt.Sprintf("%sGenebased", strings.Title(varType)),
+		Use:   fmt.Sprintf("%sGB", strings.Title(varType)),
 		Short: fmt.Sprintf("Annotate %s Genebased", varType),
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")

@@ -1,11 +1,8 @@
-package regionbased
+package variant
 
 import (
 	"bufio"
-	"fmt"
 	"log"
-	"open-anno/pkg"
-	"open-anno/pkg/variant"
 	"os"
 	"sort"
 	"strconv"
@@ -31,21 +28,40 @@ func (this RegionBaseds) Less(i, j int) bool {
 	}
 }
 
-func ReadDB(dbfile string) (RegionBaseds, string, error) {
+func ReadRegionBasedLine(line string) (RegionBased, error) {
+	fields := strings.Split(line, "\t")
+	variant := RegionBased{
+		Chrom:     fields[0],
+		Otherinfo: fields[3],
+	}
+	var err error
+	variant.Start, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return variant, err
+	}
+	variant.End, err = strconv.Atoi(fields[2])
+	if err != nil {
+		return variant, err
+	}
+	return variant, err
+}
+
+func ReadRegionBasedDB(infile string) (RegionBaseds, string, error) {
 	regionBaseds := make(RegionBaseds, 0)
-	fi, err := os.Open(dbfile)
+	fi, err := os.Open(infile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer fi.Close()
 	scanner := bufio.NewScanner(fi)
-	var header string
+	scanner.Scan()
+	scanner.Scan()
+	header := scanner.Text()
+	if !strings.HasPrefix(header, "Chr") {
+		log.Fatalf("error database file, header not found: %s", infile)
+	}
 	for scanner.Scan() {
 		line := scanner.Text()
-		if header == "" {
-			header = line
-			continue
-		}
 		fields := strings.Split(line, "\t")
 		start, err := strconv.Atoi(fields[1])
 		if err != nil {
@@ -64,33 +80,4 @@ func ReadDB(dbfile string) (RegionBaseds, string, error) {
 	}
 	sort.Sort(regionBaseds)
 	return regionBaseds, header, err
-}
-
-func Anno(variants variant.Variants, dbfile string, overlap float64, writer *os.File) {
-	sort.Sort(variants)
-	regionBaseds, header, err := ReadDB(dbfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	writer.WriteString(header + "\n")
-	for _, variant := range variants {
-		var info []string
-		for _, dbvar := range regionBaseds {
-			if variant.End >= dbvar.Start && variant.Start <= dbvar.End {
-				vlen := variant.End - variant.Start + 1
-				olen := pkg.Max(variant.Start, dbvar.Start) - pkg.Min(variant.Start, dbvar.Start) + 1
-				if float64(olen)/float64(vlen) >= overlap {
-					info = append(info, dbvar.Otherinfo)
-				}
-			}
-		}
-		anno := strings.Join(info, ",")
-		if anno == "" {
-			anno = "."
-		}
-		writer.WriteString(fmt.Sprintf("%s\t%d\t%d\t%s\t%s\t%s\n",
-			variant.Chrom, variant.Start, variant.End,
-			variant.Ref, variant.Alt, anno,
-		))
-	}
 }

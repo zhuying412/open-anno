@@ -1,5 +1,10 @@
 package gene
 
+import (
+	"log"
+	"strings"
+)
+
 var GENOME_HG19 = map[string]int{
 	"1":  249250621,
 	"2":  243199373,
@@ -25,12 +30,49 @@ var GENOME_HG19 = map[string]int{
 	"22": 51304566,
 	"X":  155270560,
 	"Y":  59373566,
+}
+
+var GENOME_HG38 = map[string]int{
+	"1":  248956422,
+	"2":  242193529,
+	"3":  198295559,
+	"4":  190214555,
+	"5":  181538259,
+	"6":  170805979,
+	"7":  159345973,
+	"8":  145138636,
+	"9":  138394717,
+	"10": 133797422,
+	"11": 135086622,
+	"12": 133275309,
+	"13": 114364328,
+	"14": 107043718,
+	"15": 101991189,
+	"16": 90338345,
+	"17": 83257441,
+	"18": 80373285,
+	"19": 58617616,
+	"20": 64444167,
+	"21": 46709983,
+	"22": 50818468,
+	"X":  156040895,
+	"Y":  57227415,
+}
+var GENOME_MT = map[string]int{
 	"MT": 16569,
 }
 
-func NewGenome(builder string) map[string]int {
-	if builder == "hg19" {
-		return GENOME_HG19
+var GENOME map[string]int
+
+func SetGenome(builder string) {
+	switch strings.ToUpper(builder) {
+	case "HG19", "GRCH37":
+		GENOME = GENOME_HG19
+	case "HG38", "GRCH38":
+		GENOME = GENOME_HG38
+	case "M", "MT":
+		GENOME = GENOME_MT
+	default:
+		log.Fatalf("error builder: %s, the choice is (HG19, HG38, GRCH38, GRCH37, M, MT)", builder)
 	}
-	return map[string]int{}
 }

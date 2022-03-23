@@ -14,7 +14,7 @@ import (
 
 func PreGeneBased(refgene string, fasta string, builder string, indexStep int, outdir string) {
 	log.Println("Init parameters ...")
-	genome := gene.NewGenome(builder)
+	gene.SetGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {
@@ -38,16 +38,14 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 		if err != nil {
 			log.Fatal(err)
 		}
-		if _, ok := genome[trans.Chrom]; ok {
-			if _, ok := writers[trans.Chrom]; !ok {
-				outfile := path.Join(outdir, fmt.Sprintf("chr%s.json", trans.Chrom))
-				writers[trans.Chrom], err = os.Create(outfile)
-				if err != nil {
-					log.Fatal(err)
-				}
+		if _, ok := writers[trans.Chrom]; !ok {
+			outfile := path.Join(outdir, fmt.Sprintf("chr%s.json", trans.Chrom))
+			writers[trans.Chrom], err = os.Create(outfile)
+			if err != nil {
+				log.Fatal(err)
 			}
-			writers[trans.Chrom].WriteString(pkg.ToJSON(trans) + "\n")
 		}
+		writers[trans.Chrom].WriteString(pkg.ToJSON(trans) + "\n")
 	}
 	for _, writer := range writers {
 		err := writer.Close()
@@ -57,19 +55,17 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 	}
 	log.Printf("Write transcript index: %s ...", outdir)
 	writers = make(map[string]*os.File)
-	transIndexes := gene.NewTransIndexes(genome, indexStep)
+	transIndexes := gene.NewTransIndexes(indexStep)
 	for _, idx := range transIndexes {
 		idx.SetTranscripts(transcripts)
-		if _, ok := genome[idx.Chrom]; ok {
-			if _, ok := writers[idx.Chrom]; !ok {
-				outfile := path.Join(outdir, fmt.Sprintf("chr%s.idx.json", idx.Chrom))
-				writers[idx.Chrom], err = os.Create(outfile)
-				if err != nil {
-					log.Fatal(err)
-				}
+		if _, ok := writers[idx.Chrom]; !ok {
+			outfile := path.Join(outdir, fmt.Sprintf("chr%s.idx.json", idx.Chrom))
+			writers[idx.Chrom], err = os.Create(outfile)
+			if err != nil {
+				log.Fatal(err)
 			}
-			writers[idx.Chrom].WriteString(pkg.ToJSON(idx) + "\n")
 		}
+		writers[idx.Chrom].WriteString(pkg.ToJSON(idx) + "\n")
 	}
 	for _, writer := range writers {
 		err := writer.Close()
@@ -81,8 +77,8 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 
 func NewPreGeneBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "GeneBased",
-		Short: "Prepare required transcript files",
+		Use:   "GB",
+		Short: "Prepare Genebased database",
 		Run: func(cmd *cobra.Command, args []string) {
 			genome, _ := cmd.Flags().GetString("genome")
 			refgene, _ := cmd.Flags().GetString("refgene")
@@ -96,7 +92,6 @@ func NewPreGeneBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				// fmt.Println(refgene, genome, builder, step, path.Join(dbpath, builder, name), dbpath)
 				PreGeneBased(refgene, genome, builder, step, path.Join(dbpath, builder, name))
 			}
 		},

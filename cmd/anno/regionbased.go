@@ -3,7 +3,7 @@ package anno
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/regionbased"
+	"open-anno/anno/database"
 	"open-anno/pkg/variant"
 	"os"
 	"path"
@@ -27,14 +27,14 @@ func AnnoRegionBased(avinput string, dbPath string, dbName string, builder strin
 		}
 	}
 	for chrom, snvs := range snv_dict {
-		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
-		regionbased.Anno(snvs, dbFile, overlap, writer)
+		dbfile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
+		database.AnnoRegionBased(snvs, dbfile, overlap, writer)
 	}
 }
 
 func NewRegionBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Regionbased",
+		Use:   "RB",
 		Short: "Annotate Regionbased",
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")

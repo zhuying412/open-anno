@@ -1,4 +1,4 @@
-package filterbased
+package database
 
 import (
 	"bufio"
@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func Anno(variants variant.Variants, dbfile string, writer *os.File) {
+func AnnoFilterBased(variants variant.Variants, dbfile string, writer *os.File) {
 	sort.Sort(variants)
 	fi, err := os.Open(dbfile)
 	if err != nil {
@@ -20,20 +20,16 @@ func Anno(variants variant.Variants, dbfile string, writer *os.File) {
 	scanner := bufio.NewScanner(fi)
 	scanner.Scan()
 	writer.WriteString(scanner.Text())
-	scanner.Scan()
-	dbvar, err := variant.ReadVariantLine(scanner.Text())
-	if err != nil {
-		log.Fatal(err)
-	}
+	var dbvar variant.FilterBased
 	for i := 0; i < len(variants); {
-		switch variants[i].CMP(dbvar) {
+		switch variant.CompareVar(variants[i], dbvar) {
 		case variant.VCMP_LT:
 			i++
 		case variant.VCMP_GT:
 			if !scanner.Scan() {
 				break
 			}
-			dbvar, err = variant.ReadVariantLine(scanner.Text())
+			dbvar, err = variant.ReadFilterBasedLine(scanner.Text())
 			if err != nil {
 				log.Fatal(err)
 			}

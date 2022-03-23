@@ -28,9 +28,9 @@ func (this TransIndexes) Len() int           { return len(this) }
 func (this TransIndexes) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
 func (this TransIndexes) Less(i, j int) bool { return this[i].Start < this[j].Start }
 
-func NewTransIndexes(genome map[string]int, step int) TransIndexes {
+func NewTransIndexes(step int) TransIndexes {
 	indexes := make(TransIndexes, 0)
-	for chrom, length := range genome {
+	for chrom, length := range GENOME {
 		for start := 1; start <= length; start += step {
 			end := start + step - 1
 			if end > length {

@@ -3,7 +3,7 @@ package anno
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/filterbased"
+	"open-anno/anno/database"
 	"open-anno/pkg/variant"
 	"os"
 	"path"
@@ -28,13 +28,13 @@ func AnnoFilterBased(avinput string, dbPath string, dbName string, builder strin
 	}
 	for chrom, snvs := range snv_dict {
 		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
-		filterbased.Anno(snvs, dbFile, writer)
+		database.AnnoFilterBased(snvs, dbFile, writer)
 	}
 }
 
 func NewFilterBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Filterbased",
+		Use:   "FB",
 		Short: "Annotate Filterbased",
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")
