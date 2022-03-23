@@ -27,3 +27,10 @@ var GENOME_HG19 = map[string]int{
 	"Y":  59373566,
 	"MT": 16569,
 }
+
+func NewGenome(builder string) map[string]int {
+	if builder == "hg19" {
+		return GENOME_HG19
+	}
+	return map[string]int{}
+}

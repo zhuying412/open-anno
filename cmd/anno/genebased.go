@@ -20,7 +20,7 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 		log.Fatal(err)
 	}
 	for chrom, snvs := range snv_dict {
-		if chrom != "1" {
+		if chrom != "17" {
 			continue
 		}
 		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
@@ -46,7 +46,42 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 			}
 		}
 		genebased.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
-		break
+	}
+}
+
+func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
+	log.Printf("Read avinput: %s ...", avinput)
+	snv_dict, err := variant.ReadAvinput(avinput)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for chrom, snvs := range snv_dict {
+		if chrom != "17" {
+			continue
+		}
+		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
+		indexFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.idx.json", chrom))
+		log.Printf("Read Transcript: %s ...", transFile)
+		transcripts, err := gene.ReadTransDB(transFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Read Transcript Index: %s ...", indexFile)
+		transIndexes, err := gene.ReadTransIndexDB(indexFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("Start run annotate ...")
+		var writer *os.File
+		if outfile == "-" {
+			writer = os.Stdout
+		} else {
+			writer, err = os.Create(outfile)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		genebased.AnnoCnvs(snvs, transcripts, transIndexes, writer)
 	}
 }
 
@@ -70,9 +105,8 @@ func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
 				if varType == "snv" {
 					aashort, _ := cmd.Flags().GetBool("aashort")
 					AnnoSnvGeneBased(avinput, dbpath, dbname, builder, outfile, aashort)
-					// gene.ReadTransDB("humandb/hg19/refgene/chr19.json")
 				} else if varType == "CNV" {
-					// AnnoSnvGeneBased(avinput, dbpath, dbname, builder, outfile)
+					AnnoCnvGeneBased(avinput, dbpath, dbname, builder, outfile)
 				}
 			}
 		},
@@ -83,7 +117,7 @@ func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
 	cmd.Flags().StringP("dbname", "n", "refgene", "Database Builder")
 	cmd.Flags().StringP("builder", "b", "hg19", "Database Builder")
 	if varType == "snv" {
-		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
+		cmd.Flags().BoolP("aashort", "s", true, "Database Builder")
 	}
 	return cmd
 }

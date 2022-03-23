@@ -14,10 +14,7 @@ import (
 
 func PreGeneBased(refgene string, fasta string, builder string, indexStep int, outdir string) {
 	log.Println("Init parameters ...")
-	genome := gene.GENOME_HG19
-	if builder == "hg38" {
-		genome = gene.GENOME_HG19
-	}
+	genome := gene.NewGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {

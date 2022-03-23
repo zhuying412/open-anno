@@ -3,9 +3,6 @@ package genebased
 import (
 	"fmt"
 	"open-anno/pkg/gene"
-	"open-anno/pkg/variant"
-	"os"
-	"sort"
 )
 
 type SnvGeneBased struct {
@@ -19,7 +16,7 @@ type SnvGeneBased struct {
 	Region2    string `json:"region2"`
 }
 
-func NewSnvGeneBased(trans gene.Transcript, region gene.Region) SnvGeneBased {
+func NewSnvGeneBased(trans gene.Transcript, regions ...gene.Region) SnvGeneBased {
 	anno := SnvGeneBased{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
@@ -28,112 +25,62 @@ func NewSnvGeneBased(trans gene.Transcript, region gene.Region) SnvGeneBased {
 		NAChange:   ".",
 		AAChange:   ".",
 	}
-	anno.Region2 = region.Name()
-	if region.Type == gene.RType_UTR {
-		anno.Region = region.Name()
-	} else if region.Type == gene.RType_INTRON {
-		anno.Region = "intronic"
+	if len(regions) == 0 {
+		anno.Region = "."
+		anno.Region2 = "."
 	} else {
-		anno.Region = "exonic"
-	}
-	return anno
-}
-
-func fitlerSpecialAnno(annos []SnvGeneBased) []SnvGeneBased {
-	filtered := make([]SnvGeneBased, 0)
-	for _, anno := range annos {
-		if anno.Event != "." {
-			filtered = append(filtered, anno)
-		}
-	}
-	return filtered
-}
-
-func AnnoSnvs(snvs variant.Variants, transcripts gene.Transcripts, transIndexes gene.TransIndexes, aashort bool, writer *os.File) {
-	sort.Sort(snvs)
-	sort.Sort(transIndexes)
-	for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
-		if snvs[i].End < transIndexes[j].Start {
-			i++
-		} else if snvs[i].Start > transIndexes[j].End {
-			j++
+		var region gene.Region
+		if len(regions) == 1 {
+			region = regions[0]
 		} else {
-			if snvs[i].Type() != variant.VType_INS {
-				i++
-				continue
+			region1, region2 := regions[0], regions[1]
+			if region1.Start > region2.Start {
+				region1, region2 = region2, region1
 			}
-			var cmplAnnoS, cmplAnnos, incmplAnnos, unkAnnos []SnvGeneBased
-			for _, transName := range transIndexes[j].Transcripts {
-				trans := transcripts[transName]
-				if trans.TxStart <= snvs[i].End && trans.TxEnd >= snvs[i].Start {
-					var anno SnvGeneBased
-					if trans.IsUnk() {
-						anno.Region = "ncRNA"
-						unkAnnos = append(unkAnnos, anno)
-					} else {
-						if snvs[i].Type() == variant.VType_SNP {
-							anno = AnnoSnp(snvs[i], trans, aashort)
-						} else if snvs[i].Type() == variant.VType_INS {
-							anno = AnnoIns(snvs[i], transcripts[transName], aashort)
-						} else {
-							anno = AnnoDel(snvs[i], transcripts[transName], aashort)
-						}
-						if trans.IsCmpl() {
-							if anno.Event == "." {
-								cmplAnnos = append(cmplAnnos, anno)
-							} else {
-								cmplAnnoS = append(cmplAnnoS, anno)
-							}
-						} else {
-							incmplAnnos = append(incmplAnnos, anno)
-						}
-					}
+			if trans.Strand == "-" {
+				region1, region2 = region2, region1
+			}
+			if region1.Exists() && region2.Exists() && region1.Name() != region2.Name() {
+				anno.Region2 = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
+				anno.Region = anno.Region2
+			} else {
+				region = region1
+				if !region1.Exists() {
+					region = region2
 				}
 			}
-			annos := cmplAnnoS
-			if len(annos) == 0 {
-				annos = append(annos, cmplAnnos...)
+		}
+		if region.Exists() {
+			anno.Region2 = regions[0].Name()
+			if regions[0].Type == gene.RType_UTR {
+				anno.Region = regions[0].Name()
+			} else if regions[0].Type == gene.RType_INTRON {
+				anno.Region = "intronic"
+			} else {
+				anno.Region = "exonic"
 			}
-			if len(annos) == 0 {
-				annos = append(annos, incmplAnnos...)
-			}
-			if len(annos) == 0 {
-				annos = append(annos, unkAnnos...)
-			}
-			if len(annos) == 0 {
-				annos = []SnvGeneBased{{
-					Gene: ".", GeneID: ".",
-					Transcript: ".", Region: ".",
-					NAChange: ".", AAChange: ".",
-					Event: ".", Region2: ".",
-				}}
-			}
-			for _, anno := range annos {
-				fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-					snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt,
-					anno.Gene, anno.Transcript, anno.Event, anno.Region, anno.NAChange, anno.AAChange,
-				)
-			}
-			i++
 		}
 	}
+	return anno
 }
 
 type CnvGeneBased struct {
 	Gene       string `json:"gene"`
 	GeneID     string `json:"gene_id"`
 	Transcript string `json:"transcript"`
-	Region     string `json:"region"`
-	Exon       string `json:"exon"`
+	CDS        string `json:"cds"`
+	Region     string `json:"utr3"`
+	Strand     string `json:"strand"`
 }
 
-func NewCnvGeneBased(trans gene.Transcript, region gene.Region) CnvGeneBased {
+func NewCnvGeneBased(trans gene.Transcript) CnvGeneBased {
 	anno := CnvGeneBased{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
 		Transcript: trans.Name,
-		Region:     region.Name(),
-		Exon:       region.Exon,
+		Strand:     trans.Strand,
+		CDS:        ".",
+		Region:     ".",
 	}
 	return anno
 }

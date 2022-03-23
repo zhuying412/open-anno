@@ -28,15 +28,15 @@ func AnnoIns(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 	anno := NewSnvGeneBased(trans, region)
 	if region.End < trans.CdsStart {
 		if trans.Strand == "+" {
-			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", trans.TxStart-snv.End, trans.TxStart-snv.End-1, snv.Alt)
+			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", trans.CdsStart-snv.End, trans.CdsStart-snv.End-1, snv.Alt)
 		} else {
-			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", trans.TxStart-snv.End-1, trans.TxStart-snv.End, seq.RevComp(snv.Alt))
+			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", trans.CdsStart-snv.End-1, trans.CdsStart-snv.End, seq.RevComp(snv.Alt))
 		}
 	} else if region.Start > trans.CdsEnd {
 		if trans.Strand == "+" {
-			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", snv.Start-trans.TxEnd, snv.Start-trans.TxEnd+1, snv.Alt)
+			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", snv.Start-trans.CdsEnd, snv.Start-trans.CdsEnd+1, snv.Alt)
 		} else {
-			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.TxEnd+1, snv.Start-trans.TxEnd+1, seq.RevComp(snv.Alt))
+			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.CdsEnd+1, snv.Start-trans.CdsEnd+1, seq.RevComp(snv.Alt))
 		}
 	} else {
 		if region.Type == gene.RType_INTRON {
@@ -130,8 +130,8 @@ func AnnoIns(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 					if fsi == -1 {
 						fs = "?"
 					}
-					if fsi == 0 {
-						fs = fmt.Sprintf("%d", fsi)
+					if fsi != 0 {
+						fs = fmt.Sprintf("%d", fsi+1)
 					}
 					anno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", seq.AAName(aa1[0], aashort), start, seq.AAName(aa2[0], aashort), fs)
 				}

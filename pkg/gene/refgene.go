@@ -47,7 +47,17 @@ func (this *Transcript) SetRegions(fai *faidx.Faidx) error {
 	return err
 }
 
-func (this *Transcript) CLen() int {
+func (this Transcript) CdsCount() int {
+	var count int
+	for _, region := range this.Regions {
+		if region.Type == RType_CDS {
+			count++
+		}
+	}
+	return count
+}
+
+func (this Transcript) CLen() int {
 	var length int
 	for _, region := range this.Regions {
 		if region.Type == RType_CDS {
@@ -57,7 +67,7 @@ func (this *Transcript) CLen() int {
 	return length
 }
 
-func (this *Transcript) CDNA() string {
+func (this Transcript) CDNA() string {
 	var cdna bytes.Buffer
 	for _, region := range this.Regions {
 		if region.Type == RType_CDS {
@@ -67,7 +77,7 @@ func (this *Transcript) CDNA() string {
 	return cdna.String()
 }
 
-func (this *Transcript) DNA() string {
+func (this Transcript) DNA() string {
 	var cdna bytes.Buffer
 	for _, region := range this.Regions {
 		cdna.WriteString(region.Sequence)
@@ -75,11 +85,11 @@ func (this *Transcript) DNA() string {
 	return cdna.String()
 }
 
-func (this *Transcript) IsCmpl() bool {
+func (this Transcript) IsCmpl() bool {
 	return this.CdsStartStat == CdsStat_C && this.CdsEndStat == CdsStat_C
 }
 
-func (this *Transcript) IsUnk() bool {
+func (this Transcript) IsUnk() bool {
 	return this.CdsStartStat == CdsStat_U && this.CdsEndStat == CdsStat_U
 }
 

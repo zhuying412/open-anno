@@ -45,7 +45,6 @@ func AAName[T byte | string](bases T, aashort bool) string {
 			buffer.WriteByte(sequence[i])
 		} else {
 			buffer.WriteString(AAMap[sequence[i]])
-
 		}
 	}
 	return buffer.String()

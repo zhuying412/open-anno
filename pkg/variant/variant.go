@@ -14,6 +14,11 @@ const (
 	VType_DEL = "DEL"
 	VType_DUP = "DUP"
 )
+const (
+	VCMP_GT = ">"
+	VCMP_LT = "<"
+	VCMP_EQ = "="
+)
 
 type Variant struct {
 	Chrom     string   `json:"chrom"`
@@ -43,11 +48,67 @@ func (this Variant) ID() string {
 	return fmt.Sprintf("%s:%d-%d:%s/%s", this.Chrom, this.Start, this.End, this.Ref, this.Alt)
 }
 
+func (this Variant) CMP(v Variant) string {
+	if this.Start == v.Start {
+		if this.End == v.End {
+			if this.Ref == v.Ref {
+				if this.Alt == v.Alt {
+					return VCMP_EQ
+				} else {
+					if this.Alt < v.Alt {
+						return VCMP_LT
+					} else {
+						return VCMP_GT
+					}
+				}
+			} else {
+				if this.Ref < v.Ref {
+					return VCMP_LT
+				} else {
+					return VCMP_GT
+				}
+			}
+		} else {
+			if this.End < v.End {
+				return VCMP_LT
+			} else {
+				return VCMP_GT
+			}
+		}
+	} else {
+		if this.Start < v.Start {
+			return VCMP_LT
+		} else {
+			return VCMP_GT
+		}
+	}
+}
+
 type Variants []Variant
 
 func (this Variants) Len() int           { return len(this) }
 func (this Variants) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
-func (this Variants) Less(i, j int) bool { return this[i].Start < this[j].Start }
+func (this Variants) Less(i, j int) bool { return this[i].CMP(this[j]) == VCMP_LT }
+
+func ReadVariantLine(line string) (Variant, error) {
+	fields := strings.Split(line, "\t")
+	variant := Variant{
+		Chrom:     fields[0],
+		Ref:       fields[3],
+		Alt:       fields[4],
+		Otherinfo: fields[5:],
+	}
+	var err error
+	variant.Start, err = strconv.Atoi(fields[1])
+	if err != nil {
+		return variant, err
+	}
+	variant.End, err = strconv.Atoi(fields[2])
+	if err != nil {
+		return variant, err
+	}
+	return variant, err
+}
 
 func ReadAvinput(avinput string) (map[string]Variants, error) {
 	variants := make(map[string]Variants)
@@ -58,31 +119,18 @@ func ReadAvinput(avinput string) (map[string]Variants, error) {
 	defer fi.Close()
 	scanner := bufio.NewScanner(fi)
 	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), "\t")
-		chrom := fields[0]
-		if chrom[0] == '#' {
+		line := scanner.Text()
+		if line[0] == '#' {
 			continue
 		}
-		start, err := strconv.Atoi(fields[1])
+		variant, err := ReadVariantLine(line)
 		if err != nil {
 			return variants, err
 		}
-		end, err := strconv.Atoi(fields[2])
-		if err != nil {
-			return variants, err
-		}
-		variant := Variant{
-			Chrom:     fields[0],
-			Start:     start,
-			End:       end,
-			Ref:       fields[3],
-			Alt:       fields[4],
-			Otherinfo: fields[5:],
-		}
-		if vars, ok := variants[chrom]; ok {
-			variants[chrom] = append(vars, variant)
+		if vars, ok := variants[variant.Chrom]; ok {
+			variants[variant.Chrom] = append(vars, variant)
 		} else {
-			variants[chrom] = Variants{variant}
+			variants[variant.Chrom] = Variants{variant}
 		}
 	}
 	return variants, err

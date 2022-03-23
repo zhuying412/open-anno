@@ -31,6 +31,14 @@ func (this *Region) Name() string {
 	return fmt.Sprintf("%s%d", this.Type, this.Order)
 }
 
+func (this Region) Equal(r Region) bool {
+	return this.Chrom == r.Chrom && this.Start == r.Start && this.End == r.End
+}
+
+func (this Region) Exists() bool {
+	return this.Chrom != "" && this.Start != 0 && this.End != 0
+}
+
 func (this *Region) SetSequence(fai *faidx.Faidx) error {
 	var err error
 	this.Sequence, err = fai.Get(this.Chrom, this.Start-1, this.End)
