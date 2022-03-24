@@ -19,10 +19,17 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 	if err != nil {
 		log.Fatal(err)
 	}
-	for chrom, snvs := range snv_dict {
-		if chrom != "17" {
-			continue
+	var writer *os.File
+	if outfile == "-" {
+		writer = os.Stdout
+	} else {
+		writer, err = os.Create(outfile)
+		if err != nil {
+			log.Fatal(err)
 		}
+	}
+	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tGene\tGeneID\tEvent\tRegion\tDetail\n")
+	for chrom, snvs := range snv_dict {
 		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
 		indexFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.idx.json", chrom))
 		log.Printf("Read Transcript: %s ...", transFile)
@@ -36,15 +43,6 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 			log.Fatal(err)
 		}
 		log.Printf("Start run annotate ...")
-		var writer *os.File
-		if outfile == "-" {
-			writer = os.Stdout
-		} else {
-			writer, err = os.Create(outfile)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
 		genebased.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
 	}
 }
@@ -55,10 +53,17 @@ func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 	if err != nil {
 		log.Fatal(err)
 	}
-	for chrom, snvs := range snv_dict {
-		if chrom != "17" {
-			continue
+	var writer *os.File
+	if outfile == "-" {
+		writer = os.Stdout
+	} else {
+		writer, err = os.Create(outfile)
+		if err != nil {
+			log.Fatal(err)
 		}
+	}
+	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
+	for chrom, snvs := range snv_dict {
 		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
 		indexFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.idx.json", chrom))
 		log.Printf("Read Transcript: %s ...", transFile)
@@ -72,15 +77,6 @@ func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 			log.Fatal(err)
 		}
 		log.Printf("Start run annotate ...")
-		var writer *os.File
-		if outfile == "-" {
-			writer = os.Stdout
-		} else {
-			writer, err = os.Create(outfile)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
 		genebased.AnnoCnvs(snvs, transcripts, transIndexes, writer)
 	}
 }

@@ -40,7 +40,6 @@ func AnnoIns(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		}
 	} else {
 		if region.Type == gene.RType_INTRON {
-			anno.Event = "."
 			dist1s, dist2s := snv.Start-region.Start+1, region.End-snv.End+1
 			dist1e, dist2e := dist1s+1, dist2s-1
 			dist1, dist2 := dist1e, dist2s

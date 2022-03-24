@@ -63,7 +63,6 @@ func AnnoCnv(cnv variant.Variant, trans gene.Transcript) CnvGeneBased {
 func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes gene.TransIndexes, writer *os.File) {
 	sort.Sort(cnvs)
 	sort.Sort(transIndexes)
-	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
 	for _, cnv := range cnvs {
 		transNames := make([]string, 0)
 		annos := make([]CnvGeneBased, 0)

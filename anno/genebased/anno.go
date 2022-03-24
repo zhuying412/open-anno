@@ -21,44 +21,36 @@ func NewSnvGeneBased(trans gene.Transcript, regions ...gene.Region) SnvGeneBased
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
 		Transcript: trans.Name,
-		Event:      ".",
-		NAChange:   ".",
-		AAChange:   ".",
 	}
-	if len(regions) == 0 {
-		anno.Region = "."
-		anno.Region2 = "."
+	var region gene.Region
+	if len(regions) == 1 {
+		region = regions[0]
 	} else {
-		var region gene.Region
-		if len(regions) == 1 {
-			region = regions[0]
+		region1, region2 := regions[0], regions[1]
+		if region1.Start > region2.Start {
+			region1, region2 = region2, region1
+		}
+		if trans.Strand == "-" {
+			region1, region2 = region2, region1
+		}
+		if region1.Exists() && region2.Exists() && region1.Name() != region2.Name() {
+			anno.Region2 = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
+			anno.Region = anno.Region2
 		} else {
-			region1, region2 := regions[0], regions[1]
-			if region1.Start > region2.Start {
-				region1, region2 = region2, region1
-			}
-			if trans.Strand == "-" {
-				region1, region2 = region2, region1
-			}
-			if region1.Exists() && region2.Exists() && region1.Name() != region2.Name() {
-				anno.Region2 = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
-				anno.Region = anno.Region2
-			} else {
-				region = region1
-				if !region1.Exists() {
-					region = region2
-				}
+			region = region1
+			if !region1.Exists() {
+				region = region2
 			}
 		}
-		if region.Exists() {
-			anno.Region2 = regions[0].Name()
-			if regions[0].Type == gene.RType_UTR {
-				anno.Region = regions[0].Name()
-			} else if regions[0].Type == gene.RType_INTRON {
-				anno.Region = "intronic"
-			} else {
-				anno.Region = "exonic"
-			}
+	}
+	if region.Exists() {
+		anno.Region2 = regions[0].Name()
+		if regions[0].Type == gene.RType_UTR {
+			anno.Region = regions[0].Name()
+		} else if regions[0].Type == gene.RType_INTRON {
+			anno.Region = "intronic"
+		} else {
+			anno.Region = "exonic"
 		}
 	}
 	return anno

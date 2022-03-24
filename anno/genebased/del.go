@@ -54,7 +54,7 @@ func setChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, a
 	ncdna := seq.Delete(cdna, cstart, cend)
 	start := seq.DifferenceSimple(cdna, ncdna)
 	alt := cdna[start-1 : start+cend-cstart]
-	if anno.NAChange == "" || anno.NAChange == "." {
+	if anno.NAChange == "" {
 		anno.NAChange = fmt.Sprintf("c.%d_%ddel%s", start, start+cend-cstart, alt)
 	}
 	if trans.Strand == "-" {

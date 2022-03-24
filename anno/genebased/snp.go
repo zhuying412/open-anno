@@ -38,7 +38,6 @@ func AnnoSnp(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		}
 	} else {
 		if region.Type == gene.RType_INTRON {
-			anno.Event = "."
 			dist1 := snv.Start - region.Start + 1
 			dist2 := region.End - snv.Start + 1
 			if dist1 <= 2 || dist2 <= 2 {
@@ -68,15 +67,19 @@ func AnnoSnp(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			}
 			protein := seq.Translate(cdna, trans.Chrom == "MT")
 			nprotein := seq.Translate(ncdna, trans.Chrom == "MT")
-			start := seq.DifferenceSimple(cdna, ncdna)
-			na1, na2 := cdna[start-1], ncdna[start-1]
-			anno.NAChange = fmt.Sprintf("c.%d%c>%c", start, na1, na2)
-			start = seq.DifferenceSimple(protein, protein)
-			aa1, aa2 := protein[start-1], nprotein[start-1]
+			cstart := seq.DifferenceSimple(cdna, ncdna)
+			na1, na2 := cdna[cstart-1], ncdna[cstart-1]
+			anno.NAChange = fmt.Sprintf("c.%d%c>%c", cstart, na1, na2)
+			pstart := seq.DifferenceSimple(protein, protein)
+			if pstart > len(protein) {
+				pstart = cstart / 3
+
+			}
+			aa1, aa2 := protein[pstart-1], nprotein[pstart-1]
 			if aa1 == aa2 {
 				anno.Event = "synonymous_snv"
 			} else {
-				if aa1 == 'M' && start == 1 {
+				if aa1 == 'M' && pstart == 1 {
 					anno.Event = "startloss"
 				} else if aa1 == '*' {
 					anno.Event = "stoploss"
@@ -86,7 +89,7 @@ func AnnoSnp(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 					anno.Event = "nonsynonymous_snv"
 				}
 			}
-			anno.AAChange = fmt.Sprintf("p.%s%d%s", seq.AAName(aa1, aashort), start, seq.AAName(aa2, aashort))
+			anno.AAChange = fmt.Sprintf("p.%s%d%s", seq.AAName(aa1, aashort), pstart, seq.AAName(aa2, aashort))
 		}
 	}
 	return anno

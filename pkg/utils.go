@@ -47,3 +47,12 @@ func Abs[T int | float64](a T) T {
 	}
 	return a
 }
+
+func FindArr[T string | int | float64](arr []T, k T) int {
+	for i, v := range arr {
+		if k == v {
+			return i
+		}
+	}
+	return -1
+}
