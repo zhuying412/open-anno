@@ -62,7 +62,7 @@ func (this Variants) Less(i, j int) bool { return CompareVar(this[i], this[j]) =
 func ReadVariantLine(line string) (Variant, error) {
 	fields := strings.Split(line, "\t")
 	variant := Variant{
-		Chrom:     fields[0],
+		Chrom:     strings.Replace(fields[0], "chr", "", -1),
 		Ref:       fields[3],
 		Alt:       fields[4],
 		Otherinfo: fields[5:],

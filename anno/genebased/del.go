@@ -119,15 +119,17 @@ func setChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, a
 func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBased {
 	cStart, cEnd, region1, region2, isExonSplicing := getCLen(trans, snv)
 	cLen := trans.CLen()
-	var anno SnvGeneBased
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
 	r := pkg.Min(trans.TxEnd, snv.End) - trans.CdsEnd
+	anno := NewSnvGeneBased(trans, region1, region2)
+	if isExonSplicing {
+		anno.Region = "exonic_splicing"
+	}
 	if snv.Start < trans.CdsStart && snv.End > trans.CdsEnd {
 		// snv包含了整个编码区，即整个编码区被删除
 		// ...+++,,,+++...
 		//   |---------|
 		//|---------------|
-		anno = NewSnvGeneBased(trans, gene.Region{})
 		if trans.Strand == "+" {
 			// anno.NAChange = fmt.Sprintf("c.-%d_+%ddel%s", trans.CdsStart-snv.Start, snv.End-trans.CdsEnd, snv.Ref)
 			if l == 0 {
@@ -167,7 +169,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		// snv发生在整个编码区左边
 		// |-|...+++,,,+++...
 		//   |-|
-		anno = NewSnvGeneBased(trans, trans.Regions[0], region2)
 		ll := pkg.Abs(trans.CdsStart-snv.End-l) + 1
 		if trans.Strand == "+" {
 			anno.NAChange = fmt.Sprintf("c.-%d_-%ddel%s", l, trans.CdsStart-snv.End, snv.Ref[len(snv.Ref)-ll:])
@@ -178,7 +179,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		// snv发生在整个编码区左边
 		// ...+++,,,+++...|-|
 		//              |-|
-		anno = NewSnvGeneBased(trans, region1, trans.Regions[len(trans.Regions)-1])
 		ll := pkg.Abs(snv.Start-trans.CdsEnd-r) + 1
 		if trans.Strand == "+" {
 			anno.NAChange = fmt.Sprintf("c.+%d_+%ddel%s", snv.Start-trans.CdsEnd, r, snv.Ref[0:ll])
@@ -186,7 +186,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			anno.NAChange = fmt.Sprintf("c.-%d_-%ddel%s", snv.End-trans.CdsEnd, r, seq.RevComp(snv.Ref[0:ll]))
 		}
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
-		anno = NewSnvGeneBased(trans, region1, region2)
 		ll := snv.End - trans.CdsStart + 1 + l
 		if region2.Type == gene.RType_CDS {
 			// ...+++,,,+++...
@@ -227,7 +226,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		}
 		anno = setChange(anno, trans, 1, cEnd, aashort, "splicing")
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
-		anno = NewSnvGeneBased(trans, region1, region2)
 		ll := trans.CdsEnd - snv.End + 1 + r
 		if region1.Type == gene.RType_CDS {
 			// ...,,,+++...
@@ -272,7 +270,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 
 	} else {
 		if region1.Equal(region2) {
-			anno = NewSnvGeneBased(trans, region1)
 			if region1.Type == gene.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
@@ -304,7 +301,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			}
 		} else {
 			if region1.Type == gene.RType_CDS {
-				anno = NewSnvGeneBased(trans, region1, region2)
 				if region2.Type != gene.RType_CDS {
 					// ...+++,,,+++...
 					//     |--|
@@ -316,7 +312,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 				anno = setChange(anno, trans, cStart, cEnd, aashort, "")
 			} else {
-				anno = NewSnvGeneBased(trans, region1, region2)
 				if region2.Type == gene.RType_CDS {
 					// ...+++,,,+++...
 					//        |--|
@@ -337,9 +332,6 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				anno = setChange(anno, trans, cStart+1, cEnd, aashort, "")
 			}
 		}
-	}
-	if isExonSplicing {
-		anno.Region = "exonic_splicing"
 	}
 	return anno
 }
