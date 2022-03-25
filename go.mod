@@ -6,6 +6,8 @@ require github.com/brentp/faidx v0.0.0-20200301150453-c39eb85760d8
 
 require (
 	github.com/biogo/hts v1.4.3 // indirect
+	github.com/brentp/irelate v0.0.1 // indirect
+	github.com/brentp/vcfgo v0.0.0-20190824021612-654ed2e5945d // indirect
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect

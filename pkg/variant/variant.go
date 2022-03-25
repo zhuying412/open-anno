@@ -108,6 +108,21 @@ func ReadAvinput(avinput string) (map[string]Variants, error) {
 	return variants, err
 }
 
+func WriteAvinput(variants Variants, outfile string) error {
+	writer, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	for _, variant := range variants {
+		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s", variant.Chrom, variant.Start, variant.End, variant.Ref, variant.Alt)
+		for _, info := range variant.Otherinfo {
+			fmt.Fprintf(writer, "\t%s", info)
+		}
+		fmt.Fprint(writer, "\n")
+	}
+	return nil
+}
+
 type ICompareVar interface {
 	GetBaseVar() (string, int, int, string, string)
 }

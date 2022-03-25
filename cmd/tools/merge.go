@@ -9,7 +9,7 @@ import (
 
 func NewMergeCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Merge",
+		Use:   "merge",
 		Short: "Merge annotations",
 		Run: func(cmd *cobra.Command, args []string) {
 			genebased, _ := cmd.Flags().GetString("genebased")

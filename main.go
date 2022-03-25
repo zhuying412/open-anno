@@ -21,7 +21,7 @@ func NewRootCmd() *cobra.Command {
 
 func NewPreCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Pre",
+		Use:   "pre",
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewPreGeneBasedCmd())
@@ -31,20 +31,20 @@ func NewPreCmd() *cobra.Command {
 
 func NewAnnoCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Anno",
+		Use:   "anno",
 		Short: "Annotate variants",
 	}
-	cmd.AddCommand(anno.NewAnnoGeneBasedCmd("snv"))
-	cmd.AddCommand(anno.NewAnnoGeneBasedCmd("cnv"))
+	cmd.AddCommand(anno.NewAnnoGeneBasedCmd())
 	return cmd
 }
 
 func NewToolsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "Tools",
+		Use:   "tools",
 		Short: "Tools",
 	}
 	cmd.AddCommand(tools.NewMergeCmd())
+	cmd.AddCommand(tools.NewVCf2AVCmd())
 	return cmd
 }
 

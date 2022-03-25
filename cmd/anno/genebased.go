@@ -40,7 +40,7 @@ func initGeneBasedData(avinput string, dbPath string, dbName string, builder str
 	return snvMap, transcripts, transIndexes
 }
 
-func InitWriter(outfile string) *os.File {
+func initWriter(outfile string) *os.File {
 	if outfile == "-" {
 		return os.Stdout
 	}
@@ -51,7 +51,7 @@ func InitWriter(outfile string) *os.File {
 	return writer
 }
 
-func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool) {
+func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool) {
 	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
 	// mrna
 	mrnaFile := path.Join(dbPath, builder, dbName, "mRNA.fa")
@@ -61,7 +61,7 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 		log.Fatal(err)
 	}
 	// anno
-	writer := InitWriter(outfile)
+	writer := initWriter(outfile)
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tGene\tGeneID\tEvent\tRegion\tDetail\n")
 	for chrom, snvs := range snvMap {
 		log.Printf("Start run annotate chr%s ...", chrom)
@@ -74,10 +74,10 @@ func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 	}
 }
 
-func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
+func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
 	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
 	// anno
-	writer := InitWriter(outfile)
+	writer := initWriter(outfile)
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
 	for chrom, cnvs := range snvMap {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
@@ -87,11 +87,11 @@ func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder stri
 	}
 }
 
-func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
+func newAnnoGeneBasedCmd(varType string) *cobra.Command {
 	varType = strings.ToLower(varType)
 	cmd := &cobra.Command{
-		Use:   fmt.Sprintf("%sGB", strings.Title(varType)),
-		Short: fmt.Sprintf("Annotate %s Genebased", varType),
+		Use:   varType,
+		Short: fmt.Sprintf("Annotate Genebased for %s", strings.ToUpper(varType)),
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")
 			dbpath, _ := cmd.Flags().GetString("dbpath")
@@ -104,11 +104,15 @@ func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
+				if varType != "snv" && varType != "cnv" {
+					log.Fatalln("only 'gb snv' or 'gb cnv'")
+				}
 				if varType == "snv" {
 					aashort, _ := cmd.Flags().GetBool("aashort")
-					AnnoSnvGeneBased(avinput, dbpath, dbname, builder, outfile, aashort)
-				} else if varType == "CNV" {
-					AnnoCnvGeneBased(avinput, dbpath, dbname, builder, outfile)
+					RunAnnoSnvGeneBased(avinput, dbpath, dbname, builder, outfile, aashort)
+				}
+				if varType == "cnv" {
+					RunAnnoCnvGeneBased(avinput, dbpath, dbname, builder, outfile)
 				}
 			}
 		},
@@ -121,5 +125,15 @@ func NewAnnoGeneBasedCmd(varType string) *cobra.Command {
 	if varType == "snv" {
 		cmd.Flags().BoolP("aashort", "s", true, "Database Builder")
 	}
+	return cmd
+}
+
+func NewAnnoGeneBasedCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "gb",
+		Short: "Annotate Genebased",
+	}
+	cmd.AddCommand(newAnnoGeneBasedCmd("snv"))
+	cmd.AddCommand(newAnnoGeneBasedCmd("cnv"))
 	return cmd
 }

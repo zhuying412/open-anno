@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func AnnoRegionBased(avinput string, dbPath string, dbName string, builder string, overlap float64, outfile string) {
+func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder string, overlap float64, outfile string) {
 	log.Printf("Read avinput: %s ...", avinput)
 	snv_dict, err := variant.ReadAvinput(avinput)
 	if err != nil {
@@ -34,7 +34,7 @@ func AnnoRegionBased(avinput string, dbPath string, dbName string, builder strin
 
 func NewRegionBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "RB",
+		Use:   "rb",
 		Short: "Annotate Regionbased",
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")
@@ -49,7 +49,7 @@ func NewRegionBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				AnnoRegionBased(avinput, dbpath, dbname, builder, overlap, outfile)
+				RunAnnoRegionBased(avinput, dbpath, dbname, builder, overlap, outfile)
 			}
 		},
 	}

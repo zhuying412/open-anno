@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func AnnoFilterBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
+func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
 	log.Printf("Read avinput: %s ...", avinput)
 	snv_dict, err := variant.ReadAvinput(avinput)
 	if err != nil {
@@ -34,7 +34,7 @@ func AnnoFilterBased(avinput string, dbPath string, dbName string, builder strin
 
 func NewFilterBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "FB",
+		Use:   "fb",
 		Short: "Annotate Filterbased",
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")
@@ -48,7 +48,7 @@ func NewFilterBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				AnnoFilterBased(avinput, dbpath, dbname, builder, outfile)
+				RunAnnoFilterBased(avinput, dbpath, dbname, builder, outfile)
 			}
 		},
 	}

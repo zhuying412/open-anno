@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func PreDatabase(infile string, builder string, outdir string) {
+func RunPreDatabase(infile string, builder string, outdir string) {
 	log.Println("Init parameters ...")
 	gene.SetGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
@@ -60,7 +60,7 @@ func PreDatabase(infile string, builder string, outdir string) {
 
 func NewPreDatabaseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "DB",
+		Use:   "db",
 		Short: "Prepare required FilterBased or RegionBased database",
 		Run: func(cmd *cobra.Command, args []string) {
 			infile, _ := cmd.Flags().GetString("infile")
@@ -73,7 +73,7 @@ func NewPreDatabaseCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				PreDatabase(infile, builder, path.Join(dbpath, builder, name))
+				RunPreDatabase(infile, builder, path.Join(dbpath, builder, name))
 			}
 		},
 	}

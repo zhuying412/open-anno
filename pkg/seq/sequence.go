@@ -8,6 +8,15 @@ import (
 )
 
 // RevComp 反向互补
+func Reverse(sequence string) string {
+	var buffer bytes.Buffer
+	for i := len(sequence) - 1; i >= 0; i-- {
+		buffer.WriteByte(sequence[i])
+	}
+	return buffer.String()
+}
+
+// RevComp 反向互补
 func RevComp(sequence string) string {
 	var buffer bytes.Buffer
 	for i := len(sequence) - 1; i >= 0; i-- {

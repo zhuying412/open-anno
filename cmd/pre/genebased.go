@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func PreGeneBased(refgene string, fasta string, builder string, indexStep int, outdir string) {
+func RunPreGeneBased(refgene string, fasta string, builder string, indexStep int, outdir string) {
 	log.Println("Init parameters ...")
 	gene.SetGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
@@ -81,7 +81,7 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 
 func NewPreGeneBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "GB",
+		Use:   "gb",
 		Short: "Prepare Genebased database",
 		Run: func(cmd *cobra.Command, args []string) {
 			genome, _ := cmd.Flags().GetString("genome")
@@ -96,7 +96,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				PreGeneBased(refgene, genome, builder, step, path.Join(dbpath, builder, name))
+				RunPreGeneBased(refgene, genome, builder, step, path.Join(dbpath, builder, name))
 			}
 		},
 	}
