@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"open-anno/pkg/gene"
+	"open-anno/pkg/seq"
 	"os"
 	"path"
 	"strings"
@@ -55,9 +56,9 @@ func RunPreGeneBased(refgene string, fasta string, builder string, indexStep int
 	}
 	defer transWriter.Close()
 	for _, trans := range transcripts {
-		sequence, err := fai.Get(trans.Chrom, trans.TxStart-1, trans.TxEnd)
+		sequence, err := seq.Fetch(fai, trans.Chrom, trans.TxStart-1, trans.TxEnd)
 		if err != nil {
-			sequence, err = fai.Get("chr"+trans.Chrom, trans.TxStart-1, trans.TxEnd)
+			log.Fatal(err)
 		}
 		sequence = strings.ToUpper(sequence)
 		fmt.Fprintf(transWriter, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)

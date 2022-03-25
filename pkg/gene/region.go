@@ -36,16 +36,6 @@ func (this Region) Exists() bool {
 	return this.Chrom != "" && this.Start != 0 && this.End != 0
 }
 
-// func (this *Region) SetSequence(fai *faidx.Faidx) error {
-// 	var err error
-// 	this.Sequence, err = fai.Get(this.Chrom, this.Start-1, this.End)
-// 	if err != nil {
-// 		this.Sequence, err = fai.Get("chr"+this.Chrom, this.Start-1, this.End)
-// 	}
-// 	this.Sequence = strings.ToUpper(this.Sequence)
-// 	return err
-// }
-
 type Regions []Region
 
 func (this Regions) Len() int           { return len(this) }

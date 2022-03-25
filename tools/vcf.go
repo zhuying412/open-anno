@@ -1,17 +1,38 @@
 package tools
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"open-anno/pkg"
 	"open-anno/pkg/seq"
 	"open-anno/pkg/variant"
 	"os"
 	"sort"
 	"strings"
 
+	"github.com/brentp/faidx"
 	"github.com/brentp/vcfgo"
 )
 
-func FormatSnv(chrom string, pos int, ref string, alt string) (string, int, int, string, string) {
+type VCF struct {
+	Chrom  string `json:"CHROM"`
+	Pos    int    `json:"POS"`
+	ID     string `json:"ID"`
+	Ref    string `json:"REF"`
+	Alt    string `json:"ALT"`
+	Qual   string `json:"QUAL"`
+	Filter string `json:"FILTER"`
+	Info   string `json:"INFO"`
+}
+
+type VCFs []VCF
+
+func (this VCFs) Len() int           { return len(this) }
+func (this VCFs) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
+func (this VCFs) Less(i, j int) bool { return this[i].Pos < this[j].Pos }
+
+func FormatVCFSnv(chrom string, pos int, ref string, alt string) (string, int, int, string, string) {
 	if chrom == "M" {
 		chrom = "MT"
 	}
@@ -60,6 +81,27 @@ func FormatSnv(chrom string, pos int, ref string, alt string) (string, int, int,
 	return chrom, start, end, ref, alt
 }
 
+func FormatAVSnv(chrom string, start int, ref string, alt string, fai *faidx.Faidx) (string, int, string, string, error) {
+	var pos int
+	var err error
+	if ref == "-" && alt == "-" {
+		return chrom, start, ref, alt, errors.New("ref == '-' and alt == '-'")
+	}
+	if ref == "-" {
+		ref, err = seq.Fetch(fai, chrom, start-1, start)
+		if err == nil {
+			alt = ref + alt
+		}
+	} else if alt == "-" {
+		start--
+		alt, err = seq.Fetch(fai, chrom, start-1, start)
+		if err == nil {
+			ref = alt + ref
+		}
+	}
+	return pkg.FormatChrom(chrom), pos, ref, alt, err
+}
+
 func ReadVCF(infile string) (variant.Variants, error) {
 	var variants variant.Variants
 	fi, err := os.Open(infile)
@@ -84,7 +126,7 @@ func ReadVCF(infile string) (variant.Variants, error) {
 			return variants, err
 		}
 		for i, alt := range vcf.Alt() {
-			chrom, start, end, ref, alt := FormatSnv(strings.Replace(vcf.Chromosome, "chr", "", 1), int(vcf.Pos), vcf.Ref(), alt)
+			chrom, start, end, ref, alt := FormatVCFSnv(pkg.FormatChrom(vcf.Chromosome), int(vcf.Pos), vcf.Ref(), alt)
 			info := fmt.Sprintf("DEPTH=%d;VAF=%f;", depth, float64(alleles[i+1])/float64(depth))
 			variants = append(variants, variant.Variant{
 				Chrom:     chrom,
@@ -98,4 +140,51 @@ func ReadVCF(infile string) (variant.Variants, error) {
 	}
 	sort.Sort(variants)
 	return variants, err
+}
+
+func ReadAV(infile string, fai *faidx.Faidx) (VCFs, error) {
+	var vcfs VCFs
+	fi, err := os.Open(infile)
+	if err != nil {
+		return vcfs, err
+	}
+	defer fi.Close()
+	scanner := bufio.NewScanner(fi)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line[0] == '#' {
+			continue
+		}
+		variant, err := variant.ReadVariantLine(line)
+		if err != nil {
+			return vcfs, err
+		}
+		chrom, pos, ref, alt, err := FormatAVSnv(variant.Chrom, variant.Start, variant.Ref, variant.Alt, fai)
+		if err != nil {
+			return vcfs, err
+		}
+		vcfs = append(vcfs, VCF{
+			Chrom:  chrom,
+			Pos:    pos,
+			ID:     variant.ID(),
+			Ref:    ref,
+			Alt:    alt,
+			Filter: ".",
+			Qual:   ".",
+			Info:   strings.Join(variant.Otherinfo, ";"),
+		})
+	}
+	return vcfs, err
+}
+
+func WriteVCF(vcfs VCFs, outfile string) error {
+	writer, err := os.Create(outfile)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(writer, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
+	for _, vcf := range vcfs {
+		fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n", vcf.Chrom, vcf.Pos, vcf.ID, vcf.Ref, vcf.Alt, vcf.Qual, vcf.Filter, vcf.Info)
+	}
+	return nil
 }

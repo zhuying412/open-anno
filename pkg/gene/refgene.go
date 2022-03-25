@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"open-anno/pkg"
+	"open-anno/pkg/seq"
 	"os"
 	"strconv"
 	"strings"
@@ -100,7 +102,7 @@ func (this Transcripts) FilterChrom(chrom string, mrna *faidx.Faidx) Transcripts
 			}
 			for i, region := range regions {
 				mrnaName := fmt.Sprintf("%s:%s:%s", trans.Chrom, trans.Gene, trans.Name)
-				regions[i].Sequence, err = mrna.Get(mrnaName, region.Start-trans.TxStart, region.End-trans.TxStart+1)
+				regions[i].Sequence, err = seq.Fetch(mrna, mrnaName, region.Start-trans.TxStart, region.End-trans.TxStart+1)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -122,7 +124,7 @@ func ReadRefgene(refgeneFile string) (Transcripts, error) {
 	scanner := bufio.NewScanner(fi)
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
-		chrom := strings.Replace(fields[2], "chr", "", -1)
+		chrom := pkg.FormatChrom(fields[2])
 		if _, ok := GENOME[chrom]; !ok {
 			continue
 		}

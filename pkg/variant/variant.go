@@ -3,6 +3,7 @@ package variant
 import (
 	"bufio"
 	"fmt"
+	"open-anno/pkg"
 	"open-anno/pkg/gene"
 	"os"
 	"strconv"
@@ -46,7 +47,7 @@ func (this Variant) Type() string {
 }
 
 func (this Variant) ID() string {
-	return fmt.Sprintf("%s:%d-%d:%s/%s", this.Chrom, this.Start, this.End, this.Ref, this.Alt)
+	return fmt.Sprintf("%s:%d:%d:%s:%s", this.Chrom, this.Start, this.End, this.Ref, this.Alt)
 }
 
 func (this Variant) GetBaseVar() (string, int, int, string, string) {
@@ -62,7 +63,7 @@ func (this Variants) Less(i, j int) bool { return CompareVar(this[i], this[j]) =
 func ReadVariantLine(line string) (Variant, error) {
 	fields := strings.Split(line, "\t")
 	variant := Variant{
-		Chrom:     strings.Replace(fields[0], "chr", "", -1),
+		Chrom:     pkg.FormatChrom(fields[0]),
 		Ref:       fields[3],
 		Alt:       fields[4],
 		Otherinfo: fields[5:],

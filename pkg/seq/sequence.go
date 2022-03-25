@@ -5,7 +5,33 @@ import (
 	"fmt"
 	"open-anno/pkg"
 	"regexp"
+
+	"github.com/brentp/faidx"
 )
+
+func Fetch(fai *faidx.Faidx, chrom string, start int, end int) (string, error) {
+	var sequence string
+	var err error
+	chrom = pkg.FormatChrom(chrom)
+	if chrom == "M" || chrom == "MT" {
+		sequence, err = fai.Get("M", start, end)
+		if err != nil {
+			sequence, err = fai.Get("MT", start, end)
+			if err != nil {
+				sequence, err = fai.Get("chrM", start, end)
+				if err != nil {
+					sequence, err = fai.Get("chrMT"+chrom, start, end)
+				}
+			}
+		}
+	} else {
+		sequence, err = fai.Get(chrom, start, end)
+		if err != nil {
+			sequence, err = fai.Get("chr"+chrom, start, end)
+		}
+	}
+	return sequence, err
+}
 
 // RevComp 反向互补
 func Reverse(sequence string) string {
