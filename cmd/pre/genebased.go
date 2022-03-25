@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/brentp/faidx"
 	"github.com/spf13/cobra"
 )
 
@@ -41,26 +42,26 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 	if err != nil {
 		log.Fatal(err)
 	}
-	// log.Printf("Read genome: %s ...", fasta)
-	// fai, err := faidx.New(fasta)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// outmRNA := path.Join(outdir, "mRNA.fa")
-	// log.Printf("Write mRNA: %s ...", outmRNA)
-	// transWriter, err := os.Create(outmRNA)
-	// if err != err {
-	// 	log.Fatal(err)
-	// }
-	// defer transWriter.Close()
-	// for _, trans := range transcripts {
-	// 	sequence, err := fai.Get(trans.Chrom, trans.TxStart-1, trans.TxEnd)
-	// 	if err != nil {
-	// 		sequence, err = fai.Get("chr"+trans.Chrom, trans.TxStart-1, trans.TxEnd)
-	// 	}
-	// 	sequence = strings.ToUpper(sequence)
-	// 	fmt.Fprintf(transWriter, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
-	// }
+	log.Printf("Read genome: %s ...", fasta)
+	fai, err := faidx.New(fasta)
+	if err != nil {
+		log.Fatal(err)
+	}
+	outmRNA := path.Join(outdir, "mRNA.fa")
+	log.Printf("Write mRNA: %s ...", outmRNA)
+	transWriter, err := os.Create(outmRNA)
+	if err != err {
+		log.Fatal(err)
+	}
+	defer transWriter.Close()
+	for _, trans := range transcripts {
+		sequence, err := fai.Get(trans.Chrom, trans.TxStart-1, trans.TxEnd)
+		if err != nil {
+			sequence, err = fai.Get("chr"+trans.Chrom, trans.TxStart-1, trans.TxEnd)
+		}
+		sequence = strings.ToUpper(sequence)
+		fmt.Fprintf(transWriter, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
+	}
 	outIndex := path.Join(outdir, "refgene.idx")
 	log.Printf("Write Transcript Index: %s ...", outIndex)
 	idxWriter, err := os.Create(outIndex)
@@ -75,6 +76,7 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 			fmt.Fprintf(idxWriter, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
 		}
 	}
+	log.Printf("Now you need run the command: 'samtools faidx %s'", outmRNA)
 }
 
 func NewPreGeneBasedCmd() *cobra.Command {

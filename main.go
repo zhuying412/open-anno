@@ -4,6 +4,7 @@ import (
 	"log"
 	"open-anno/cmd/anno"
 	"open-anno/cmd/pre"
+	"open-anno/cmd/tools"
 
 	"github.com/spf13/cobra"
 )
@@ -24,6 +25,7 @@ func NewPreCmd() *cobra.Command {
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewPreGeneBasedCmd())
+	cmd.AddCommand(pre.NewPreDatabaseCmd())
 	return cmd
 }
 
@@ -37,10 +39,20 @@ func NewAnnoCmd() *cobra.Command {
 	return cmd
 }
 
+func NewToolsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "Tools",
+		Short: "Tools",
+	}
+	cmd.AddCommand(tools.NewMergeCmd())
+	return cmd
+}
+
 func init() {
 	RootCmd = NewRootCmd()
 	RootCmd.AddCommand(NewPreCmd())
 	RootCmd.AddCommand(NewAnnoCmd())
+	RootCmd.AddCommand(NewToolsCmd())
 }
 
 func main() {
