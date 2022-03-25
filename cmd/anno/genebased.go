@@ -10,74 +10,80 @@ import (
 	"path"
 	"strings"
 
+	"github.com/brentp/faidx"
 	"github.com/spf13/cobra"
 )
 
-func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool) {
-	log.Printf("Read avinput: %s ...", avinput)
-	snv_dict, err := variant.ReadAvinput(avinput)
+func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]variant.Variants, gene.Transcripts, gene.TransIndexes) {
+	// builder
+	gene.SetGenome(builder)
+	// refgene
+	refgeneFile := path.Join(dbPath, builder, dbName, "refgene.txt")
+	log.Printf("Read Refgene: %s ...", refgeneFile)
+	transcripts, err := gene.ReadRefgene(refgeneFile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var writer *os.File
-	if outfile == "-" {
-		writer = os.Stdout
-	} else {
-		writer, err = os.Create(outfile)
-		if err != nil {
-			log.Fatal(err)
-		}
+	// index
+	indexFile := path.Join(dbPath, builder, dbName, "refgene.idx")
+	log.Printf("Read Refgene Index: %s ...", indexFile)
+	transIndexes, err := gene.ReadTransIndexs(indexFile)
+	if err != nil {
+		log.Fatal(err)
 	}
+	// snv
+	log.Printf("Read avinput: %s ...", avinput)
+	snvMap, err := variant.ReadAvinput(avinput)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return snvMap, transcripts, transIndexes
+}
+
+func InitWriter(outfile string) *os.File {
+	if outfile == "-" {
+		return os.Stdout
+	}
+	writer, err := os.Create(outfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return writer
+}
+
+func AnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool) {
+	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
+	// mrna
+	mrnaFile := path.Join(dbPath, builder, dbName, "mRNA.fa")
+	log.Printf("Read mRNA: %s ...", mrnaFile)
+	fai, err := faidx.New(mrnaFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// anno
+	writer := InitWriter(outfile)
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tGene\tGeneID\tEvent\tRegion\tDetail\n")
-	for chrom, snvs := range snv_dict {
-		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
-		indexFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.idx.json", chrom))
-		log.Printf("Read Transcript: %s ...", transFile)
-		transcripts, err := gene.ReadTransDB(transFile)
+	for chrom, snvs := range snvMap {
+		log.Printf("Start run annotate chr%s ...", chrom)
+		transcripts := refgenes.FilterChrom(chrom, fai)
+		transIndexes := refgeneIndexes.FilterChrom(chrom)
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.Printf("Read Transcript Index: %s ...", indexFile)
-		transIndexes, err := gene.ReadTransIndexDB(indexFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Start run annotate ...")
 		genebased.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
 	}
 }
 
 func AnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
-	log.Printf("Read avinput: %s ...", avinput)
-	snv_dict, err := variant.ReadAvinput(avinput)
-	if err != nil {
-		log.Fatal(err)
-	}
-	var writer *os.File
-	if outfile == "-" {
-		writer = os.Stdout
-	} else {
-		writer, err = os.Create(outfile)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
+	// anno
+	writer := InitWriter(outfile)
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
-	for chrom, snvs := range snv_dict {
-		transFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.json", chrom))
-		indexFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.idx.json", chrom))
-		log.Printf("Read Transcript: %s ...", transFile)
-		transcripts, err := gene.ReadTransDB(transFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Read Transcript Index: %s ...", indexFile)
-		transIndexes, err := gene.ReadTransIndexDB(indexFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		log.Printf("Start run annotate ...")
-		genebased.AnnoCnvs(snvs, transcripts, transIndexes, writer)
+	for chrom, cnvs := range snvMap {
+		log.Printf("Filter GeneBased DB by %s ...", chrom)
+		transcripts := refgenes.FilterChrom(chrom, &faidx.Faidx{})
+		transIndexes := refgeneIndexes.FilterChrom(chrom)
+		genebased.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
 	}
 }
 

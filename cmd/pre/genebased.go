@@ -2,13 +2,13 @@ package pre
 
 import (
 	"fmt"
+	"io"
 	"log"
-	"open-anno/pkg"
 	"open-anno/pkg/gene"
 	"os"
 	"path"
+	"strings"
 
-	"github.com/brentp/faidx"
 	"github.com/spf13/cobra"
 )
 
@@ -21,56 +21,58 @@ func PreGeneBased(refgene string, fasta string, builder string, indexStep int, o
 			log.Fatal(err)
 		}
 	}
-	log.Printf("Read refgene: %s ...", refgene)
-	transcripts, err := gene.ReadRefgene(refgene)
+	outRefgene := path.Join(outdir, "refgene.txt")
+	log.Printf("Copy refgene to %s ...", outRefgene)
+	refgeneReader, err := os.Open(refgene)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Read genome: %s ...", fasta)
-	fai, err := faidx.New(fasta)
+	refgeneWriter, err := os.Create(outRefgene)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Write transcript: %s ...", outdir)
-	writers := make(map[string]*os.File)
-	for _, trans := range transcripts {
-		err = trans.SetRegions(fai)
-		if err != nil {
-			log.Fatal(err)
-		}
-		if _, ok := writers[trans.Chrom]; !ok {
-			outfile := path.Join(outdir, fmt.Sprintf("chr%s.json", trans.Chrom))
-			writers[trans.Chrom], err = os.Create(outfile)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		writers[trans.Chrom].WriteString(pkg.ToJSON(trans) + "\n")
+	defer refgeneReader.Close()
+	defer refgeneWriter.Close()
+	if _, err := io.Copy(refgeneWriter, refgeneReader); err != nil {
+		log.Fatal(err)
 	}
-	for _, writer := range writers {
-		err := writer.Close()
-		if err != nil {
-			log.Panic()
-		}
+	log.Printf("Read refgene: %s ...", outRefgene)
+	transcripts, err := gene.ReadRefgene(outRefgene)
+	if err != nil {
+		log.Fatal(err)
 	}
-	log.Printf("Write transcript index: %s ...", outdir)
-	writers = make(map[string]*os.File)
+	// log.Printf("Read genome: %s ...", fasta)
+	// fai, err := faidx.New(fasta)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// outmRNA := path.Join(outdir, "mRNA.fa")
+	// log.Printf("Write mRNA: %s ...", outmRNA)
+	// transWriter, err := os.Create(outmRNA)
+	// if err != err {
+	// 	log.Fatal(err)
+	// }
+	// defer transWriter.Close()
+	// for _, trans := range transcripts {
+	// 	sequence, err := fai.Get(trans.Chrom, trans.TxStart-1, trans.TxEnd)
+	// 	if err != nil {
+	// 		sequence, err = fai.Get("chr"+trans.Chrom, trans.TxStart-1, trans.TxEnd)
+	// 	}
+	// 	sequence = strings.ToUpper(sequence)
+	// 	fmt.Fprintf(transWriter, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
+	// }
+	outIndex := path.Join(outdir, "refgene.idx")
+	log.Printf("Write Transcript Index: %s ...", outIndex)
+	idxWriter, err := os.Create(outIndex)
+	if err != err {
+		log.Fatal(err)
+	}
+	defer idxWriter.Close()
 	transIndexes := gene.NewTransIndexes(indexStep)
-	for _, idx := range transIndexes {
-		idx.SetTranscripts(transcripts)
-		if _, ok := writers[idx.Chrom]; !ok {
-			outfile := path.Join(outdir, fmt.Sprintf("chr%s.idx.json", idx.Chrom))
-			writers[idx.Chrom], err = os.Create(outfile)
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-		writers[idx.Chrom].WriteString(pkg.ToJSON(idx) + "\n")
-	}
-	for _, writer := range writers {
-		err := writer.Close()
-		if err != nil {
-			log.Panic()
+	for _, index := range transIndexes {
+		index.SetTranscripts(transcripts)
+		if len(index.Transcripts) > 0 {
+			fmt.Fprintf(idxWriter, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
 		}
 	}
 }

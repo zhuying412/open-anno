@@ -3,9 +3,6 @@ package gene
 import (
 	"fmt"
 	"sort"
-	"strings"
-
-	"github.com/brentp/faidx"
 )
 
 const (
@@ -39,15 +36,15 @@ func (this Region) Exists() bool {
 	return this.Chrom != "" && this.Start != 0 && this.End != 0
 }
 
-func (this *Region) SetSequence(fai *faidx.Faidx) error {
-	var err error
-	this.Sequence, err = fai.Get(this.Chrom, this.Start-1, this.End)
-	if err != nil {
-		this.Sequence, err = fai.Get("chr"+this.Chrom, this.Start-1, this.End)
-	}
-	this.Sequence = strings.ToUpper(this.Sequence)
-	return err
-}
+// func (this *Region) SetSequence(fai *faidx.Faidx) error {
+// 	var err error
+// 	this.Sequence, err = fai.Get(this.Chrom, this.Start-1, this.End)
+// 	if err != nil {
+// 		this.Sequence, err = fai.Get("chr"+this.Chrom, this.Start-1, this.End)
+// 	}
+// 	this.Sequence = strings.ToUpper(this.Sequence)
+// 	return err
+// }
 
 type Regions []Region
 
@@ -55,7 +52,7 @@ func (this Regions) Len() int           { return len(this) }
 func (this Regions) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
 func (this Regions) Less(i, j int) bool { return this[i].Start < this[j].Start }
 
-func NewRegions(trans Transcript, fai *faidx.Faidx) (Regions, error) {
+func NewRegions(trans Transcript) (Regions, error) {
 	regions := make(Regions, 0)
 	for i := 0; i < trans.ExonCount; i++ {
 		exon := fmt.Sprintf("exon%d", i+1)
@@ -143,10 +140,6 @@ func NewRegions(trans Transcript, fai *faidx.Faidx) (Regions, error) {
 			utr = 3
 		case RType_UTR:
 			regions[i].Order = utr
-		}
-		err = regions[i].SetSequence(fai)
-		if err != nil {
-			break
 		}
 	}
 	sort.Sort(regions)

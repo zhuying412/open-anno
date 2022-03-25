@@ -96,7 +96,7 @@ func ReadAvinput(avinput string) (map[string]Variants, error) {
 		if err != nil {
 			return variants, err
 		}
-		if _, ok := gene.GENOME[variant.Chrom]; ok {
+		if _, ok := gene.GENOME[variant.Chrom]; !ok {
 			continue
 		}
 		if vars, ok := variants[variant.Chrom]; ok {
@@ -113,37 +113,44 @@ type ICompareVar interface {
 }
 
 func CompareVar(v1 ICompareVar, v2 ICompareVar) string {
-	_, start1, end1, ref1, alt1 := v1.GetBaseVar()
-	_, start2, end2, ref2, alt2 := v2.GetBaseVar()
-
-	if start1 == start2 {
-		if end1 == end2 {
-			if ref1 == ref2 {
-				if alt1 == alt2 {
-					return VCMP_EQ
+	chrom1, start1, end1, ref1, alt1 := v1.GetBaseVar()
+	chrom2, start2, end2, ref2, alt2 := v2.GetBaseVar()
+	if chrom1 == chrom2 {
+		if start1 == start2 {
+			if end1 == end2 {
+				if ref1 == ref2 {
+					if alt1 == alt2 {
+						return VCMP_EQ
+					} else {
+						if alt1 < alt2 {
+							return VCMP_LT
+						} else {
+							return VCMP_GT
+						}
+					}
 				} else {
-					if alt1 < alt2 {
+					if ref1 < ref2 {
 						return VCMP_LT
 					} else {
 						return VCMP_GT
 					}
 				}
 			} else {
-				if ref1 < ref2 {
+				if end1 < end2 {
 					return VCMP_LT
 				} else {
 					return VCMP_GT
 				}
 			}
 		} else {
-			if end1 < end2 {
+			if start1 < start2 {
 				return VCMP_LT
 			} else {
 				return VCMP_GT
 			}
 		}
 	} else {
-		if start1 < start2 {
+		if chrom1 < chrom2 {
 			return VCMP_LT
 		} else {
 			return VCMP_GT

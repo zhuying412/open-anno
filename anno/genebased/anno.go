@@ -36,20 +36,20 @@ func NewSnvGeneBased(trans gene.Transcript, regions ...gene.Region) SnvGeneBased
 	}
 	if len(nregions) > 0 {
 		region1, region2 := nregions[0], nregions[len(nregions)-1]
-		anno.Region = region1.Name()
+		anno.Region2 = region1.Name()
 		if region1.Name() != region2.Name() {
-			anno.Region = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
+			anno.Region2 = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
 		}
 		if region1.Type == gene.RType_CDS || region2.Type == gene.RType_CDS {
-			anno.Region2 = "exonic"
+			anno.Region = "exonic"
 		} else {
 			if region1.Type == gene.RType_UTR {
-				anno.Region2 = region1.Name()
+				anno.Region = region1.Name()
 			} else {
 				if region2.Type == gene.RType_UTR {
-					anno.Region2 = region1.Name()
+					anno.Region = region2.Name()
 				} else {
-					anno.Region2 = "intronic"
+					anno.Region = "intronic"
 				}
 			}
 		}

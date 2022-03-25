@@ -78,7 +78,13 @@ func AnnoSnvs(snvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 			}
 			id := snvs[i].ID()
 			for _, anno := range annos {
-				detail := fmt.Sprintf("%s:%s:%s:%s:%s", anno.Gene, anno.Transcript, anno.Region2, anno.NAChange, anno.AAChange)
+				detail := "."
+				if anno.NAChange != "" {
+					detail = fmt.Sprintf("%s:%s:%s:%s", anno.Gene, anno.Transcript, anno.Region2, anno.NAChange)
+					if anno.AAChange != "" {
+						detail += fmt.Sprintf(":%s", anno.AAChange)
+					}
+				}
 				if _, ok := results[id]; !ok {
 					results[id] = make(map[string]SnvGeneBasedResult)
 				}

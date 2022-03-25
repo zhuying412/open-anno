@@ -49,13 +49,18 @@ func getCLen(trans gene.Transcript, snv variant.Variant) (int, int, gene.Region,
 	return cStart, cEnd, region1, region2, hasCDS && hasIntron
 }
 
-func setChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, aashort bool, eventExtra string) SnvGeneBased {
+func setAAChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, aashort bool) SnvGeneBased {
 	cdna := trans.CDNA()
 	ncdna := seq.Delete(cdna, cstart, cend)
 	start := seq.DifferenceSimple(cdna, ncdna)
 	alt := cdna[start-1 : start+cend-cstart]
 	if anno.NAChange == "" {
-		anno.NAChange = fmt.Sprintf("c.%d_%ddel%s", start, start+cend-cstart, alt)
+		if cstart == cend {
+			anno.NAChange = fmt.Sprintf("c.%ddel%s", start, alt)
+		} else {
+			anno.NAChange = fmt.Sprintf("c.%d_%ddel%s", start, start+cend-cstart, alt)
+		}
+
 	}
 	if trans.Strand == "-" {
 		cdna = seq.RevComp(cdna)
@@ -110,8 +115,8 @@ func setChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, a
 	if protein[0] != nprotein[0] && protein[0] == 'M' {
 		anno.Event += "_startloss"
 	}
-	if eventExtra != "" {
-		anno.Event += "_" + eventExtra
+	if strings.Contains(anno.Region, "splic") {
+		anno.Event += "_splicing"
 	}
 	return anno
 }
@@ -224,7 +229,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 			}
 		}
-		anno = setChange(anno, trans, 1, cEnd, aashort, "splicing")
+		anno = setAAChange(anno, trans, 1, cEnd, aashort)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := trans.CdsEnd - snv.End + 1 + r
 		if region1.Type == gene.RType_CDS {
@@ -245,7 +250,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 
 			}
-			anno = setChange(anno, trans, cStart, cLen, aashort, "splicing")
+			anno = setAAChange(anno, trans, cStart, cLen, aashort)
 		} else {
 			// intron
 			// ...+++,,,...
@@ -265,7 +270,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 
 			}
-			anno = setChange(anno, trans, cStart+1, cLen, aashort, "splicing")
+			anno = setAAChange(anno, trans, cStart+1, cLen, aashort)
 		}
 
 	} else {
@@ -273,7 +278,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			if region1.Type == gene.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
-				anno = setChange(anno, trans, cStart, cEnd, aashort, "")
+				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
 			} else {
 				// ...+++,,,,,,...
 				//        |--|
@@ -310,7 +315,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 						anno.NAChange = fmt.Sprintf("c.%d-%d_%ddel%s", cLen-cEnd+1, snv.End-region2.Start+1, cLen-cStart+1, seq.RevComp(snv.Ref))
 					}
 				}
-				anno = setChange(anno, trans, cStart, cEnd, aashort, "")
+				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
 			} else {
 				if region2.Type == gene.RType_CDS {
 					// ...+++,,,+++...
@@ -329,7 +334,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 						anno.NAChange = fmt.Sprintf("c.%d-%d_%d+%ddel%s", cLen-cEnd+1, snv.End-region2.Start+1, cLen-cStart, region1.End-snv.Start+1, seq.RevComp(snv.Ref))
 					}
 				}
-				anno = setChange(anno, trans, cStart+1, cEnd, aashort, "")
+				anno = setAAChange(anno, trans, cStart+1, cEnd, aashort)
 			}
 		}
 	}

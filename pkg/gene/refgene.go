@@ -3,8 +3,8 @@ package gene
 import (
 	"bufio"
 	"bytes"
-	"io"
-	"open-anno/pkg"
+	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -39,12 +39,6 @@ type Transcript struct {
 	CdsEndStat   string  `json:"cdsEndStat"`
 	ExonFrames   []int   `json:"exonFrames"`
 	Regions      Regions `json:"regions"`
-}
-
-func (this *Transcript) SetRegions(fai *faidx.Faidx) error {
-	var err error
-	this.Regions, err = NewRegions(*this, fai)
-	return err
 }
 
 func (this Transcript) CdsCount() int {
@@ -95,6 +89,28 @@ func (this Transcript) IsUnk() bool {
 
 // Transcripts
 type Transcripts map[string]Transcript
+
+func (this Transcripts) FilterChrom(chrom string, mrna *faidx.Faidx) Transcripts {
+	transcripts := make(Transcripts)
+	for sn, trans := range this {
+		if trans.Chrom == chrom {
+			regions, err := NewRegions(trans)
+			if err != nil {
+				log.Fatal(err)
+			}
+			for i, region := range regions {
+				mrnaName := fmt.Sprintf("%s:%s:%s", trans.Chrom, trans.Gene, trans.Name)
+				regions[i].Sequence, err = mrna.Get(mrnaName, region.Start-trans.TxStart, region.End-trans.TxStart+1)
+				if err != nil {
+					log.Fatal(err)
+				}
+			}
+			trans.Regions = regions
+			transcripts[sn] = trans
+		}
+	}
+	return transcripts
+}
 
 func ReadRefgene(refgeneFile string) (Transcripts, error) {
 	transcripts := make(Transcripts)
@@ -174,24 +190,24 @@ func ReadRefgene(refgeneFile string) (Transcripts, error) {
 	return transcripts, err
 }
 
-func ReadTransDB(dbFile string) (Transcripts, error) {
-	transcripts := make(Transcripts)
-	fi, err := os.Open(dbFile)
-	if err != nil {
-		return transcripts, err
-	}
-	defer fi.Close()
-	reader := bufio.NewReader(fi)
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return transcripts, err
-		}
-		trans := pkg.FromJSON[Transcript](line)
-		transcripts[trans.Name] = trans
-	}
-	return transcripts, err
-}
+// func ReadTransDB(dbFile string) (Transcripts, error) {
+// 	transcripts := make(Transcripts)
+// 	fi, err := os.Open(dbFile)
+// 	if err != nil {
+// 		return transcripts, err
+// 	}
+// 	defer fi.Close()
+// 	reader := bufio.NewReader(fi)
+// 	for {
+// 		line, err := reader.ReadString('\n')
+// 		if err != nil {
+// 			if err == io.EOF {
+// 				break
+// 			}
+// 			return transcripts, err
+// 		}
+// 		trans := pkg.FromJSON[Transcript](line)
+// 		transcripts[trans.Name] = trans
+// 	}
+// 	return transcripts, err
+// }
