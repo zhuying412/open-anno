@@ -8,6 +8,7 @@ import (
 	"open-anno/pkg/variant"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -59,7 +60,7 @@ func NewRegionBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				RunAnnoRegionBased(avinput, dbpath, dbname, builder, overlap, outfile)
+				RunAnnoRegionBased(avinput, dbpath, dbname, strings.ToLower(builder), overlap, outfile)
 			}
 		},
 	}

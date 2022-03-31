@@ -65,14 +65,14 @@ var GENOME_MT = map[string]int{
 var GENOME map[string]int
 
 func SetGenome(builder string) {
-	switch strings.ToUpper(builder) {
-	case "HG19", "GRCH37":
+	switch strings.ToLower(builder) {
+	case "hg19", "grch37":
 		GENOME = GENOME_HG19
-	case "HG38", "GRCH38":
+	case "hg38", "grch38":
 		GENOME = GENOME_HG38
-	case "M", "MT":
+	case "m", "mt", "mito":
 		GENOME = GENOME_MT
 	default:
-		log.Fatalf("error builder: %s, the choice is (HG19, HG38, GRCH38, GRCH37, M, MT)", builder)
+		log.Fatalf("error builder: %s, the choice is (hg19, hg38, grch38, grch37, m, mt, mito)", builder)
 	}
 }

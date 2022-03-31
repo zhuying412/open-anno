@@ -123,7 +123,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				RunPreGeneBased(refgene, maneSelect, ncbiGeneInfo, genome, builder, step, path.Join(dbpath, builder, name))
+				RunPreGeneBased(refgene, maneSelect, ncbiGeneInfo, genome, strings.ToLower(builder), step, path.Join(dbpath, builder, name))
 			}
 		},
 	}

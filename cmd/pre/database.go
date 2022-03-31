@@ -74,7 +74,7 @@ func NewPreDatabaseCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				RunPreDatabase(infile, builder, path.Join(dbpath, builder, name))
+				RunPreDatabase(infile, strings.ToLower(builder), path.Join(dbpath, builder, name))
 			}
 		},
 	}
