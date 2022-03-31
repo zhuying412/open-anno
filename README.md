@@ -31,3 +31,8 @@ OpenAnno是使用GO语言编写的，用于基因测序分析中SNV、CNV变异�
   - merge: 合并分析结果，即合并基因功能、位点、区域等多个注释结果到唯一解雇文件
   - vcf2av: VCF转本软件专用数据格式（同ANNOVAR avinput） 
   - av2vcf: 本软件专用数据格式转VCF数据格式
+
+## 优化项
+
+- 现有注释软件核酸与氨基酸改变的[3’端原则问题](https://www.yuque.com/zhuy/bio/aog31h)
+- snv deletion 跨过CDS与intron连接区（同时包含CDS与intron部分位点）产生的核酸与氨基酸改变问题
