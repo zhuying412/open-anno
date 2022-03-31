@@ -3,6 +3,7 @@ package variant
 import (
 	"bufio"
 	"log"
+	"open-anno/pkg"
 	"os"
 	"sort"
 	"strconv"
@@ -31,7 +32,7 @@ func (this RegionBaseds) Less(i, j int) bool {
 func ReadRegionBasedLine(line string) (RegionBased, error) {
 	fields := strings.Split(line, "\t")
 	variant := RegionBased{
-		Chrom:     fields[0],
+		Chrom:     pkg.FormatChrom(fields[0]),
 		Otherinfo: fields[3],
 	}
 	var err error
@@ -55,9 +56,8 @@ func ReadRegionBasedDB(infile string) (RegionBaseds, string, error) {
 	defer fi.Close()
 	scanner := bufio.NewScanner(fi)
 	scanner.Scan()
-	scanner.Scan()
 	header := scanner.Text()
-	if !strings.HasPrefix(header, "Chr") {
+	if !strings.HasPrefix(header, "#Chr") {
 		log.Fatalf("error database file, header not found: %s", infile)
 	}
 	for scanner.Scan() {
@@ -72,7 +72,7 @@ func ReadRegionBasedDB(infile string) (RegionBaseds, string, error) {
 			return regionBaseds, header, err
 		}
 		regionBaseds = append(regionBaseds, RegionBased{
-			Chrom:     fields[0],
+			Chrom:     pkg.FormatChrom(fields[0]),
 			Start:     start,
 			End:       end,
 			Otherinfo: fields[3],

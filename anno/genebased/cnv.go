@@ -64,17 +64,18 @@ func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 	sort.Sort(cnvs)
 	sort.Sort(transIndexes)
 	for _, cnv := range cnvs {
-		transNames := make([]string, 0)
+		transNames := make(map[string]bool)
 		annos := make([]CnvGeneBased, 0)
 		for _, index := range transIndexes {
 			if cnv.Start <= index.End && cnv.End >= index.Start {
 				for _, transName := range index.Transcripts {
-					if sort.SearchStrings(transNames, transName) < 0 {
+					if _, ok := transNames[transName]; ok {
 						continue
 					}
+					transNames[transName] = true
 					trans := transcripts[transName]
 					if trans.IsCmpl() {
-						if cnv.Start <= trans.TxStart && cnv.End >= trans.TxEnd {
+						if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
 							anno := AnnoCnv(cnv, trans)
 							annos = append(annos, anno)
 						}
@@ -87,6 +88,9 @@ func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 			annoTexts = append(annoTexts,
 				fmt.Sprintf("%s:%s:%s:%s:%s:%s", anno.Gene, anno.GeneID, anno.Transcript, anno.Strand, anno.Region, anno.CDS),
 			)
+		}
+		if len(annoTexts) == 0 {
+			annoTexts = []string{"."}
 		}
 		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
 			cnv.Chrom, cnv.Start, cnv.End, cnv.Ref, cnv.Alt, strings.Join(annoTexts, ","),

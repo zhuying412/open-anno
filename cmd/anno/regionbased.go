@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/anno/database"
+	"open-anno/pkg/gene"
 	"open-anno/pkg/variant"
 	"os"
 	"path"
@@ -12,11 +13,15 @@ import (
 )
 
 func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder string, overlap float64, outfile string) {
+	// builder
+	gene.SetGenome(builder)
+	// snvs
 	log.Printf("Read avinput: %s ...", avinput)
-	snv_dict, err := variant.ReadAvinput(avinput)
+	snvs, err := variant.ReadAvinput(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}
+	// anno
 	var writer *os.File
 	if outfile == "-" {
 		writer = os.Stdout
@@ -26,9 +31,11 @@ func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder st
 			log.Fatal(err)
 		}
 	}
-	for chrom, snvs := range snv_dict {
+	writeHeader := true
+	for chrom, subSnvs := range snvs {
 		dbfile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
-		database.AnnoRegionBased(snvs, dbfile, overlap, writer)
+		database.AnnoRegionBased(subSnvs, dbfile, overlap, writeHeader, writer)
+		writeHeader = false
 	}
 }
 

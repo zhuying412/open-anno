@@ -1,6 +1,7 @@
 package variant
 
 import (
+	"open-anno/pkg"
 	"strconv"
 	"strings"
 )
@@ -21,7 +22,7 @@ func (this FilterBased) GetBaseVar() (string, int, int, string, string) {
 func ReadFilterBasedLine(line string) (FilterBased, error) {
 	fields := strings.Split(line, "\t")
 	variant := FilterBased{
-		Chrom:     fields[0],
+		Chrom:     pkg.FormatChrom(fields[0]),
 		Ref:       fields[3],
 		Alt:       fields[4],
 		Otherinfo: fields[5:],

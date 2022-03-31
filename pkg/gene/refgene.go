@@ -92,7 +92,7 @@ func (this Transcript) IsUnk() bool {
 // Transcripts
 type Transcripts map[string]Transcript
 
-func (this Transcripts) FilterChrom(chrom string, mrna *faidx.Faidx) Transcripts {
+func (this Transcripts) FilterChrom(chrom string, symbolToId map[string]string, mrna *faidx.Faidx, seqRequired bool) Transcripts {
 	transcripts := make(Transcripts)
 	for sn, trans := range this {
 		if trans.Chrom == chrom {
@@ -103,11 +103,12 @@ func (this Transcripts) FilterChrom(chrom string, mrna *faidx.Faidx) Transcripts
 			for i, region := range regions {
 				mrnaName := fmt.Sprintf("%s:%s:%s", trans.Chrom, trans.Gene, trans.Name)
 				regions[i].Sequence, err = seq.Fetch(mrna, mrnaName, region.Start-trans.TxStart, region.End-trans.TxStart+1)
-				if err != nil {
+				if err != nil && seqRequired {
 					log.Fatal(err)
 				}
 			}
 			trans.Regions = regions
+			trans.GeneID = symbolToId[trans.Gene]
 			transcripts[sn] = trans
 		}
 	}
@@ -191,25 +192,3 @@ func ReadRefgene(refgeneFile string) (Transcripts, error) {
 	}
 	return transcripts, err
 }
-
-// func ReadTransDB(dbFile string) (Transcripts, error) {
-// 	transcripts := make(Transcripts)
-// 	fi, err := os.Open(dbFile)
-// 	if err != nil {
-// 		return transcripts, err
-// 	}
-// 	defer fi.Close()
-// 	reader := bufio.NewReader(fi)
-// 	for {
-// 		line, err := reader.ReadString('\n')
-// 		if err != nil {
-// 			if err == io.EOF {
-// 				break
-// 			}
-// 			return transcripts, err
-// 		}
-// 		trans := pkg.FromJSON[Transcript](line)
-// 		transcripts[trans.Name] = trans
-// 	}
-// 	return transcripts, err
-// }

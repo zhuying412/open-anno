@@ -10,13 +10,15 @@ import (
 	"strings"
 )
 
-func AnnoRegionBased(variants variant.Variants, dbfile string, overlap float64, writer *os.File) {
+func AnnoRegionBased(variants variant.Variants, dbfile string, overlap float64, writeHeader bool, writer *os.File) {
 	sort.Sort(variants)
 	regionBaseds, header, err := variant.ReadRegionBasedDB(dbfile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	writer.WriteString(header + "\n")
+	if writeHeader {
+		writer.WriteString(header + "\n")
+	}
 	for _, variant := range variants {
 		var info []string
 		for _, dbvar := range regionBaseds {

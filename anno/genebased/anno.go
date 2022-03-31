@@ -73,7 +73,10 @@ func NewCnvGeneBased(trans gene.Transcript) CnvGeneBased {
 		Transcript: trans.Name,
 		Strand:     trans.Strand,
 		CDS:        ".",
-		Region:     ".",
+		Region:     "intronic",
+	}
+	if anno.GeneID == "" {
+		anno.GeneID = "."
 	}
 	return anno
 }

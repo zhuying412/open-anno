@@ -59,7 +59,7 @@ func NewVCf2AVCmd() *cobra.Command {
 
 func NewAV2VCFCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "vcf2av",
+		Use:   "av2vcf",
 		Short: "Convert VCF to AVINPUT",
 		Run: func(cmd *cobra.Command, args []string) {
 			vcf, _ := cmd.Flags().GetString("vcf")

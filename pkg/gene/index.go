@@ -2,6 +2,7 @@ package gene
 
 import (
 	"bufio"
+	"open-anno/pkg"
 	"os"
 	"sort"
 	"strconv"
@@ -79,7 +80,7 @@ func ReadTransIndexs(dbFile string) (TransIndexes, error) {
 			return indexes, err
 		}
 		indexes = append(indexes, TransIndex{
-			Chrom:       fields[0],
+			Chrom:       pkg.FormatChrom(fields[0]),
 			Start:       start,
 			End:         end,
 			Transcripts: strings.Split(fields[3], ","),

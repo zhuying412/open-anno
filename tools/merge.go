@@ -22,12 +22,14 @@ func MergeAnno(outfile string, genebased string, otherbaseds ...string) {
 			log.Fatal(err)
 		}
 		defer reader.Close()
-		var dbAnno DBAnno
 		scanner := bufio.NewScanner(reader)
 		scanner.Scan()
 		headers := strings.Split(scanner.Text(), "\t")[5:]
-		dbAnno.Header = strings.Join(headers, "\t")
-		dbAnno.Length = len(headers)
+		dbAnno := DBAnno{
+			Header: strings.Join(headers, "\t"),
+			Length: len(headers),
+			Data:   map[string]string{},
+		}
 		for scanner.Scan() {
 			fields := strings.Split(scanner.Text(), "\t")
 			sn := strings.Join(fields[0:5], ":")

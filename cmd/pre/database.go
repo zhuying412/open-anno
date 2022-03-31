@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"open-anno/pkg"
 	"open-anno/pkg/gene"
 	"os"
 	"path"
@@ -30,14 +31,14 @@ func RunPreDatabase(infile string, builder string, outdir string) {
 	scanner := bufio.NewScanner(fi)
 	scanner.Scan()
 	header := scanner.Text()
-	if !strings.HasPrefix(header, "Chr") {
+	if !strings.HasPrefix(header, "#Chr") {
 		log.Fatalf("error database file, header not found: %s", infile)
 	}
 	writers := make(map[string]*os.File)
 	for scanner.Scan() {
 		line := scanner.Text()
 		fileds := strings.Split(line, "\t")
-		chrom := fileds[0]
+		chrom := pkg.FormatChrom(fileds[0])
 		if _, ok := gene.GENOME[chrom]; ok {
 			if _, ok := writers[chrom]; !ok {
 				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt", chrom))

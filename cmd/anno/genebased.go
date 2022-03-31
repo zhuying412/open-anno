@@ -14,13 +14,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]variant.Variants, gene.Transcripts, gene.TransIndexes) {
+func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]variant.Variants, gene.Transcripts, gene.TransIndexes, map[string]string) {
 	// builder
 	gene.SetGenome(builder)
 	// refgene
 	refgeneFile := path.Join(dbPath, builder, dbName, "refgene.txt")
 	log.Printf("Read Refgene: %s ...", refgeneFile)
 	transcripts, err := gene.ReadRefgene(refgeneFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// symbol to id
+	geneidFile := path.Join(dbPath, builder, dbName, "geneid.txt")
+	log.Printf("Read gene symbol to id: %s ...", geneidFile)
+	symbolToId, err := gene.ReadGeneSymbolToId(geneidFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +44,7 @@ func initGeneBasedData(avinput string, dbPath string, dbName string, builder str
 	if err != nil {
 		log.Fatal(err)
 	}
-	return snvMap, transcripts, transIndexes
+	return snvMap, transcripts, transIndexes, symbolToId
 }
 
 func initWriter(outfile string) *os.File {
@@ -52,7 +59,7 @@ func initWriter(outfile string) *os.File {
 }
 
 func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool) {
-	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
+	snvMap, refgenes, refgeneIndexes, symbolToId := initGeneBasedData(avinput, dbPath, dbName, builder)
 	// mrna
 	mrnaFile := path.Join(dbPath, builder, dbName, "mRNA.fa")
 	log.Printf("Read mRNA: %s ...", mrnaFile)
@@ -65,7 +72,7 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tGene\tGeneID\tEvent\tRegion\tDetail\n")
 	for chrom, snvs := range snvMap {
 		log.Printf("Start run annotate chr%s ...", chrom)
-		transcripts := refgenes.FilterChrom(chrom, fai)
+		transcripts := refgenes.FilterChrom(chrom, symbolToId, fai, true)
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
 		if err != nil {
 			log.Fatal(err)
@@ -75,13 +82,13 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 }
 
 func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
-	snvMap, refgenes, refgeneIndexes := initGeneBasedData(avinput, dbPath, dbName, builder)
+	snvMap, refgenes, refgeneIndexes, symbolToId := initGeneBasedData(avinput, dbPath, dbName, builder)
 	// anno
 	writer := initWriter(outfile)
 	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
 	for chrom, cnvs := range snvMap {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
-		transcripts := refgenes.FilterChrom(chrom, &faidx.Faidx{})
+		transcripts := refgenes.FilterChrom(chrom, symbolToId, &faidx.Faidx{}, false)
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
 		genebased.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
 	}

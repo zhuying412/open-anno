@@ -58,7 +58,7 @@ func FindArr[T string | int | float64](arr []T, k T) int {
 }
 
 func FormatChrom(chrom string) string {
-	chrom = strings.Replace(strings.ToUpper(chrom), "CHR", "", 1)
+	chrom = strings.Replace(chrom, "chr", "", 1)
 	if chrom == "M" {
 		return "MT"
 	}

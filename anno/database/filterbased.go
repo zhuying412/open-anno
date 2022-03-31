@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func AnnoFilterBased(variants variant.Variants, dbfile string, writer *os.File) {
+func AnnoFilterBased(variants variant.Variants, dbfile string, writeHeader bool, writer *os.File) {
 	sort.Sort(variants)
 	fi, err := os.Open(dbfile)
 	if err != nil {
@@ -19,7 +19,9 @@ func AnnoFilterBased(variants variant.Variants, dbfile string, writer *os.File) 
 	defer fi.Close()
 	scanner := bufio.NewScanner(fi)
 	scanner.Scan()
-	writer.WriteString(scanner.Text())
+	if writeHeader {
+		writer.WriteString(scanner.Text() + "\n")
+	}
 	var dbvar variant.FilterBased
 	for i := 0; i < len(variants); {
 		switch variant.CompareVar(variants[i], dbvar) {
