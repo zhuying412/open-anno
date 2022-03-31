@@ -130,7 +130,7 @@ func newAnnoGeneBasedCmd(varType string) *cobra.Command {
 	cmd.Flags().StringP("dbname", "n", "refgene", "Database Builder")
 	cmd.Flags().StringP("builder", "b", "hg19", "Database Builder")
 	if varType == "snv" {
-		cmd.Flags().BoolP("aashort", "s", true, "Database Builder")
+		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
 	}
 	return cmd
 }

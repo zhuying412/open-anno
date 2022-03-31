@@ -39,7 +39,6 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 	for symbol, entrezId := range geneSymbolToId {
 		fmt.Fprintf(writer, "%s\t%s\n", symbol, entrezId)
 	}
-	os.Exit(0)
 	// refgene
 	outRefgene := path.Join(outdir, "refgene.txt")
 	log.Printf("Copy refgene to %s ...", outRefgene)
@@ -83,7 +82,8 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 	command := exec.Command("samtools", "faidx", outmRNA)
 	err = command.Run()
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		log.Printf("Now you need run the command: 'samtools faidx %s'", outmRNA)
 	}
 	// index
 	outIndex := path.Join(outdir, "refgene.idx")
@@ -99,7 +99,6 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
 		}
 	}
-	log.Printf("Now you need run the command: 'samtools faidx %s'", outmRNA)
 	defer reader.Close()
 	defer writer.Close()
 }

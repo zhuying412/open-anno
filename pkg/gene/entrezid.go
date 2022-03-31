@@ -50,8 +50,8 @@ func readNCBIGeneInfo(infile string) (map[string]string, map[string]string, erro
 	scanner.Scan()
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
-		symbol := fields[1]
-		entrezId := fields[2]
+		entrezId := fields[1]
+		symbol := fields[2]
 		synonyms := strings.Split(fields[4], "|")
 		if _, ok := symbolToId[symbol]; !ok {
 			symbolToId[symbol] = entrezId
