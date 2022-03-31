@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"open-anno/cmd"
 	"open-anno/cmd/anno"
 	"open-anno/cmd/pre"
 	"open-anno/cmd/tools"
@@ -56,6 +57,7 @@ func init() {
 	RootCmd.AddCommand(NewPreCmd())
 	RootCmd.AddCommand(NewAnnoCmd())
 	RootCmd.AddCommand(NewToolsCmd())
+	RootCmd.AddCommand(cmd.NewTestCmd())
 }
 
 func main() {

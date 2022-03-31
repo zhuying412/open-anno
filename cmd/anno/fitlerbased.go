@@ -31,11 +31,14 @@ func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder st
 			log.Fatal(err)
 		}
 	}
-	writeHeader := true
+	headerWrited := true
 	for chrom, subSnvs := range snvs {
 		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
-		database.AnnoFilterBased(subSnvs, dbFile, writeHeader, writer)
-		writeHeader = false
+		if _, err = os.Stat(dbFile); os.IsNotExist(err) {
+			continue
+		}
+		database.AnnoFilterBased(subSnvs, dbFile, headerWrited, writer)
+		headerWrited = false
 	}
 }
 

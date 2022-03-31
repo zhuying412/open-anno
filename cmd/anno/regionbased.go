@@ -31,11 +31,14 @@ func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder st
 			log.Fatal(err)
 		}
 	}
-	writeHeader := true
+	headerWrited := true
 	for chrom, subSnvs := range snvs {
-		dbfile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
-		database.AnnoRegionBased(subSnvs, dbfile, overlap, writeHeader, writer)
-		writeHeader = false
+		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
+		if _, err = os.Stat(dbFile); os.IsNotExist(err) {
+			continue
+		}
+		database.AnnoRegionBased(subSnvs, dbFile, overlap, headerWrited, writer)
+		headerWrited = false
 	}
 }
 

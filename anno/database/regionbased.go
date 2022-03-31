@@ -20,23 +20,21 @@ func AnnoRegionBased(variants variant.Variants, dbfile string, overlap float64, 
 		writer.WriteString(header + "\n")
 	}
 	for _, variant := range variants {
-		var info []string
+		var annos []string
 		for _, dbvar := range regionBaseds {
 			if variant.End >= dbvar.Start && variant.Start <= dbvar.End {
 				vlen := variant.End - variant.Start + 1
 				olen := pkg.Min(variant.End, dbvar.End) - pkg.Max(variant.Start, dbvar.Start) + 1
 				if float64(olen)/float64(vlen) >= overlap {
-					info = append(info, dbvar.Otherinfo)
+					annos = append(annos, dbvar.Otherinfo)
 				}
 			}
 		}
-		anno := strings.Join(info, ",")
-		if anno == "" {
-			anno = "."
+		if len(annos) > 0 {
+			writer.WriteString(fmt.Sprintf("%s\t%d\t%d\t%s\t%s\t%s\n",
+				variant.Chrom, variant.Start, variant.End,
+				variant.Ref, variant.Alt, strings.Join(annos, ","),
+			))
 		}
-		writer.WriteString(fmt.Sprintf("%s\t%d\t%d\t%s\t%s\t%s\n",
-			variant.Chrom, variant.Start, variant.End,
-			variant.Ref, variant.Alt, anno,
-		))
 	}
 }
