@@ -62,8 +62,9 @@ type CnvGeneBased struct {
 	GeneID     string `json:"gene_id"`
 	Transcript string `json:"transcript"`
 	CDS        string `json:"cds"`
-	Region     string `json:"utr3"`
+	Region     string `json:"region"`
 	Strand     string `json:"strand"`
+	Position   string `json:"position"`
 }
 
 func NewCnvGeneBased(trans gene.Transcript) CnvGeneBased {
@@ -73,7 +74,8 @@ func NewCnvGeneBased(trans gene.Transcript) CnvGeneBased {
 		Transcript: trans.Name,
 		Strand:     trans.Strand,
 		CDS:        ".",
-		Region:     "intronic",
+		Region:     ".",
+		Position:   fmt.Sprintf("%d-%d", trans.TxStart, trans.TxEnd),
 	}
 	if anno.GeneID == "" {
 		anno.GeneID = "."

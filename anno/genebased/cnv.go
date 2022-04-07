@@ -10,27 +10,7 @@ import (
 )
 
 func AnnoCnv(cnv variant.Variant, trans gene.Transcript) CnvGeneBased {
-	anno := NewCnvGeneBased(trans)
-	if cnv.Start <= trans.TxStart {
-		if cnv.End >= trans.TxEnd {
-			anno.Region = "transcript"
-		} else {
-			if trans.Strand == "+" {
-				anno.Region = "UTR5"
-			} else {
-				anno.Region = "UTR3"
-			}
-		}
-	} else {
-		if cnv.End >= trans.TxEnd {
-			if trans.Strand == "+" {
-				anno.Region = "UTR3"
-			} else {
-				anno.Region = "UTR5"
-			}
-		}
-	}
-	var cds1, cds2 gene.Region
+	var cdss, utr3s, utr5s gene.Regions
 	var cdsCount int
 	regions := trans.Regions
 	if trans.Strand == "-" {
@@ -39,22 +19,52 @@ func AnnoCnv(cnv variant.Variant, trans gene.Transcript) CnvGeneBased {
 	for _, region := range regions {
 		if region.Type == gene.RType_CDS {
 			cdsCount++
-			if cnv.Start <= region.End && cnv.End >= region.Start {
-				if !cds1.Exists() {
-					cds1 = region
+		}
+		if cnv.Start <= region.End && cnv.End >= region.Start {
+			if region.Type == gene.RType_CDS {
+				cdss = append(cdss, region)
+			}
+			if region.Type == gene.RType_UTR {
+				if region.Order == 3 {
+					utr3s = append(utr3s, region)
+				} else {
+					utr5s = append(utr5s, region)
 				}
-				cds2 = region
 			}
 		}
 	}
-	if cds1.Exists() {
-		if anno.Region != "transcript" {
-			anno.Region = "exonic"
-		}
-		if cds1.Equal(cds2) {
-			anno.CDS = fmt.Sprintf("CDS%d/%d", cds1.Order, cdsCount)
+	anno := NewCnvGeneBased(trans)
+	if len(cdss) > 0 {
+		if len(utr5s) > 0 {
+			anno.Region = "UTR5_exonic"
+			if len(utr3s) > 0 {
+				anno.Region = "CDNA"
+				if cnv.Start <= trans.TxStart && cnv.End >= trans.TxEnd {
+					anno.Region = "transcript"
+				}
+			}
 		} else {
-			anno.CDS = fmt.Sprintf("CDS%d_%d/%d", cds1.Order, cds2.Order, cdsCount)
+			anno.Region = "exonic"
+			if len(utr3s) > 0 {
+				anno.Region = "exonic_UTR3"
+			}
+		}
+		if len(cdss) == 1 {
+			anno.CDS = fmt.Sprintf("CDS%d/%d", cdss[0].Order, cdsCount)
+		} else {
+			anno.CDS = fmt.Sprintf("CDS%d_%d/%d", cdss[0].Order, cdss[len(cdss)-1].Order, cdsCount)
+		}
+	} else {
+		if len(utr5s) > 0 {
+			anno.Region = "UTR5"
+			if len(utr3s) > 0 {
+				anno.Region = "ncRNA"
+			}
+		} else {
+			anno.Region = "intronic"
+			if len(utr3s) > 0 {
+				anno.Region = "UTR3"
+			}
 		}
 	}
 	return anno
@@ -69,11 +79,11 @@ func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 		for _, index := range transIndexes {
 			if cnv.Start <= index.End && cnv.End >= index.Start {
 				for _, transName := range index.Transcripts {
-					if _, ok := transNames[transName]; ok {
+					trans := transcripts[transName]
+					if _, ok := transNames[transName]; ok || trans.IsUnk() {
 						continue
 					}
 					transNames[transName] = true
-					trans := transcripts[transName]
 					if trans.IsCmpl() {
 						if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
 							anno := AnnoCnv(cnv, trans)
@@ -85,9 +95,9 @@ func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 		}
 		annoTexts := make([]string, 0)
 		for _, anno := range annos {
-			annoTexts = append(annoTexts,
-				fmt.Sprintf("%s:%s:%s:%s:%s:%s", anno.Gene, anno.GeneID, anno.Transcript, anno.Strand, anno.Region, anno.CDS),
-			)
+			annoTexts = append(annoTexts, fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s",
+				anno.Gene, anno.GeneID, anno.Transcript, anno.Strand, anno.Region, anno.CDS, anno.Position,
+			))
 		}
 		if len(annoTexts) == 0 {
 			annoTexts = []string{"."}
@@ -95,6 +105,5 @@ func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
 			cnv.Chrom, cnv.Start, cnv.End, cnv.Ref, cnv.Alt, strings.Join(annoTexts, ","),
 		)
-
 	}
 }
