@@ -25,7 +25,7 @@ func RunAV2VCF(avinput string, vcf string, genome string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	vcfs, err := tools.ReadAV(avinput, fai)
+	vcfs, err := tools.ReadSnvAV(avinput, fai)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func RunAV2VCF(avinput string, vcf string, genome string) {
 func NewVCf2AVCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "vcf2av",
-		Short: "Convert VCF to AVINPUT",
+		Short: "Convert SNV VCF to AVINPUT",
 		Run: func(cmd *cobra.Command, args []string) {
 			vcf, _ := cmd.Flags().GetString("vcf")
 			avinput, _ := cmd.Flags().GetString("avinput")
@@ -60,7 +60,7 @@ func NewVCf2AVCmd() *cobra.Command {
 func NewAV2VCFCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "av2vcf",
-		Short: "Convert VCF to AVINPUT",
+		Short: "Convert SNV AVINPUT to VCF",
 		Run: func(cmd *cobra.Command, args []string) {
 			vcf, _ := cmd.Flags().GetString("vcf")
 			avinput, _ := cmd.Flags().GetString("avinput")

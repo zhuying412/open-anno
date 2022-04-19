@@ -142,7 +142,7 @@ func ReadVCF(infile string) (variant.Variants, error) {
 	return variants, err
 }
 
-func ReadAV(infile string, fai *faidx.Faidx) (VCFs, error) {
+func ReadSnvAV(infile string, fai *faidx.Faidx) (VCFs, error) {
 	var vcfs VCFs
 	fi, err := os.Open(infile)
 	if err != nil {
