@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ func AnnoFilterBased(variants io.Variants, dbfile string, headerWrited bool, wri
 		log.Fatal(err)
 	}
 	defer reader.Close()
-	scanner := io.NewVarDBScanner(reader)
+	scanner := io.NewDBVarScanner(reader)
 	if headerWrited {
 		writer.WriteString(scanner.Header + "\n")
 	}

@@ -76,12 +76,12 @@ func RunPreGeneBased(refGene string, maneSelect string, ncbiGeneInfo string, fas
 		}
 	}
 	// entrez_id
-	outGeneId := path.Join(outdir, "geneid.txt")
-	log.Printf("Init gene symbol to entrez_id: %s", outGeneId)
-	err := writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId)
-	if err != nil {
-		log.Fatal(err)
-	}
+	outManeSelect := path.Join(outdir, "MANE.summary.txt.gz")
+	log.Printf("Copy MANE Select to %s ...", outManeSelect)
+	pkg.CopyFile(maneSelect, outManeSelect)
+	outNcbiGeneInfo := path.Join(outdir, "Homo_sapiens.gene_info.gz")
+	log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
+	pkg.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
 	// refgene
 	outRefGene := path.Join(outdir, "refgene.txt")
 	log.Printf("Copy refgene to %s ...", outRefGene)

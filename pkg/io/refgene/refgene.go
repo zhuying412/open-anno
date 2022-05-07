@@ -139,8 +139,12 @@ func (this *TransScanner) Scan() bool {
 	return this.scanner.Scan()
 }
 
+func (this TransScanner) Text() string {
+	return this.scanner.Text()
+}
+
 func (this TransScanner) Row() (Transcript, error) {
-	fields := strings.Split(this.scanner.Text(), "\t")
+	fields := strings.Split(this.Text(), "\t")
 	chrom := pkg.FormatChrom(fields[2])
 	transcript := Transcript{
 		Name:         fields[1],

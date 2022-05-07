@@ -44,8 +44,12 @@ func (this *BEDScanner) Scan() bool {
 	return this.scanner.Scan()
 }
 
+func (this BEDScanner) Text() string {
+	return this.scanner.Text()
+}
+
 func (this BEDScanner) Row() (BED, error) {
-	fields := strings.Split(this.scanner.Text(), "\t")
+	fields := strings.Split(this.Text(), "\t")
 	if len(fields) > 4 {
 		log.Printf("Error: the column is %d, %d-%d will be ignored\n", len(fields), 4, len(fields))
 	}

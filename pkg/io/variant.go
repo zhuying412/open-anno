@@ -144,8 +144,12 @@ func (this *VarScanner) Scan() bool {
 	return this.scanner.Scan()
 }
 
+func (this VarScanner) Text() string {
+	return this.scanner.Text()
+}
+
 func (this VarScanner) Row() (Variant, error) {
-	fields := strings.Split(this.scanner.Text(), "\t")
+	fields := strings.Split(this.Text(), "\t")
 	variant := Variant{
 		Chrom:     pkg.FormatChrom(fields[0]),
 		Ref:       fields[3],

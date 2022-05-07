@@ -1,4 +1,4 @@
-package genebased
+package gene
 
 import (
 	"fmt"

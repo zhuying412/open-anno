@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"compress/gzip"
 	"open-anno/pkg"
+	"open-anno/pkg/seq"
 	"os"
 	"strings"
 )
@@ -20,13 +21,12 @@ func readManeSelect(infile string) (map[string]string, error) {
 		return transToId, err
 	}
 	defer reader.Close()
-	scanner := bufio.NewScanner(reader)
-	scanner.Scan()
+	scanner := NewCSVScanner(reader)
 	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), "\t")
-		trans := strings.Split(fields[5], ".")[0]
-		ensembl := strings.Split(fields[7], ".")[0]
-		entrezId := strings.Split(fields[0], ":")[1]
+		row := scanner.Row()
+		trans := strings.Split(row["RefSeq_nuc"], ".")[0]
+		ensembl := strings.Split(row["Ensembl_nuc"], ".")[0]
+		entrezId := strings.Split(row["#NCBI_GeneID"], ":")[1]
 		transToId[trans] = entrezId
 		transToId[ensembl] = entrezId
 	}
@@ -46,13 +46,12 @@ func readNCBIGeneInfo(infile string) (map[string]string, map[string]string, erro
 		return symbolToId, synonymsToId, err
 	}
 	defer reader.Close()
-	scanner := bufio.NewScanner(reader)
-	scanner.Scan()
+	scanner := NewCSVScanner(reader)
 	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), "\t")
-		entrezId := fields[1]
-		symbol := fields[2]
-		synonyms := strings.Split(fields[4], "|")
+		row := scanner.Row()
+		entrezId := row["GeneID"]
+		symbol := row["Symbol"]
+		synonyms := strings.Split(row["Synonyms"], "|")
 		if _, ok := symbolToId[symbol]; !ok {
 			symbolToId[symbol] = entrezId
 		}
@@ -90,7 +89,7 @@ func readRefgene(infile string) (map[string][]string, error) {
 	return transToSymbols, err
 }
 
-func NewGeneSymbolToId(maneSelect string, ncbiGeneInfo string, refgene string) (map[string]string, error) {
+func NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refgene string) (map[string]string, error) {
 	symbolToId := make(map[string]string)
 	maneTransToId, err := readManeSelect(maneSelect)
 	if err != nil {
@@ -100,17 +99,19 @@ func NewGeneSymbolToId(maneSelect string, ncbiGeneInfo string, refgene string) (
 	if err != nil {
 		return symbolToId, err
 	}
-	refgeneTransToSymbols, err := readRefgene(refgene)
+	reader, err := os.Open(refgene)
 	if err != nil {
 		return symbolToId, err
 	}
-	for trans, symbols := range refgeneTransToSymbols {
-		transShort := strings.Split(trans, ".")[0]
-		for _, symbol := range symbols {
-			if _, ok := symbolToId[symbol]; ok {
-				continue
-			}
-			if entrezId, ok := maneTransToId[transShort]; ok {
+	defer reader.Close()
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		fields := strings.Split(scanner.Text(), "\t")
+		chrom := pkg.FormatChrom(fields[2])
+		if _, ok := seq.GENOME[chrom]; ok {
+			trans := strings.Split(fields[1], ".")[0]
+			symbol := fields[12]
+			if entrezId, ok := maneTransToId[trans]; ok {
 				symbolToId[symbol] = entrezId
 			} else {
 				if entrezId, ok = ncbiSymbolToId[symbol]; ok {
@@ -122,23 +123,6 @@ func NewGeneSymbolToId(maneSelect string, ncbiGeneInfo string, refgene string) (
 				}
 			}
 		}
-	}
-	return symbolToId, err
-}
-
-func ReadGeneSymbolToId(infile string) (map[string]string, error) {
-	symbolToId := make(map[string]string)
-	reader, err := os.Open(infile)
-	if err != nil {
-		return symbolToId, err
-	}
-	defer reader.Close()
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		fields := strings.Split(scanner.Text(), "\t")
-		symbol := fields[0]
-		entrezId := fields[1]
-		symbolToId[symbol] = entrezId
 	}
 	return symbolToId, err
 }

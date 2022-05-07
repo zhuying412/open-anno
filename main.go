@@ -35,9 +35,8 @@ func NewAnnoCmd() *cobra.Command {
 		Use:   "anno",
 		Short: "Annotate variants",
 	}
-	cmd.AddCommand(anno.NewAnnoGeneBasedCmd())
-	cmd.AddCommand(anno.NewFilterBasedCmd())
-	cmd.AddCommand(anno.NewRegionBasedCmd())
+	cmd.AddCommand(anno.NewAnnoCmd("snv"))
+	cmd.AddCommand(anno.NewAnnoCmd("cnv"))
 	return cmd
 }
 

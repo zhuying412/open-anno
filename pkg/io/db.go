@@ -12,7 +12,7 @@ type DBVarScanner struct {
 	Header string
 }
 
-func NewVarDBScanner(reader io.Reader) DBVarScanner {
+func NewDBVarScanner(reader io.Reader) DBVarScanner {
 	scanner := bufio.NewScanner(reader)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -30,6 +30,7 @@ func NewDBBEDScanner(reader io.Reader) DBBEDScanner {
 	scanner := bufio.NewScanner(reader)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
+	scanner.Scan()
 	header := strings.TrimLeft(scanner.Text(), "#")
 	return DBBEDScanner{BEDScanner: BEDScanner{scanner: scanner}, Header: header}
 }

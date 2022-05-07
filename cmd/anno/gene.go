@@ -3,16 +3,14 @@ package anno
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/genebased"
+	"open-anno/anno/gene"
 	"open-anno/pkg/io"
 	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/brentp/faidx"
-	"github.com/spf13/cobra"
 )
 
 func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]io.Variants, refgene.Transcripts, refgene.TransIndexes, map[string]string) {
@@ -26,9 +24,10 @@ func initGeneBasedData(avinput string, dbPath string, dbName string, builder str
 		log.Fatal(err)
 	}
 	// symbol to id
-	geneidFile := path.Join(dbPath, builder, dbName, "geneid.txt")
-	log.Printf("Read gene symbol to id: %s ...", geneidFile)
-	symbolToId, err := io.ReadGeneSymbolToId(geneidFile)
+	ncbiGeneInfoFile := path.Join(dbPath, builder, dbName, "Homo_sapiens.gene_info.gz")
+	maneSelectFile := path.Join(dbPath, builder, dbName, "MANE.summary.txt.gz")
+	log.Printf("New Gene Symbol to EntrezID from %s, %s", ncbiGeneInfoFile, maneSelectFile)
+	symbolToId, err := io.NewGeneSymbolToId(maneSelectFile, ncbiGeneInfoFile, refgeneFile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +77,7 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 		if err != nil {
 			log.Fatal(err)
 		}
-		genebased.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
+		gene.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
 	}
 }
 
@@ -91,57 +90,6 @@ func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder s
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
 		transcripts := refgenes.FilterChrom(chrom, symbolToId, &faidx.Faidx{}, false)
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
-		genebased.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
+		gene.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
 	}
-}
-
-func newAnnoGeneBasedCmd(varType string) *cobra.Command {
-	varType = strings.ToLower(varType)
-	cmd := &cobra.Command{
-		Use:   varType,
-		Short: fmt.Sprintf("Annotate Genebased for %s", strings.ToUpper(varType)),
-		Run: func(cmd *cobra.Command, args []string) {
-			avinput, _ := cmd.Flags().GetString("avinput")
-			dbpath, _ := cmd.Flags().GetString("dbpath")
-			dbname, _ := cmd.Flags().GetString("dbname")
-			builder, _ := cmd.Flags().GetString("builder")
-			outfile, _ := cmd.Flags().GetString("outfile")
-			if avinput == "" || dbpath == "" || dbname == "" || builder == "" || outfile == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				if varType != "snv" && varType != "cnv" {
-					log.Fatalln("only 'gb snv' or 'gb cnv'")
-				}
-				if varType == "snv" {
-					aashort, _ := cmd.Flags().GetBool("aashort")
-					RunAnnoSnvGeneBased(avinput, dbpath, dbname, builder, outfile, aashort)
-				}
-				if varType == "cnv" {
-					RunAnnoCnvGeneBased(avinput, dbpath, dbname, builder, outfile)
-				}
-			}
-		},
-	}
-	cmd.Flags().StringP("avinput", "i", "", "Annotated Variants Input File")
-	cmd.Flags().StringP("outfile", "o", "-", "Output File, - for stdout")
-	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
-	cmd.Flags().StringP("dbname", "n", "refgene", "Database Builder")
-	cmd.Flags().StringP("builder", "b", "hg19", "Database Builder")
-	if varType == "snv" {
-		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
-	}
-	return cmd
-}
-
-func NewAnnoGeneBasedCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "gb",
-		Short: "Annotate Genebased",
-	}
-	cmd.AddCommand(newAnnoGeneBasedCmd("snv"))
-	cmd.AddCommand(newAnnoGeneBasedCmd("cnv"))
-	return cmd
 }
