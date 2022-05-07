@@ -2,25 +2,25 @@ package genebased
 
 import (
 	"fmt"
-	"open-anno/pkg/gene"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
-	"open-anno/pkg/variant"
 )
 
-func findSnpRegion(regions gene.Regions, snv variant.Variant) (gene.Region, int) {
+func findSnpRegion(regions refgene.Regions, snv io.Variant) (refgene.Region, int) {
 	var cLen int
 	for _, region := range regions {
 		if region.Start <= snv.Start && snv.End <= region.End {
 			return region, cLen
 		}
-		if region.Type == gene.RType_CDS {
+		if region.Type == refgene.RType_CDS {
 			cLen += region.End - region.Start + 1
 		}
 	}
-	return gene.Region{}, cLen
+	return refgene.Region{}, cLen
 }
 
-func AnnoSnp(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBased {
+func AnnoSnp(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBased {
 	region, cLen := findSnpRegion(trans.Regions, snv)
 	anno := NewSnvGeneBased(trans, region)
 	if region.End < trans.CdsStart {
@@ -37,7 +37,7 @@ func AnnoSnp(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			anno.NAChange = fmt.Sprintf("c.-%d%s>%s", snv.Start-trans.CdsEnd, seq.RevComp(snv.Ref), seq.RevComp(snv.Alt))
 		}
 	} else {
-		if region.Type == gene.RType_INTRON {
+		if region.Type == refgene.RType_INTRON {
 			dist1 := snv.Start - region.Start + 1
 			dist2 := region.End - snv.Start + 1
 			if dist1 <= 2 || dist2 <= 2 {

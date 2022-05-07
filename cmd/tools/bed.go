@@ -2,18 +2,21 @@ package tools
 
 import (
 	"log"
-	"open-anno/tools"
+	"open-anno/pkg/io"
 
 	"github.com/spf13/cobra"
 )
 
 func RunAV2BED(avinput string, bed string) {
-
-	beds, err := tools.ReadCnvAV(avinput)
+	variants, err := io.ReadVariants(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = tools.WriteBED(beds, bed)
+	beds := make(io.BEDs, len(variants))
+	for i, row := range variants {
+		beds[i] = io.BED{Chrom: row.Chrom, Start: row.Start, End: row.End, Name: row.Alt}
+	}
+	err = io.WriteBEDs(bed, beds)
 	if err != nil {
 		log.Fatal(err)
 	}

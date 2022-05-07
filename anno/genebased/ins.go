@@ -3,27 +3,27 @@ package genebased
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/gene"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
-	"open-anno/pkg/variant"
 	"strings"
 )
 
-func findInsRegion(regions gene.Regions, strand string, snv variant.Variant) (gene.Region, int) {
+func findInsRegion(regions refgene.Regions, strand string, snv io.Variant) (refgene.Region, int) {
 	var cLen int
 	for _, region := range regions {
 		if (strand == "+" && snv.Start >= region.Start-1 && snv.End < region.End) ||
 			(strand == "-" && snv.Start >= region.Start && snv.End <= region.End) {
 			return region, cLen
 		}
-		if region.Type == gene.RType_CDS {
+		if region.Type == refgene.RType_CDS {
 			cLen += region.End - region.Start + 1
 		}
 	}
-	return gene.Region{}, cLen
+	return refgene.Region{}, cLen
 }
 
-func AnnoIns(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBased {
+func AnnoIns(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBased {
 	region, cLen := findInsRegion(trans.Regions, trans.Strand, snv)
 	anno := NewSnvGeneBased(trans, region)
 	if region.End < trans.CdsStart {
@@ -39,7 +39,7 @@ func AnnoIns(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.CdsEnd+1, snv.Start-trans.CdsEnd+1, seq.RevComp(snv.Alt))
 		}
 	} else {
-		if region.Type == gene.RType_INTRON {
+		if region.Type == refgene.RType_INTRON {
 			dist1s, dist2s := snv.Start-region.Start+1, region.End-snv.End+1
 			dist1e, dist2e := dist1s+1, dist2s-1
 			dist1, dist2 := dist1e, dist2s

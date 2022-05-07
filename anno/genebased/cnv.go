@@ -2,29 +2,29 @@ package genebased
 
 import (
 	"fmt"
-	"open-anno/pkg/gene"
-	"open-anno/pkg/variant"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"os"
 	"sort"
 	"strings"
 )
 
-func AnnoCnv(cnv variant.Variant, trans gene.Transcript) CnvGeneBased {
-	var cdss, utr3s, utr5s gene.Regions
+func AnnoCnv(cnv io.Variant, trans refgene.Transcript) CnvGeneBased {
+	var cdss, utr3s, utr5s refgene.Regions
 	var cdsCount int
 	regions := trans.Regions
 	if trans.Strand == "-" {
 		sort.Sort(sort.Reverse(regions))
 	}
 	for _, region := range regions {
-		if region.Type == gene.RType_CDS {
+		if region.Type == refgene.RType_CDS {
 			cdsCount++
 		}
 		if cnv.Start <= region.End && cnv.End >= region.Start {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				cdss = append(cdss, region)
 			}
-			if region.Type == gene.RType_UTR {
+			if region.Type == refgene.RType_UTR {
 				if region.Order == 3 {
 					utr3s = append(utr3s, region)
 				} else {
@@ -70,7 +70,7 @@ func AnnoCnv(cnv variant.Variant, trans gene.Transcript) CnvGeneBased {
 	return anno
 }
 
-func AnnoCnvs(cnvs variant.Variants, transcripts gene.Transcripts, transIndexes gene.TransIndexes, writer *os.File) {
+func AnnoCnvs(cnvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, writer *os.File) {
 	sort.Sort(cnvs)
 	sort.Sort(transIndexes)
 	for _, cnv := range cnvs {

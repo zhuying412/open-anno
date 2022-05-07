@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg"
-	"open-anno/pkg/gene"
+	"open-anno/pkg/seq"
 	"os"
 	"path"
 	"strings"
@@ -15,7 +15,7 @@ import (
 
 func RunPreDatabase(infile string, builder string, outdir string) {
 	log.Println("Init parameters ...")
-	gene.SetGenome(builder)
+	seq.SetGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {
@@ -39,7 +39,7 @@ func RunPreDatabase(infile string, builder string, outdir string) {
 		line := scanner.Text()
 		fileds := strings.Split(line, "\t")
 		chrom := pkg.FormatChrom(fileds[0])
-		if _, ok := gene.GENOME[chrom]; ok {
+		if _, ok := seq.GENOME[chrom]; ok {
 			if _, ok := writers[chrom]; !ok {
 				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt", chrom))
 				writers[chrom], err = os.Create(outfile)

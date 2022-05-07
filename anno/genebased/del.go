@@ -3,44 +3,44 @@ package genebased
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/gene"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
-	"open-anno/pkg/variant"
 	"strings"
 )
 
-func getCLen(trans gene.Transcript, snv variant.Variant) (int, int, gene.Region, gene.Region, bool) {
+func getCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Region, refgene.Region, bool) {
 	var cStart, cEnd int
-	var region1, region2 gene.Region
+	var region1, region2 refgene.Region
 	var hasCDS, hasIntron bool
 	for _, region := range trans.Regions {
 		if region.End < snv.Start {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				cStart += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.Start && snv.Start <= region.End {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				cStart += snv.Start - region.Start + 1
 			}
 			region1 = region
 		}
 		if region.End < snv.End {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				cEnd += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.End && snv.End <= region.End {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				cEnd += snv.End - region.Start + 1
 			}
 			region2 = region
 		}
 		if region.Start <= snv.End && region.End >= snv.Start {
-			if region.Type == gene.RType_CDS {
+			if region.Type == refgene.RType_CDS {
 				hasCDS = true
 			}
-			if region.Type == gene.RType_INTRON {
+			if region.Type == refgene.RType_INTRON {
 				hasIntron = true
 			}
 		}
@@ -49,7 +49,7 @@ func getCLen(trans gene.Transcript, snv variant.Variant) (int, int, gene.Region,
 	return cStart, cEnd, region1, region2, hasCDS && hasIntron
 }
 
-func setAAChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int, aashort bool) SnvGeneBased {
+func setAAChange(anno SnvGeneBased, trans refgene.Transcript, cstart int, cend int, aashort bool) SnvGeneBased {
 	cdna := trans.CDNA()
 	ncdna := seq.Delete(cdna, cstart, cend)
 	start := seq.DifferenceSimple(cdna, ncdna)
@@ -121,7 +121,7 @@ func setAAChange(anno SnvGeneBased, trans gene.Transcript, cstart int, cend int,
 	return anno
 }
 
-func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBased {
+func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBased {
 	cStart, cEnd, region1, region2, isExonSplicing := getCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
@@ -192,7 +192,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		}
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := snv.End - trans.CdsStart + 1 + l
-		if region2.Type == gene.RType_CDS {
+		if region2.Type == refgene.RType_CDS {
 			// ...+++,,,+++...
 			//  |--|
 			//|----|
@@ -232,7 +232,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 		anno = setAAChange(anno, trans, 1, cEnd, aashort)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := trans.CdsEnd - snv.End + 1 + r
-		if region1.Type == gene.RType_CDS {
+		if region1.Type == refgene.RType_CDS {
 			// ...,,,+++...
 			//        |--|
 			//        |----|
@@ -275,7 +275,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 
 	} else {
 		if region1.Equal(region2) {
-			if region1.Type == gene.RType_CDS {
+			if region1.Type == refgene.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
 				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
@@ -305,8 +305,8 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 			}
 		} else {
-			if region1.Type == gene.RType_CDS {
-				if region2.Type != gene.RType_CDS {
+			if region1.Type == refgene.RType_CDS {
+				if region2.Type != refgene.RType_CDS {
 					// ...+++,,,+++...
 					//     |--|
 					if trans.Strand == "+" {
@@ -317,7 +317,7 @@ func AnnoDel(snv variant.Variant, trans gene.Transcript, aashort bool) SnvGeneBa
 				}
 				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
 			} else {
-				if region2.Type == gene.RType_CDS {
+				if region2.Type == refgene.RType_CDS {
 					// ...+++,,,+++...
 					//        |--|
 					if trans.Strand == "+" {

@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg"
-	"open-anno/pkg/variant"
+	"open-anno/pkg/io"
 	"os"
 	"sort"
 	"strings"
 )
 
-func AnnoRegionBased(variants variant.Variants, dbfile string, overlap float64, writeHeader bool, writer *os.File) {
+func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer *os.File) {
 	sort.Sort(variants)
-	regionBaseds, header, err := variant.ReadRegionBasedDB(dbfile)
+	regionBaseds, header, err := io.ReadDBBEDs(dbfile)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,7 +26,7 @@ func AnnoRegionBased(variants variant.Variants, dbfile string, overlap float64, 
 				vlen := variant.End - variant.Start + 1
 				olen := pkg.Min(variant.End, dbvar.End) - pkg.Max(variant.Start, dbvar.Start) + 1
 				if float64(olen)/float64(vlen) >= overlap {
-					annos = append(annos, dbvar.Otherinfo)
+					annos = append(annos, dbvar.Name)
 				}
 			}
 		}

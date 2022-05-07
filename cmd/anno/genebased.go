@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"log"
 	"open-anno/anno/genebased"
-	"open-anno/pkg/gene"
-	"open-anno/pkg/variant"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/seq"
 	"os"
 	"path"
 	"strings"
@@ -14,33 +15,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]variant.Variants, gene.Transcripts, gene.TransIndexes, map[string]string) {
+func initGeneBasedData(avinput string, dbPath string, dbName string, builder string) (map[string]io.Variants, refgene.Transcripts, refgene.TransIndexes, map[string]string) {
 	// builder
-	gene.SetGenome(builder)
+	seq.SetGenome(builder)
 	// refgene
 	refgeneFile := path.Join(dbPath, builder, dbName, "refgene.txt")
 	log.Printf("Read Refgene: %s ...", refgeneFile)
-	transcripts, err := gene.ReadRefgene(refgeneFile)
+	transcripts, err := refgene.ReadRefgene(refgeneFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// symbol to id
 	geneidFile := path.Join(dbPath, builder, dbName, "geneid.txt")
 	log.Printf("Read gene symbol to id: %s ...", geneidFile)
-	symbolToId, err := gene.ReadGeneSymbolToId(geneidFile)
+	symbolToId, err := io.ReadGeneSymbolToId(geneidFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// index
 	indexFile := path.Join(dbPath, builder, dbName, "refgene.idx")
 	log.Printf("Read Refgene Index: %s ...", indexFile)
-	transIndexes, err := gene.ReadTransIndexs(indexFile)
+	transIndexes, err := refgene.ReadTransIndexs(indexFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// snv
 	log.Printf("Read avinput: %s ...", avinput)
-	snvMap, err := variant.ReadAvinput(avinput)
+	snvMap, err := io.ReadVariantMap(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}

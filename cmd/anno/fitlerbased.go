@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"open-anno/anno/database"
-	"open-anno/pkg/gene"
-	"open-anno/pkg/variant"
+	"open-anno/pkg/io"
+	"open-anno/pkg/seq"
 	"os"
 	"path"
 
@@ -14,10 +14,10 @@ import (
 
 func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder string, outfile string) {
 	// builder
-	gene.SetGenome(builder)
+	seq.SetGenome(builder)
 	// snvs
 	log.Printf("Read avinput: %s ...", avinput)
-	snvs, err := variant.ReadAvinput(avinput)
+	snvs, err := io.ReadVariantMap(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}

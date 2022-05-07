@@ -2,19 +2,22 @@ package tools
 
 import (
 	"log"
-	"open-anno/pkg/variant"
-	"open-anno/tools"
+	"open-anno/pkg/io"
 
 	"github.com/brentp/faidx"
 	"github.com/spf13/cobra"
 )
 
 func RunVCf2AV(vcf string, avinput string) {
-	variants, err := tools.ReadVCF(vcf)
+	vcfs, err := io.ReadVCFs(vcf)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = variant.WriteAvinput(variants, avinput)
+	variants := make(io.Variants, len(vcfs))
+	for i, vcf := range vcfs {
+		variants[i] = vcf.Variant()
+	}
+	err = io.WriteVariants(avinput, variants)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,11 +28,15 @@ func RunAV2VCF(avinput string, vcf string, genome string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	vcfs, err := tools.ReadSnvAV(avinput, fai)
+	variants, err := io.ReadVariants(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = tools.WriteVCF(vcfs, vcf)
+	vcfs := make(io.VCFs, len(variants))
+	for i, row := range variants {
+		vcfs[i] = row.VCF(fai)
+	}
+	err = io.WriteVCFs(vcf, vcfs)
 	if err != nil {
 		log.Fatal(err)
 	}

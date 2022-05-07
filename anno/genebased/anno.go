@@ -2,7 +2,7 @@ package genebased
 
 import (
 	"fmt"
-	"open-anno/pkg/gene"
+	"open-anno/pkg/io/refgene"
 	"sort"
 )
 
@@ -17,13 +17,13 @@ type SnvGeneBased struct {
 	Region2    string `json:"region2"`
 }
 
-func NewSnvGeneBased(trans gene.Transcript, regions ...gene.Region) SnvGeneBased {
+func NewSnvGeneBased(trans refgene.Transcript, regions ...refgene.Region) SnvGeneBased {
 	anno := SnvGeneBased{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
 		Transcript: trans.Name,
 	}
-	nregions := make(gene.Regions, 0)
+	nregions := make(refgene.Regions, 0)
 	for _, region := range regions {
 		if region.Exists() {
 			nregions = append(nregions, region)
@@ -40,13 +40,13 @@ func NewSnvGeneBased(trans gene.Transcript, regions ...gene.Region) SnvGeneBased
 		if region1.Name() != region2.Name() {
 			anno.Region2 = fmt.Sprintf("%s_%s", region1.Name(), region2.Name())
 		}
-		if region1.Type == gene.RType_CDS || region2.Type == gene.RType_CDS {
+		if region1.Type == refgene.RType_CDS || region2.Type == refgene.RType_CDS {
 			anno.Region = "exonic"
 		} else {
-			if region1.Type == gene.RType_UTR {
+			if region1.Type == refgene.RType_UTR {
 				anno.Region = region1.Name()
 			} else {
-				if region2.Type == gene.RType_UTR {
+				if region2.Type == refgene.RType_UTR {
 					anno.Region = region2.Name()
 				} else {
 					anno.Region = "intronic"
@@ -67,7 +67,7 @@ type CnvGeneBased struct {
 	Position   string `json:"position"`
 }
 
-func NewCnvGeneBased(trans gene.Transcript) CnvGeneBased {
+func NewCnvGeneBased(trans refgene.Transcript) CnvGeneBased {
 	anno := CnvGeneBased{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,

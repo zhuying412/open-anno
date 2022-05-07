@@ -3,8 +3,8 @@ package genebased
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/gene"
-	"open-anno/pkg/variant"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"os"
 	"sort"
 	"strings"
@@ -28,7 +28,7 @@ type SnvGeneBasedResult struct {
 	Details []string
 }
 
-func AnnoSnvs(snvs variant.Variants, transcripts gene.Transcripts, transIndexes gene.TransIndexes, aashort bool, writer *os.File) {
+func AnnoSnvs(snvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, aashort bool, writer *os.File) {
 	sort.Sort(snvs)
 	sort.Sort(transIndexes)
 	results := make(map[string]map[string]SnvGeneBasedResult)
@@ -47,9 +47,9 @@ func AnnoSnvs(snvs variant.Variants, transcripts gene.Transcripts, transIndexes 
 						anno.Region = "ncRNA"
 						unkAnnos = append(unkAnnos, anno)
 					} else {
-						if snvs[i].Type() == variant.VType_SNP {
+						if snvs[i].Type() == io.VType_SNP {
 							anno = AnnoSnp(snvs[i], trans, aashort)
-						} else if snvs[i].Type() == variant.VType_INS {
+						} else if snvs[i].Type() == io.VType_INS {
 							anno = AnnoIns(snvs[i], transcripts[transName], aashort)
 						} else {
 							anno = AnnoDel(snvs[i], transcripts[transName], aashort)

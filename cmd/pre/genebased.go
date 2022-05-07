@@ -2,9 +2,10 @@ package pre
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"open-anno/pkg/gene"
+	"open-anno/pkg"
+	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
 	"os"
 	"os/exec"
@@ -15,10 +16,59 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fasta string, builder string, indexStep int, outdir string) {
+func writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId string) error {
+	geneSymbolToId, err := io.NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refGene)
+	if err != nil {
+		return err
+	}
+	writer, err := os.Create(outGeneId)
+	if err != err {
+		return err
+	}
+	writer.Close()
+	for symbol, entrezId := range geneSymbolToId {
+		fmt.Fprintf(writer, "%s\t%s\n", symbol, entrezId)
+	}
+	return err
+}
+
+func writemRNA(transcripts refgene.Transcripts, fai *faidx.Faidx, outmRNA string) error {
+	writer, err := os.Create(outmRNA)
+	if err != err {
+		return err
+	}
+	writer.Close()
+	for _, trans := range transcripts {
+		sequence, err := seq.Fetch(fai, trans.Chrom, trans.TxStart-1, trans.TxEnd)
+		if err != nil {
+			return err
+		}
+		sequence = strings.ToUpper(sequence)
+		fmt.Fprintf(writer, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
+	}
+	return err
+}
+
+func writeTransIndex(transcripts refgene.Transcripts, indexStep int, outIndex string) error {
+	writer, err := os.Create(outIndex)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	transIndexes := refgene.NewTransIndexes(indexStep)
+	for _, index := range transIndexes {
+		index.SetTranscripts(transcripts)
+		if len(index.Transcripts) > 0 {
+			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
+		}
+	}
+	return err
+}
+
+func RunPreGeneBased(refGene string, maneSelect string, ncbiGeneInfo string, fasta string, builder string, indexStep int, outdir string) {
 	// param
 	log.Println("Init parameters ...")
-	gene.SetGenome(builder)
+	seq.SetGenome(builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {
@@ -28,33 +78,16 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 	// entrez_id
 	outGeneId := path.Join(outdir, "geneid.txt")
 	log.Printf("Init gene symbol to entrez_id: %s", outGeneId)
-	geneSymbolToId, err := gene.NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refgene)
+	err := writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId)
 	if err != nil {
 		log.Fatal(err)
-	}
-	writer, err := os.Create(outGeneId)
-	if err != err {
-		log.Fatal(err)
-	}
-	for symbol, entrezId := range geneSymbolToId {
-		fmt.Fprintf(writer, "%s\t%s\n", symbol, entrezId)
 	}
 	// refgene
-	outRefgene := path.Join(outdir, "refgene.txt")
-	log.Printf("Copy refgene to %s ...", outRefgene)
-	reader, err := os.Open(refgene)
-	if err != nil {
-		log.Fatal(err)
-	}
-	writer, err = os.Create(outRefgene)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if _, err := io.Copy(writer, reader); err != nil {
-		log.Fatal(err)
-	}
-	log.Printf("Read refgene: %s ...", outRefgene)
-	transcripts, err := gene.ReadRefgene(outRefgene)
+	outRefGene := path.Join(outdir, "refgene.txt")
+	log.Printf("Copy refgene to %s ...", outRefGene)
+	pkg.CopyFile(refGene, outRefGene)
+	log.Printf("Read refgene: %s ...", outRefGene)
+	transcripts, err := refgene.ReadRefgene(outRefGene)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,17 +100,9 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 	// mRNA
 	outmRNA := path.Join(outdir, "mRNA.fa")
 	log.Printf("Write mRNA: %s ...", outmRNA)
-	writer, err = os.Create(outmRNA)
-	if err != err {
+	err = writemRNA(transcripts, fai, outmRNA)
+	if err != nil {
 		log.Fatal(err)
-	}
-	for _, trans := range transcripts {
-		sequence, err := seq.Fetch(fai, trans.Chrom, trans.TxStart-1, trans.TxEnd)
-		if err != nil {
-			log.Fatal(err)
-		}
-		sequence = strings.ToUpper(sequence)
-		fmt.Fprintf(writer, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
 	}
 	command := exec.Command("samtools", "faidx", outmRNA)
 	err = command.Run()
@@ -88,19 +113,10 @@ func RunPreGeneBased(refgene string, maneSelect string, ncbiGeneInfo string, fas
 	// index
 	outIndex := path.Join(outdir, "refgene.idx")
 	log.Printf("Write Transcript Index: %s ...", outIndex)
-	writer, err = os.Create(outIndex)
-	if err != err {
+	err = writeTransIndex(transcripts, indexStep, outIndex)
+	if err != nil {
 		log.Fatal(err)
 	}
-	transIndexes := gene.NewTransIndexes(indexStep)
-	for _, index := range transIndexes {
-		index.SetTranscripts(transcripts)
-		if len(index.Transcripts) > 0 {
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
-		}
-	}
-	defer reader.Close()
-	defer writer.Close()
 }
 
 func NewPreGeneBasedCmd() *cobra.Command {
