@@ -45,9 +45,9 @@ func NewToolsCmd() *cobra.Command {
 		Use:   "tools",
 		Short: "Tools",
 	}
-	cmd.AddCommand(tools.NewMergeCmd())
 	cmd.AddCommand(tools.NewVCf2AVCmd())
 	cmd.AddCommand(tools.NewAV2VCFCmd())
+	cmd.AddCommand(tools.NewAV2BEDCmd())
 	return cmd
 }
 
