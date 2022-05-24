@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"open-anno/pkg"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -71,7 +70,7 @@ func (this BEDScanner) Row() (BED, error) {
 
 func ReadBEDs(infile string) (BEDs, error) {
 	var beds BEDs
-	reader, err := os.Open(infile)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return beds, err
 	}
@@ -88,7 +87,7 @@ func ReadBEDs(infile string) (BEDs, error) {
 }
 
 func WriteBEDs(outfile string, beds ...BEDs) error {
-	writer, err := os.Create(outfile)
+	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}

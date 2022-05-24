@@ -5,7 +5,6 @@ import (
 	"open-anno/pkg"
 	"open-anno/pkg/io"
 	"open-anno/pkg/io/refgene"
-	"os"
 	"sort"
 	"strings"
 )
@@ -28,7 +27,7 @@ type SnvGeneBasedResult struct {
 	Details []string
 }
 
-func AnnoSnvs(snvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, aashort bool, writer *os.File) {
+func AnnoSnvs(snvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, aashort bool, writer io.WriteCloser) {
 	sort.Sort(snvs)
 	sort.Sort(transIndexes)
 	results := make(map[string]map[string]SnvGeneBasedResult)

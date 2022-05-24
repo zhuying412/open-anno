@@ -21,11 +21,11 @@ func writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId string) error {
 	if err != nil {
 		return err
 	}
-	writer, err := os.Create(outGeneId)
+	writer, err := io.NewIoWriter(outGeneId)
 	if err != err {
 		return err
 	}
-	writer.Close()
+	defer writer.Close()
 	for symbol, entrezId := range geneSymbolToId {
 		fmt.Fprintf(writer, "%s\t%s\n", symbol, entrezId)
 	}
@@ -33,11 +33,11 @@ func writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId string) error {
 }
 
 func writemRNA(transcripts refgene.Transcripts, fai *faidx.Faidx, outmRNA string) error {
-	writer, err := os.Create(outmRNA)
+	writer, err := io.NewIoWriter(outmRNA)
 	if err != err {
 		return err
 	}
-	writer.Close()
+	defer writer.Close()
 	for _, trans := range transcripts {
 		sequence, err := seq.Fetch(fai, trans.Chrom, trans.TxStart-1, trans.TxEnd)
 		if err != nil {
@@ -50,7 +50,7 @@ func writemRNA(transcripts refgene.Transcripts, fai *faidx.Faidx, outmRNA string
 }
 
 func writeTransIndex(transcripts refgene.Transcripts, indexStep int, outIndex string) error {
-	writer, err := os.Create(outIndex)
+	writer, err := io.NewIoWriter(outIndex)
 	if err != nil {
 		return err
 	}
@@ -65,10 +65,12 @@ func writeTransIndex(transcripts refgene.Transcripts, indexStep int, outIndex st
 	return err
 }
 
-func RunPreGeneBased(refGene string, maneSelect string, ncbiGeneInfo string, fasta string, builder string, indexStep int, outdir string) {
+func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, builder string, indexStep int) {
 	// param
 	log.Println("Init parameters ...")
 	seq.SetGenome(builder)
+	builderDir := path.Join(dbpath, builder)
+	outdir := path.Join(builderDir, name)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {
@@ -76,10 +78,10 @@ func RunPreGeneBased(refGene string, maneSelect string, ncbiGeneInfo string, fas
 		}
 	}
 	// entrez_id
-	outManeSelect := path.Join(outdir, "MANE.summary.txt.gz")
-	log.Printf("Copy MANE Select to %s ...", outManeSelect)
-	pkg.CopyFile(maneSelect, outManeSelect)
-	outNcbiGeneInfo := path.Join(outdir, "Homo_sapiens.gene_info.gz")
+	outGene2Refseq := path.Join(builderDir, "Homo_sapiens.gene2refseq.gz")
+	log.Printf("Copy NCBI Gene2Refseq to %s ...", outGene2Refseq)
+	pkg.CopyFile(gene2refseq, outGene2Refseq)
+	outNcbiGeneInfo := path.Join(builderDir, "Homo_sapiens.gene_info.gz")
 	log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
 	pkg.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
 	// refgene
@@ -138,7 +140,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 					log.Panic(err)
 				}
 			} else {
-				RunPreGeneBased(refgene, maneSelect, ncbiGeneInfo, genome, strings.ToLower(builder), step, path.Join(dbpath, builder, name))
+				RunPreGeneBased(dbpath, name, refgene, maneSelect, ncbiGeneInfo, genome, strings.ToLower(builder), step)
 			}
 		},
 	}

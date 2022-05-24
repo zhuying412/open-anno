@@ -5,19 +5,19 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"os"
 	"sort"
 	"strings"
 )
 
-func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer *os.File) {
+func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer io.WriteCloser) {
 	sort.Sort(variants)
 	regionBaseds, header, err := io.ReadDBBEDs(dbfile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if writeHeader {
-		writer.WriteString(header + "\n")
+		headers := strings.Split(header, "\t")
+		fmt.Fprintf(writer, "%s\t%s\t%s\tRef\tAlt\t%s\n", headers[0], headers[1], headers[2], headers[3])
 	}
 	for _, variant := range variants {
 		var annos []string
@@ -31,10 +31,9 @@ func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, write
 			}
 		}
 		if len(annos) > 0 {
-			writer.WriteString(fmt.Sprintf("%s\t%d\t%d\t%s\t%s\t%s\n",
+			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
 				variant.Chrom, variant.Start, variant.End,
-				variant.Ref, variant.Alt, strings.Join(annos, ","),
-			))
+				variant.Ref, variant.Alt, strings.Join(annos, ","))
 		}
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"open-anno/pkg/seq"
-	"os"
 	"sort"
 	"strings"
 
@@ -136,7 +135,7 @@ func (this VCFScanner) Row() (VCFs, error) {
 
 func ReadVCFs(infile string) (VCFs, error) {
 	var vcfs VCFs
-	reader, err := os.Open(infile)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return vcfs, err
 	}
@@ -155,7 +154,7 @@ func ReadVCFs(infile string) (VCFs, error) {
 }
 
 func WriteVCFs(outfile string, vcfs ...VCFs) error {
-	writer, err := os.Create(outfile)
+	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}

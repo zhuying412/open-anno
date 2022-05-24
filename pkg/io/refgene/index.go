@@ -3,7 +3,6 @@ package refgene
 import (
 	"open-anno/pkg/io"
 	"open-anno/pkg/seq"
-	"os"
 	"sort"
 	"strings"
 )
@@ -62,7 +61,7 @@ func NewTransIndexes(step int) TransIndexes {
 
 func ReadTransIndexs(dbFile string) (TransIndexes, error) {
 	indexes := make(TransIndexes, 0)
-	reader, err := os.Open(dbFile)
+	reader, err := io.NewIoReader(dbFile)
 	if err != nil {
 		return indexes, err
 	}

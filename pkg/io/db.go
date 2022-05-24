@@ -2,8 +2,8 @@ package io
 
 import (
 	"bufio"
+	"compress/gzip"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -37,12 +37,21 @@ func NewDBBEDScanner(reader io.Reader) DBBEDScanner {
 
 func ReadDBBEDs(infile string) (BEDs, string, error) {
 	var beds BEDs
-	reader, err := os.Open(infile)
+	fi, err := NewIoReader(infile)
 	if err != nil {
 		return beds, "", err
 	}
-	defer reader.Close()
-	scanner := NewDBBEDScanner(reader)
+	defer fi.Close()
+	var scanner DBBEDScanner
+	if strings.HasSuffix(infile, "*.gz") {
+		reader, err := gzip.NewReader(fi)
+		if err != nil {
+			return beds, "", err
+		}
+		scanner = NewDBBEDScanner(reader)
+	} else {
+		scanner = NewDBBEDScanner(fi)
+	}
 	for scanner.Scan() {
 		row, err := scanner.Row()
 		if err != nil {

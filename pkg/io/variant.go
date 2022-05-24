@@ -8,7 +8,6 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/seq"
-	"os"
 	"strconv"
 	"strings"
 
@@ -176,7 +175,7 @@ func (this Variants) Less(i, j int) bool { return this[i].Compare(this[j]) == VC
 
 func ReadVariantMap(avinput string) (map[string]Variants, error) {
 	variants := make(map[string]Variants)
-	reader, err := os.Open(avinput)
+	reader, err := NewIoReader(avinput)
 	if err != nil {
 		return variants, err
 	}
@@ -198,7 +197,7 @@ func ReadVariantMap(avinput string) (map[string]Variants, error) {
 
 func ReadVariants(avinput string) (Variants, error) {
 	variants := make(Variants, 0)
-	reader, err := os.Open(avinput)
+	reader, err := NewIoReader(avinput)
 	if err != nil {
 		return variants, err
 	}
@@ -215,7 +214,7 @@ func ReadVariants(avinput string) (Variants, error) {
 }
 
 func WriteVariants(outfile string, variants ...Variants) error {
-	writer, err := os.Create(outfile)
+	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}

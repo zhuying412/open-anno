@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"open-anno/pkg"
+	"open-anno/pkg/io"
 	"open-anno/pkg/seq"
-	"os"
 	"strconv"
 	"strings"
 
@@ -211,7 +210,7 @@ func (this TransScanner) Row() (Transcript, error) {
 
 func ReadRefgene(infile string) (Transcripts, error) {
 	transcripts := make(Transcripts)
-	fi, err := os.Open(infile)
+	fi, err := io.NewIoReader(infile)
 	if err != nil {
 		return transcripts, err
 	}
@@ -222,8 +221,8 @@ func ReadRefgene(infile string) (Transcripts, error) {
 		if err != nil {
 			return transcripts, err
 		}
-		if _, ok := seq.GENOME[transcript.Chrom]; !ok {
-			continue
+		if _, ok := seq.GENOME[transcript.Chrom]; ok {
+			transcripts[transcript.Name] = transcript
 		}
 	}
 	return transcripts, err

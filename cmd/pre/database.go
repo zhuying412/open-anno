@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg"
+	"open-anno/pkg/io"
 	"open-anno/pkg/seq"
 	"os"
 	"path"
@@ -23,32 +24,30 @@ func RunPreDatabase(infile string, builder string, outdir string) {
 		}
 	}
 	log.Printf("Write database: %s ...", outdir)
-	fi, err := os.Open(infile)
+	reader, err := io.NewIoReader(infile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer fi.Close()
-	scanner := bufio.NewScanner(fi)
+	defer reader.Close()
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	scanner.Scan()
 	header := scanner.Text()
 	if !strings.HasPrefix(header, "#Chr") {
 		log.Fatalf("error database file, header not found: %s", infile)
 	}
-	writers := make(map[string]*os.File)
+	writers := make(map[string]io.WriteCloser)
 	for scanner.Scan() {
 		line := scanner.Text()
 		fileds := strings.Split(line, "\t")
 		chrom := pkg.FormatChrom(fileds[0])
 		if _, ok := seq.GENOME[chrom]; ok {
 			if _, ok := writers[chrom]; !ok {
-				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt", chrom))
-				writers[chrom], err = os.Create(outfile)
-				if err != nil {
-					log.Fatal(err)
-				}
-				writers[chrom].WriteString(header + "\n")
+				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt.gz", chrom))
+				writers[chrom], err = io.NewIoWriter(outfile)
+				fmt.Fprintf(writers[chrom], "%s\n", header)
 			}
-			writers[chrom].WriteString(line + "\n")
+			fmt.Fprintf(writers[chrom], "%s\n", line)
 		}
 	}
 	for _, writer := range writers {

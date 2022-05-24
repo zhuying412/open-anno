@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"open-anno/pkg/io"
 	"open-anno/pkg/io/refgene"
-	"os"
 	"sort"
 	"strings"
 )
@@ -70,7 +69,7 @@ func AnnoCnv(cnv io.Variant, trans refgene.Transcript) CnvGeneBased {
 	return anno
 }
 
-func AnnoCnvs(cnvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, writer *os.File) {
+func AnnoCnvs(cnvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, writer io.WriteCloser) {
 	sort.Sort(cnvs)
 	sort.Sort(transIndexes)
 	for _, cnv := range cnvs {

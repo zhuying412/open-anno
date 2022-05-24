@@ -57,7 +57,7 @@ func (this DBAnnos) Text(id string) string {
 
 func readOtherbased(infile string) (DBAnno, error) {
 	var dbAnno DBAnno
-	reader, err := os.Open(infile)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return dbAnno, err
 	}
@@ -81,7 +81,7 @@ func readOtherbased(infile string) (DBAnno, error) {
 
 func readAVinput(infile string) (DBAnno, error) {
 	var dbAnno DBAnno
-	reader, err := os.Open(infile)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return dbAnno, err
 	}
@@ -127,7 +127,7 @@ func MergeAnno(outfile string, avinput string, genebased string, otherbaseds ...
 		log.Fatal(err)
 	}
 	defer reader.Close()
-	writer, err := os.Create(outfile)
+	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		log.Fatal(err)
 	}

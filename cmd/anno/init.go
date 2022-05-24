@@ -18,11 +18,12 @@ func NewAnnoCmd(varType string) *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			avinput, _ := cmd.Flags().GetString("avinput")
 			dbpath, _ := cmd.Flags().GetString("dbpath")
-			dbnames, _ := cmd.Flags().GetString("dbname")
+			dbnames, _ := cmd.Flags().GetString("dbnames")
 			dbtypes, _ := cmd.Flags().GetString("dbtypes")
 			builder, _ := cmd.Flags().GetString("builder")
 			outprefix, _ := cmd.Flags().GetString("outprefix")
 			if avinput == "" || dbpath == "" || dbnames == "" || dbtypes == "" || builder == "" || outprefix == "" {
+				fmt.Println(avinput, dbpath, dbnames, dbtypes, builder, outprefix)
 				err := cmd.Help()
 				if err != nil {
 					log.Panic(err)
@@ -35,28 +36,35 @@ func NewAnnoCmd(varType string) *cobra.Command {
 				dbTypes := strings.Split(dbtypes, ",")
 				var genebasedOut string
 				var otherbasedOuts []string
+				errChan := make(chan error, len(dbNames))
 				for i := 0; i < len(dbNames); i++ {
 					dbName := strings.TrimSpace(dbNames[i])
 					dbType := strings.TrimSpace(dbTypes[i])
-					outfile := fmt.Sprintf("%s.%s.anno.txt", dbName, dbType)
+					outfile := fmt.Sprintf("%s.%s.anno.txt", outprefix, dbName)
 					if dbType == "g" {
 						if varType == "snv" {
 							aashort, _ := cmd.Flags().GetBool("aashort")
-							RunAnnoSnvGeneBased(avinput, dbpath, dbName, builder, outfile, aashort)
+							go RunAnnoSnvGeneBased(avinput, dbpath, dbName, builder, outfile, aashort, errChan)
 						}
 						if varType == "cnv" {
-							RunAnnoCnvGeneBased(avinput, dbpath, dbName, builder, outfile)
+							go RunAnnoCnvGeneBased(avinput, dbpath, dbName, builder, outfile, errChan)
 						}
 						genebasedOut = outfile
 					}
 					if dbType == "f" {
-						RunAnnoFilterBased(avinput, dbpath, dbName, builder, outfile)
+						go RunAnnoFilterBased(avinput, dbpath, dbName, builder, outfile, errChan)
 						otherbasedOuts = append(otherbasedOuts, outfile)
 					}
 					if dbType == "r" {
 						overlap, _ := cmd.Flags().GetFloat64("overlap")
-						RunAnnoRegionBased(avinput, dbpath, dbName, builder, overlap, outfile)
+						go RunAnnoRegionBased(avinput, dbpath, dbName, builder, overlap, outfile, errChan)
 						otherbasedOuts = append(otherbasedOuts, outfile)
+					}
+				}
+				for i := 0; i < len(dbNames); i++ {
+					err := <-errChan
+					if err != nil {
+						log.Fatal(err)
 					}
 				}
 				outfile := fmt.Sprintf("%s.anno.txt", outprefix)
@@ -81,7 +89,7 @@ func NewAnnoCmd(varType string) *cobra.Command {
 		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
 	}
 	if varType == "cnv" {
-		cmd.Flags().Float64P("overlap", "p", 0.75, "Database Builder")
+		cmd.Flags().Float64P("overlap", "p", 0.75, "CNV Overlap Threshold")
 	}
 	return cmd
 }

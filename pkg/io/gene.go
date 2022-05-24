@@ -2,21 +2,14 @@ package io
 
 import (
 	"bufio"
-	"compress/gzip"
 	"open-anno/pkg"
 	"open-anno/pkg/seq"
-	"os"
 	"strings"
 )
 
-func readManeSelect(infile string) (map[string]string, error) {
+func readGene2Refseq(infile string) (map[string]string, error) {
 	transToId := make(map[string]string)
-	fi, err := os.Open(infile)
-	if err != nil {
-		return transToId, err
-	}
-	defer fi.Close()
-	reader, err := gzip.NewReader(fi)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return transToId, err
 	}
@@ -24,11 +17,9 @@ func readManeSelect(infile string) (map[string]string, error) {
 	scanner := NewCSVScanner(reader)
 	for scanner.Scan() {
 		row := scanner.Row()
-		trans := strings.Split(row["RefSeq_nuc"], ".")[0]
-		ensembl := strings.Split(row["Ensembl_nuc"], ".")[0]
-		entrezId := strings.Split(row["#NCBI_GeneID"], ":")[1]
+		trans := strings.Split(row["RNA_nucleotide_accession.version"], ".")[0]
+		entrezId := row["GeneID"]
 		transToId[trans] = entrezId
-		transToId[ensembl] = entrezId
 	}
 	return transToId, err
 }
@@ -36,12 +27,7 @@ func readManeSelect(infile string) (map[string]string, error) {
 func readNCBIGeneInfo(infile string) (map[string]string, map[string]string, error) {
 	symbolToId := make(map[string]string)
 	synonymsToId := make(map[string]string)
-	fi, err := os.Open(infile)
-	if err != nil {
-		return symbolToId, synonymsToId, err
-	}
-	defer fi.Close()
-	reader, err := gzip.NewReader(fi)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return symbolToId, synonymsToId, err
 	}
@@ -67,7 +53,7 @@ func readNCBIGeneInfo(infile string) (map[string]string, map[string]string, erro
 
 func readRefgene(infile string) (map[string][]string, error) {
 	transToSymbols := make(map[string][]string)
-	reader, err := os.Open(infile)
+	reader, err := NewIoReader(infile)
 	if err != nil {
 		return transToSymbols, err
 	}
@@ -89,9 +75,9 @@ func readRefgene(infile string) (map[string][]string, error) {
 	return transToSymbols, err
 }
 
-func NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refgene string) (map[string]string, error) {
+func NewGeneSymbolToId(gene2refseq, ncbiGeneInfo, refgene string) (map[string]string, error) {
 	symbolToId := make(map[string]string)
-	maneTransToId, err := readManeSelect(maneSelect)
+	transToId, err := readGene2Refseq(gene2refseq)
 	if err != nil {
 		return symbolToId, err
 	}
@@ -99,7 +85,7 @@ func NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refgene string) (map[string]str
 	if err != nil {
 		return symbolToId, err
 	}
-	reader, err := os.Open(refgene)
+	reader, err := NewIoReader(refgene)
 	if err != nil {
 		return symbolToId, err
 	}
@@ -111,7 +97,7 @@ func NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refgene string) (map[string]str
 		if _, ok := seq.GENOME[chrom]; ok {
 			trans := strings.Split(fields[1], ".")[0]
 			symbol := fields[12]
-			if entrezId, ok := maneTransToId[trans]; ok {
+			if entrezId, ok := transToId[trans]; ok {
 				symbolToId[symbol] = entrezId
 			} else {
 				if entrezId, ok = ncbiSymbolToId[symbol]; ok {
