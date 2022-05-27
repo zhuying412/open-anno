@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -44,17 +43,20 @@ func NewTestCmd() *cobra.Command {
 		Use:   "test",
 		Short: "Test",
 		Run: func(cmd *cobra.Command, args []string) {
-			input, _ := cmd.Flags().GetString("input")
-			if input == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				RunTest(input)
+			input, _ := cmd.Flags().GetStringArray("input")
+			for _, i := range input {
+				fmt.Println(i)
 			}
+			// if input == "" {
+			// 	err := cmd.Help()
+			// 	if err != nil {
+			// 		log.Panic(err)
+			// 	}
+			// } else {
+			// 	RunTest(input)
+			// }
 		},
 	}
-	cmd.Flags().StringP("input", "i", "", "input")
+	cmd.Flags().StringArrayP("input", "i", []string{}, "input")
 	return cmd
 }
