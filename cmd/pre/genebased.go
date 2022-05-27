@@ -1,6 +1,7 @@
 package pre
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"open-anno/pkg"
@@ -65,6 +66,49 @@ func writeTransIndex(transcripts refgene.Transcripts, indexStep int, outIndex st
 	return err
 }
 
+func writeGene2Refseq(infile, outfile string) error {
+	reader, err := io.NewIoReader(infile)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	writer, err := io.NewIoWriter(outfile)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		text := scanner.Text()
+		if strings.HasPrefix(text, "#tax_id") || strings.HasPrefix(text, "9606") {
+			fmt.Fprintf(writer, "%s\n", text)
+		}
+	}
+	return err
+}
+
+func writeRefgene(infile, outfile string) error {
+	reader, err := io.NewIoReader(infile)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	writer, err := io.NewIoWriter(outfile)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		text := scanner.Text()
+		chrom := pkg.FormatChrom(strings.Split(text, "\t")[2])
+		if _, ok := seq.GENOME[chrom]; ok {
+			fmt.Fprintf(writer, "%s\n", text)
+		}
+	}
+	return err
+}
+
 func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, builder string, indexStep int) {
 	// param
 	log.Println("Init parameters ...")
@@ -79,15 +123,15 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 	}
 	// entrez_id
 	outGene2Refseq := path.Join(builderDir, "Homo_sapiens.gene2refseq.gz")
-	log.Printf("Copy NCBI Gene2Refseq to %s ...", outGene2Refseq)
-	pkg.CopyFile(gene2refseq, outGene2Refseq)
+	log.Printf("Create NCBI Gene2Refseq to %s ...", outGene2Refseq)
+	writeGene2Refseq(gene2refseq, outGene2Refseq)
 	outNcbiGeneInfo := path.Join(builderDir, "Homo_sapiens.gene_info.gz")
 	log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
-	pkg.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
+	io.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
 	// refgene
 	outRefGene := path.Join(outdir, "refgene.txt")
-	log.Printf("Copy refgene to %s ...", outRefGene)
-	pkg.CopyFile(refGene, outRefGene)
+	log.Printf("Create refgene to %s ...", outRefGene)
+	writeRefgene(refGene, outRefGene)
 	log.Printf("Read refgene: %s ...", outRefGene)
 	transcripts, err := refgene.ReadRefgene(outRefGene)
 	if err != nil {
@@ -128,19 +172,19 @@ func NewPreGeneBasedCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			genome, _ := cmd.Flags().GetString("genome")
 			refgene, _ := cmd.Flags().GetString("refgene")
-			maneSelect, _ := cmd.Flags().GetString("mane_select")
+			gene2refseq, _ := cmd.Flags().GetString("gene2refseq")
 			ncbiGeneInfo, _ := cmd.Flags().GetString("ncbi_gene_info")
 			dbpath, _ := cmd.Flags().GetString("dbpath")
 			builder, _ := cmd.Flags().GetString("builder")
 			name, _ := cmd.Flags().GetString("name")
 			step, _ := cmd.Flags().GetInt("step")
-			if genome == "" || refgene == "" || dbpath == "" || builder == "" || name == "" || maneSelect == "" || ncbiGeneInfo == "" {
+			if genome == "" || refgene == "" || dbpath == "" || builder == "" || name == "" || gene2refseq == "" || ncbiGeneInfo == "" {
 				err := cmd.Help()
 				if err != nil {
 					log.Panic(err)
 				}
 			} else {
-				RunPreGeneBased(dbpath, name, refgene, maneSelect, ncbiGeneInfo, genome, strings.ToLower(builder), step)
+				RunPreGeneBased(dbpath, name, refgene, gene2refseq, ncbiGeneInfo, genome, strings.ToLower(builder), step)
 			}
 		},
 	}
@@ -149,7 +193,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
 	cmd.Flags().StringP("name", "n", "", "Database Name")
 	cmd.Flags().StringP("builder", "b", "hg19", "Database Path")
-	cmd.Flags().StringP("mane_select", "m", "", "Mane Select File, gzip")
+	cmd.Flags().StringP("gene2refseq", "m", "", "NCBI Gene to Refseq file, gzip")
 	cmd.Flags().StringP("ncbi_gene_info", "c", "", "NCBI Gene Info file, gzip")
 	cmd.Flags().IntP("step", "L", 300000, "Transcript Index Step Length")
 	return cmd

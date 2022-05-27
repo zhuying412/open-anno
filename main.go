@@ -37,6 +37,7 @@ func NewAnnoCmd() *cobra.Command {
 	}
 	cmd.AddCommand(anno.NewAnnoCmd("snv"))
 	cmd.AddCommand(anno.NewAnnoCmd("cnv"))
+	cmd.AddCommand(anno.NewMergeCmd())
 	return cmd
 }
 

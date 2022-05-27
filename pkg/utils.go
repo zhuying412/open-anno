@@ -3,9 +3,7 @@ package pkg
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"log"
-	"os"
 	"strings"
 )
 
@@ -65,21 +63,4 @@ func FormatChrom(chrom string) string {
 		return "MT"
 	}
 	return chrom
-}
-
-func CopyFile(src string, dst string) {
-	reader, err := os.Open(src)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer reader.Close()
-	writer, err := os.Create(dst)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if _, err := io.Copy(writer, reader); err != nil {
-		log.Fatal(err)
-	}
-
-	defer writer.Close()
 }

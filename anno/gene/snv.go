@@ -9,16 +9,6 @@ import (
 	"strings"
 )
 
-func fitlerSpecialAnno(annos []SnvGeneBased) []SnvGeneBased {
-	filtered := make([]SnvGeneBased, 0)
-	for _, anno := range annos {
-		if anno.Event != "" {
-			filtered = append(filtered, anno)
-		}
-	}
-	return filtered
-}
-
 type SnvGeneBasedResult struct {
 	Gene    string
 	GeneID  string
@@ -37,7 +27,7 @@ func AnnoSnvs(snvs io.Variants, transcripts refgene.Transcripts, transIndexes re
 		} else if snvs[i].Start > transIndexes[j].End {
 			j++
 		} else {
-			var cmplAnnoS, cmplAnnos, incmplAnnos, unkAnnos []SnvGeneBased
+			var esAnnos, nesAnnos, unkAnnos []SnvGeneBased // exonic_splicing, non_exonic_splicing, ncRNA
 			for _, transName := range transIndexes[j].Transcripts {
 				trans := transcripts[transName]
 				if trans.TxStart <= snvs[i].End && trans.TxEnd >= snvs[i].Start {
@@ -50,30 +40,25 @@ func AnnoSnvs(snvs io.Variants, transcripts refgene.Transcripts, transIndexes re
 							anno = AnnoSnp(snvs[i], trans, aashort)
 						} else if snvs[i].Type() == io.VType_INS {
 							anno = AnnoIns(snvs[i], transcripts[transName], aashort)
-						} else {
+						} else if snvs[i].Type() == io.VType_DEL {
 							anno = AnnoDel(snvs[i], transcripts[transName], aashort)
-						}
-						if trans.IsCmpl() {
-							if anno.Event == "" {
-								cmplAnnos = append(cmplAnnos, anno)
-							} else {
-								cmplAnnoS = append(cmplAnnoS, anno)
-							}
 						} else {
-							incmplAnnos = append(incmplAnnos, anno)
+							anno = AnnoSub(snvs[i], transcripts[transName], aashort)
+						}
+						if anno.Event == "" {
+							esAnnos = append(esAnnos, anno)
+						} else {
+							nesAnnos = append(nesAnnos, anno)
 						}
 					}
 				}
 			}
-			annos := cmplAnnoS
-			if len(annos) == 0 {
-				annos = append(annos, cmplAnnos...)
-			}
-			if len(annos) == 0 {
-				annos = append(annos, incmplAnnos...)
-			}
+			annos := esAnnos
 			if len(annos) == 0 {
 				annos = append(annos, unkAnnos...)
+			}
+			if len(annos) == 0 {
+				annos = append(annos, nesAnnos...)
 			}
 			id := snvs[i].ID()
 			for _, anno := range annos {

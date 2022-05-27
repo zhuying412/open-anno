@@ -75,7 +75,7 @@ func Translate(sequence string, mt bool) string {
 func AAName[T byte | string](bases T, aashort bool) string {
 	var buffer bytes.Buffer
 	sequence := string(bases)
-	for i := 0; i < len(sequence); i += 3 {
+	for i := 0; i < len(sequence); i++ {
 		if aashort {
 			buffer.WriteByte(sequence[i])
 		} else {
@@ -107,6 +107,15 @@ func Insert(sequence string, pos int, bases string) string {
 func Delete(sequence string, start int, end int) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(sequence[0 : start-1])
+	buffer.WriteString(sequence[end:])
+	return buffer.String()
+}
+
+// Substitute2 替换碱基
+func Substitute2(sequence string, start int, end int, alt string) string {
+	var buffer bytes.Buffer
+	buffer.WriteString(sequence[0 : start-1])
+	buffer.WriteString(alt)
 	buffer.WriteString(sequence[end:])
 	return buffer.String()
 }

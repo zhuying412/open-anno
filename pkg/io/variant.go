@@ -19,6 +19,7 @@ const (
 	VType_INS = "INS"
 	VType_DEL = "DEL"
 	VType_DUP = "DUP"
+	VType_SUB = "SUB"
 )
 const (
 	VCMP_GT = ">"
@@ -42,12 +43,16 @@ func (this Variant) Type() string {
 		}
 		return VType_DUP
 	}
-	if this.Alt == "-" {
-		return VType_DEL
-	} else if this.Ref == "-" {
+	if this.Ref == "-" {
 		return VType_INS
+	} else if this.Alt == "-" {
+		return VType_DEL
+	} else {
+		if len(this.Ref) > 1 || len(this.Alt) > 1 {
+			return VType_SUB
+		}
+		return VType_SNP
 	}
-	return VType_SNP
 }
 
 func (this Variant) ID() string {

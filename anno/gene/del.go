@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func getCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Region, refgene.Region, bool) {
+func getDelCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Region, refgene.Region, bool) {
 	var cStart, cEnd int
 	var region1, region2 refgene.Region
 	var hasCDS, hasIntron bool
@@ -49,9 +49,13 @@ func getCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Region
 	return cStart, cEnd, region1, region2, hasCDS && hasIntron
 }
 
-func setAAChange(anno SnvGeneBased, trans refgene.Transcript, cstart int, cend int, aashort bool) SnvGeneBased {
+func setDelAAChange(anno SnvGeneBased, trans refgene.Transcript, cstart int, cend int, aashort bool) SnvGeneBased {
 	cdna := trans.CDNA()
 	ncdna := seq.Delete(cdna, cstart, cend)
+	if trans.Strand == "-" {
+		cdna = seq.RevComp(cdna)
+		ncdna = seq.RevComp(ncdna)
+	}
 	start := seq.DifferenceSimple(cdna, ncdna)
 	alt := cdna[start-1 : start+cend-cstart]
 	if anno.NAChange == "" {
@@ -61,10 +65,6 @@ func setAAChange(anno SnvGeneBased, trans refgene.Transcript, cstart int, cend i
 			anno.NAChange = fmt.Sprintf("c.%d_%ddel%s", start, start+cend-cstart, alt)
 		}
 
-	}
-	if trans.Strand == "-" {
-		cdna = seq.RevComp(cdna)
-		ncdna = seq.RevComp(ncdna)
 	}
 	protein := seq.Translate(cdna, trans.Chrom == "MT")
 	nprotein := seq.Translate(ncdna, trans.Chrom == "MT")
@@ -122,7 +122,7 @@ func setAAChange(anno SnvGeneBased, trans refgene.Transcript, cstart int, cend i
 }
 
 func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBased {
-	cStart, cEnd, region1, region2, isExonSplicing := getCLen(trans, snv)
+	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
 	r := pkg.Min(trans.TxEnd, snv.End) - trans.CdsEnd
@@ -229,7 +229,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 				}
 			}
 		}
-		anno = setAAChange(anno, trans, 1, cEnd, aashort)
+		anno = setDelAAChange(anno, trans, 1, cEnd, aashort)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := trans.CdsEnd - snv.End + 1 + r
 		if region1.Type == refgene.RType_CDS {
@@ -250,7 +250,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 				}
 
 			}
-			anno = setAAChange(anno, trans, cStart, cLen, aashort)
+			anno = setDelAAChange(anno, trans, cStart, cLen, aashort)
 		} else {
 			// intron
 			// ...+++,,,...
@@ -270,7 +270,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 				}
 
 			}
-			anno = setAAChange(anno, trans, cStart+1, cLen, aashort)
+			anno = setDelAAChange(anno, trans, cStart+1, cLen, aashort)
 		}
 
 	} else {
@@ -278,7 +278,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 			if region1.Type == refgene.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
-				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
+				anno = setDelAAChange(anno, trans, cStart, cEnd, aashort)
 			} else {
 				// ...+++,,,,,,...
 				//        |--|
@@ -315,7 +315,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 						anno.NAChange = fmt.Sprintf("c.%d-%d_%ddel%s", cLen-cEnd+1, snv.End-region2.Start+1, cLen-cStart+1, seq.RevComp(snv.Ref))
 					}
 				}
-				anno = setAAChange(anno, trans, cStart, cEnd, aashort)
+				anno = setDelAAChange(anno, trans, cStart, cEnd, aashort)
 			} else {
 				if region2.Type == refgene.RType_CDS {
 					// ...+++,,,+++...
@@ -334,7 +334,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript, aashort bool) SnvGeneBase
 						anno.NAChange = fmt.Sprintf("c.%d-%d_%d+%ddel%s", cLen-cEnd+1, snv.End-region2.Start+1, cLen-cStart, region1.End-snv.Start+1, seq.RevComp(snv.Ref))
 					}
 				}
-				anno = setAAChange(anno, trans, cStart+1, cEnd, aashort)
+				anno = setDelAAChange(anno, trans, cStart+1, cEnd, aashort)
 			}
 		}
 	}

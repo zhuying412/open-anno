@@ -30,9 +30,9 @@ func initGeneBasedData(avinput, dbPath, dbName, builder string) (map[string]io.V
 	}
 	// symbol to id
 	ncbiGeneInfoFile := path.Join(dbPath, builder, "Homo_sapiens.gene_info.gz")
-	maneSelectFile := path.Join(dbPath, builder, "MANE.summary.txt.gz")
-	log.Printf("New Gene Symbol to EntrezID from %s, %s", ncbiGeneInfoFile, maneSelectFile)
-	symbolToId, err = io.NewGeneSymbolToId(maneSelectFile, ncbiGeneInfoFile, refgeneFile)
+	gene2RefseqFile := path.Join(dbPath, builder, "Homo_sapiens.gene2refseq.gz")
+	log.Printf("New Gene Symbol to EntrezID from %s, %s", ncbiGeneInfoFile, gene2RefseqFile)
+	symbolToId, err = io.NewGeneSymbolToId(gene2RefseqFile, ncbiGeneInfoFile, refgeneFile)
 	if err != nil {
 		return snvMap, transcripts, transIndexes, symbolToId, err
 	}

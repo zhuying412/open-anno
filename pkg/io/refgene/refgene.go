@@ -14,13 +14,6 @@ import (
 	"github.com/brentp/faidx"
 )
 
-const (
-	CdsStat_N = "none"
-	CdsStat_C = "cmpl"
-	CdsStat_I = "incompl"
-	CdsStat_U = "unk"
-)
-
 // Transcript Refgene
 type Transcript struct {
 	Bin          int     `json:"bin"`
@@ -82,11 +75,11 @@ func (this Transcript) DNA() string {
 }
 
 func (this Transcript) IsCmpl() bool {
-	return this.CdsStartStat == CdsStat_C && this.CdsEndStat == CdsStat_C
+	return this.CdsStartStat == "cmpl" && this.CdsEndStat == "cmpl"
 }
 
 func (this Transcript) IsUnk() bool {
-	return this.CdsStartStat == CdsStat_U && this.CdsEndStat == CdsStat_U
+	return (this.CdsStartStat == "unk" && this.CdsEndStat == "unk") || this.CdsEnd-this.CdsStart+1 == 0
 }
 
 func (this *Transcript) SetRegions(mrna *faidx.Faidx, symbolToId map[string]string, seqRequired bool) error {
