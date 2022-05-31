@@ -3,7 +3,6 @@ package io
 import (
 	"fmt"
 	"io"
-	"log"
 	"open-anno/pkg/seq"
 	"sort"
 	"strings"
@@ -83,12 +82,12 @@ type VCFScanner struct {
 	buffer *vcfgo.Variant
 }
 
-func NewVCFScanner(reader io.Reader) VCFScanner {
+func NewVCFScanner(reader io.Reader) (VCFScanner, error) {
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		log.Panic(err)
+		return VCFScanner{}, err
 	}
-	return VCFScanner{reader: vcfReader}
+	return VCFScanner{reader: vcfReader}, err
 }
 
 func (this *VCFScanner) Close() error {
@@ -140,7 +139,10 @@ func ReadVCFs(infile string) (VCFs, error) {
 		return vcfs, err
 	}
 	defer reader.Close()
-	scanner := NewVCFScanner(reader)
+	scanner, err := NewVCFScanner(reader)
+	if err != nil {
+		return vcfs, err
+	}
 	defer scanner.Close()
 	for scanner.Scan() {
 		row, err := scanner.Row()

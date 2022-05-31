@@ -3,7 +3,6 @@ package io
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
@@ -124,12 +123,12 @@ func MergeAnno(outfile string, avinput string, genebased string, otherbaseds ...
 	dbAnnos = append(dbAnnos, dbAnno)
 	reader, err := os.Open(genebased)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer reader.Close()
 	writer, err := NewIoWriter(outfile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer writer.Close()
 	scanner := NewDBVarScanner(reader)
@@ -141,5 +140,5 @@ func MergeAnno(outfile string, avinput string, genebased string, otherbaseds ...
 		}
 		fmt.Fprintf(writer, "%s\t%s\n", scanner.Text(), dbAnnos.Text(row.ID()))
 	}
-	return nil
+	return err
 }

@@ -2,18 +2,16 @@ package db
 
 import (
 	"fmt"
-	"log"
 	"open-anno/pkg/io"
-	"os"
 	"sort"
 	"strings"
 )
 
-func AnnoFilterBased(variants io.Variants, dbfile string, headerWrited bool, writer io.WriteCloser) {
+func AnnoFilterBased(variants io.Variants, dbfile string, headerWrited bool, writer io.WriteCloser) error {
 	sort.Sort(variants)
-	reader, err := os.Open(dbfile)
+	reader, err := io.NewIoReader(dbfile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer reader.Close()
 	scanner := io.NewDBVarScanner(reader)
@@ -31,7 +29,7 @@ func AnnoFilterBased(variants io.Variants, dbfile string, headerWrited bool, wri
 			}
 			dbvar, err = scanner.Row()
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		case io.VCMP_EQ:
 			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
@@ -40,4 +38,5 @@ func AnnoFilterBased(variants io.Variants, dbfile string, headerWrited bool, wri
 			i++
 		}
 	}
+	return err
 }

@@ -1,7 +1,8 @@
 package seq
 
 import (
-	"log"
+	"errors"
+	"fmt"
 	"strings"
 )
 
@@ -64,7 +65,7 @@ var GENOME_MT = map[string]int{
 
 var GENOME map[string]int
 
-func SetGenome(builder string) {
+func SetGenome(builder string) error {
 	switch strings.ToLower(builder) {
 	case "hg19", "grch37":
 		GENOME = GENOME_HG19
@@ -73,6 +74,7 @@ func SetGenome(builder string) {
 	case "m", "mt", "mito":
 		GENOME = GENOME_MT
 	default:
-		log.Fatalf("error builder: %s, the choice is (hg19, hg38, grch38, grch37, m, mt, mito)", builder)
+		return errors.New(fmt.Sprintf("error builder: %s, the choice is (hg19, hg38, grch38, grch37, m, mt, mito)", builder))
 	}
+	return nil
 }

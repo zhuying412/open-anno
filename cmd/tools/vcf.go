@@ -34,7 +34,8 @@ func RunAV2VCF(avinput string, vcf string, genome string) {
 	}
 	vcfs := make(io.VCFs, len(variants))
 	for i, row := range variants {
-		vcfs[i] = row.VCF(fai)
+		vcfs[i], err = row.VCF(fai)
+		log.Fatal(err)
 	}
 	err = io.WriteVCFs(vcf, vcfs)
 	if err != nil {

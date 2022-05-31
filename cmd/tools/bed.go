@@ -24,7 +24,7 @@ func RunAV2BED(avinput string, bed string) {
 
 func NewAV2BEDCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "av2vcf",
+		Use:   "av2bed",
 		Short: "Convert CNV AVINPUT to BED",
 		Run: func(cmd *cobra.Command, args []string) {
 			bed, _ := cmd.Flags().GetString("bed")

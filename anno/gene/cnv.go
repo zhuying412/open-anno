@@ -35,7 +35,7 @@ func AnnoCnv(cnv io.Variant, trans refgene.Transcript) CnvGeneBased {
 	anno := NewCnvGeneBased(trans)
 	if len(cdss) > 0 {
 		if len(utr5s) > 0 {
-			anno.Region = "UTR5_exonic"
+			anno.Region = "UTR5_CDS"
 			if len(utr3s) > 0 {
 				anno.Region = "CDNA"
 				if cnv.Start <= trans.TxStart && cnv.End >= trans.TxEnd {
@@ -43,9 +43,9 @@ func AnnoCnv(cnv io.Variant, trans refgene.Transcript) CnvGeneBased {
 				}
 			}
 		} else {
-			anno.Region = "exonic"
+			anno.Region = "CDS"
 			if len(utr3s) > 0 {
-				anno.Region = "exonic_UTR3"
+				anno.Region = "CDS_UTR3"
 			}
 		}
 		if len(cdss) == 1 {
@@ -83,7 +83,7 @@ func AnnoCnvs(cnvs io.Variants, transcripts refgene.Transcripts, transIndexes re
 						continue
 					}
 					transNames[transName] = true
-					if trans.IsCmpl() {
+					if !trans.IsUnk() {
 						if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
 							anno := AnnoCnv(cnv, trans)
 							annos = append(annos, anno)

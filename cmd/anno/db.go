@@ -20,15 +20,21 @@ func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder st
 		errChan <- err
 		return
 	}
-	// anno
-	writer, err := initWriter(outfile)
-	if err != nil {
-		errChan <- err
-		return
+	// writer
+	var writer io.WriteCloser = os.Stdout
+	if outfile != "-" {
+		writer, err = io.NewIoWriter(outfile)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
 	}
+	// anno
 	headerWrited := true
 	for chrom, subSnvs := range snvs {
-		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt.gz", chrom))
+		log.Printf("Start run annotate %s chr%s ...", dbName, chrom)
+		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))
 		if _, err = os.Stat(dbFile); os.IsNotExist(err) {
 			continue
 		}
@@ -48,12 +54,17 @@ func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder st
 		errChan <- err
 		return
 	}
-	// anno
-	writer, err := initWriter(outfile)
-	if err != nil {
-		errChan <- err
-		return
+	// writer
+	var writer io.WriteCloser = os.Stdout
+	if outfile != "-" {
+		writer, err = io.NewIoWriter(outfile)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
 	}
+	// anno
 	headerWrited := true
 	for chrom, subSnvs := range snvs {
 		dbFile := path.Join(dbPath, builder, dbName, fmt.Sprintf("chr%s.txt", chrom))

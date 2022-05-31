@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/seq"
 	"strconv"
@@ -105,13 +104,13 @@ func (this Variant) Compare(that Variant) string {
 	}
 }
 
-func (this Variant) VCF(fai *faidx.Faidx) VCF {
+func (this Variant) VCF(fai *faidx.Faidx) (VCF, error) {
 	chrom, start, end, ref, alt := this.Chrom, this.Start, this.End, this.Ref, this.Alt
 	var pos int
 	var err error
 	if ref != "DIP" {
 		if ref == "-" && alt == "-" {
-			log.Fatal(errors.New("ref == '-' and alt == '-'"))
+			return VCF{}, errors.New("ref == '-' and alt == '-'")
 		}
 		if ref == "-" {
 			ref, err = seq.Fetch(fai, chrom, start-1, start)
@@ -130,7 +129,7 @@ func (this Variant) VCF(fai *faidx.Faidx) VCF {
 		Chrom: chrom, Pos: pos, Ref: ref, Alt: alt,
 		ID:   fmt.Sprintf("%s:%d:%d:%s:%s", chrom, start, end, ref, alt),
 		Qual: 0, Filter: ".", Info: strings.Join(this.Otherinfo, ","),
-	}
+	}, nil
 }
 
 type VarScanner struct {

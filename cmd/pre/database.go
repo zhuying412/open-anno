@@ -43,9 +43,10 @@ func RunPreDatabase(infile string, builder string, outdir string) {
 		chrom := pkg.FormatChrom(fileds[0])
 		if _, ok := seq.GENOME[chrom]; ok {
 			if _, ok := writers[chrom]; !ok {
-				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt.gz", chrom))
+				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt", chrom))
 				writers[chrom], err = io.NewIoWriter(outfile)
 				fmt.Fprintf(writers[chrom], "%s\n", header)
+				log.Printf("Prepare %s", outfile)
 			}
 			fmt.Fprintf(writers[chrom], "%s\n", line)
 		}
@@ -53,7 +54,7 @@ func RunPreDatabase(infile string, builder string, outdir string) {
 	for _, writer := range writers {
 		err := writer.Close()
 		if err != nil {
-			log.Panic()
+			log.Fatal(err)
 		}
 	}
 }

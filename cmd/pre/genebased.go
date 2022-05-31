@@ -101,7 +101,11 @@ func writeRefgene(infile, outfile string) error {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		text := scanner.Text()
-		chrom := pkg.FormatChrom(strings.Split(text, "\t")[2])
+		chrom := pkg.FormatChrom(strings.Split(text, "\t")[1])
+		if _, ok := seq.GENOME[chrom]; ok {
+			fmt.Fprintf(writer, "%s\n", text)
+		}
+		chrom = pkg.FormatChrom(strings.Split(text, "\t")[2])
 		if _, ok := seq.GENOME[chrom]; ok {
 			fmt.Fprintf(writer, "%s\n", text)
 		}
@@ -121,17 +125,25 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 			log.Fatal(err)
 		}
 	}
-	// entrez_id
-	outGene2Refseq := path.Join(builderDir, "Homo_sapiens.gene2refseq.gz")
-	log.Printf("Create NCBI Gene2Refseq to %s ...", outGene2Refseq)
-	writeGene2Refseq(gene2refseq, outGene2Refseq)
-	outNcbiGeneInfo := path.Join(builderDir, "Homo_sapiens.gene_info.gz")
-	log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
-	io.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
+	if gene2refseq != "" {
+		// gene2refseq
+		outGene2Refseq := path.Join(builderDir, "Homo_sapiens.gene2refseq.gz")
+		log.Printf("Create NCBI Gene2Refseq to %s ...", outGene2Refseq)
+		writeGene2Refseq(gene2refseq, outGene2Refseq)
+	}
+	if ncbiGeneInfo != "" {
+		// gene_info
+		outNcbiGeneInfo := path.Join(builderDir, "Homo_sapiens.gene_info.gz")
+		log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
+		io.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
+	}
 	// refgene
-	outRefGene := path.Join(outdir, "refgene.txt")
+	outRefGene := path.Join(outdir, "GenePred.txt")
 	log.Printf("Create refgene to %s ...", outRefGene)
-	writeRefgene(refGene, outRefGene)
+	err := writeRefgene(refGene, outRefGene)
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("Read refgene: %s ...", outRefGene)
 	transcripts, err := refgene.ReadRefgene(outRefGene)
 	if err != nil {
@@ -157,7 +169,7 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 		log.Printf("Now you need run the command: 'samtools faidx %s'", outmRNA)
 	}
 	// index
-	outIndex := path.Join(outdir, "refgene.idx")
+	outIndex := path.Join(outdir, "GenePred.idx")
 	log.Printf("Write Transcript Index: %s ...", outIndex)
 	err = writeTransIndex(transcripts, indexStep, outIndex)
 	if err != nil {
@@ -178,7 +190,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 			builder, _ := cmd.Flags().GetString("builder")
 			name, _ := cmd.Flags().GetString("name")
 			step, _ := cmd.Flags().GetInt("step")
-			if genome == "" || refgene == "" || dbpath == "" || builder == "" || name == "" || gene2refseq == "" || ncbiGeneInfo == "" {
+			if genome == "" || refgene == "" || dbpath == "" || builder == "" || name == "" {
 				err := cmd.Help()
 				if err != nil {
 					log.Panic(err)

@@ -2,18 +2,17 @@ package db
 
 import (
 	"fmt"
-	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
 	"sort"
 	"strings"
 )
 
-func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer io.WriteCloser) {
+func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer io.WriteCloser) error {
 	sort.Sort(variants)
 	regionBaseds, header, err := io.ReadDBBEDs(dbfile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if writeHeader {
 		headers := strings.Split(header, "\t")
@@ -36,4 +35,5 @@ func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, write
 				variant.Ref, variant.Alt, strings.Join(annos, ","))
 		}
 	}
+	return err
 }

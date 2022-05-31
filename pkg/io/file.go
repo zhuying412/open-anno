@@ -3,7 +3,6 @@ package io
 import (
 	"compress/gzip"
 	"io"
-	"log"
 	"os"
 	"strings"
 )
@@ -29,18 +28,19 @@ func NewIoWriter(infile string) (WriteCloser, error) {
 	return fi, err
 }
 
-func CopyFile(src string, dst string) {
+func CopyFile(src string, dst string) error {
 	reader, err := os.Open(src)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer reader.Close()
 	writer, err := os.Create(dst)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if _, err := io.Copy(writer, reader); err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer writer.Close()
+	return err
 }

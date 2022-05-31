@@ -1,31 +1,8 @@
 package pkg
 
 import (
-	"bytes"
-	"encoding/json"
-	"log"
-	"strings"
+	"regexp"
 )
-
-func ToJSON[T any](data T) string {
-	var buffer bytes.Buffer
-	jsonEncoder := json.NewEncoder(&buffer)
-	jsonEncoder.SetEscapeHTML(false)
-	err := jsonEncoder.Encode(data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return strings.TrimSpace(buffer.String())
-}
-
-func FromJSON[T any](line string) T {
-	var data T
-	err := json.Unmarshal([]byte(line), &data)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return data
-}
 
 func Min[T int | float64](a T, b T) T {
 	if a < b {
@@ -58,7 +35,7 @@ func FindArr[T string | int | float64](arr []T, k T) int {
 }
 
 func FormatChrom(chrom string) string {
-	chrom = strings.Replace(chrom, "chr", "", 1)
+	chrom = regexp.MustCompile(`^chr`).ReplaceAllString(chrom, "")
 	if chrom == "M" {
 		return "MT"
 	}

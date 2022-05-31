@@ -22,8 +22,8 @@ func initGeneBasedData(avinput, dbPath, dbName, builder string) (map[string]io.V
 	// builder
 	seq.SetGenome(builder)
 	// refgene
-	refgeneFile := path.Join(dbPath, builder, dbName, "refgene.txt")
-	log.Printf("Read Refgene: %s ...", refgeneFile)
+	refgeneFile := path.Join(dbPath, builder, dbName, "GenePred.txt")
+	log.Printf("Read GenePred: %s ...", refgeneFile)
 	transcripts, err = refgene.ReadRefgene(refgeneFile)
 	if err != nil {
 		return snvMap, transcripts, transIndexes, symbolToId, err
@@ -37,8 +37,8 @@ func initGeneBasedData(avinput, dbPath, dbName, builder string) (map[string]io.V
 		return snvMap, transcripts, transIndexes, symbolToId, err
 	}
 	// index
-	indexFile := path.Join(dbPath, builder, dbName, "refgene.idx")
-	log.Printf("Read Refgene Index: %s ...", indexFile)
+	indexFile := path.Join(dbPath, builder, dbName, "GenePred.idx")
+	log.Printf("Read GenePred Index: %s ...", indexFile)
 	transIndexes, err = refgene.ReadTransIndexs(indexFile)
 	if err != nil {
 		return snvMap, transcripts, transIndexes, symbolToId, err
@@ -50,13 +50,6 @@ func initGeneBasedData(avinput, dbPath, dbName, builder string) (map[string]io.V
 		return snvMap, transcripts, transIndexes, symbolToId, err
 	}
 	return snvMap, transcripts, transIndexes, symbolToId, err
-}
-
-func initWriter(outfile string) (io.WriteCloser, error) {
-	if outfile == "-" {
-		return os.Stdout, nil
-	}
-	return io.NewIoWriter(outfile)
 }
 
 func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, aashort bool, errChan chan error) {
@@ -73,16 +66,28 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 		errChan <- err
 		return
 	}
-	// anno
-	writer, err := initWriter(outfile)
-	if err != nil {
-		errChan <- err
-		return
+	// writer
+	var writer io.WriteCloser = os.Stdout
+	if outfile != "-" {
+		writer, err = io.NewIoWriter(outfile)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
 	}
-	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tGene\tGeneID\tEvent\tRegion\tDetail\n")
+	fmt.Fprintf(writer,
+		"Chr\tStart\tEnd\tRef\tAlt\t%s.Gene\t%s.GeneID\t%s.Event\t%s.Region\t%s.Detail\n",
+		dbName, dbName, dbName, dbName, dbName,
+	)
+	// anno
 	for chrom, snvs := range snvMap {
-		log.Printf("Start run annotate chr%s ...", chrom)
-		transcripts := refgenes.FilterChrom(chrom, symbolToId, fai, true)
+		log.Printf("Start run annotate %s chr%s ...", dbName, chrom)
+		transcripts, err := refgenes.FilterChrom(chrom, symbolToId, fai, true)
+		if err != nil {
+			errChan <- err
+			return
+		}
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
 		if err != nil {
 			errChan <- err
@@ -94,21 +99,30 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 }
 
 func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder string, outfile string, errChan chan error) {
-	snvMap, refgenes, refgeneIndexes, symbolToId, err := initGeneBasedData(avinput, dbPath, dbName, builder)
+	cnvMap, refgenes, refgeneIndexes, symbolToId, err := initGeneBasedData(avinput, dbPath, dbName, builder)
 	if err != nil {
 		errChan <- err
 		return
 	}
+	// writer
+	var writer io.WriteCloser = os.Stdout
+	if outfile != "-" {
+		writer, err = io.NewIoWriter(outfile)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+	}
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s.Region\n", dbName)
 	// anno
-	writer, err := initWriter(outfile)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tRegion\n")
-	for chrom, cnvs := range snvMap {
+	for chrom, cnvs := range cnvMap {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
-		transcripts := refgenes.FilterChrom(chrom, symbolToId, &faidx.Faidx{}, false)
+		transcripts, err := refgenes.FilterChrom(chrom, symbolToId, &faidx.Faidx{}, false)
+		if err != nil {
+			errChan <- err
+			return
+		}
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
 		gene.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
 	}
