@@ -13,8 +13,7 @@ type CSVScanner struct {
 
 func NewCSVScanner(reader io.Reader) CSVScanner {
 	scanner := bufio.NewScanner(reader)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	scanner.Scan()
 	return CSVScanner{scanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t")}
 }

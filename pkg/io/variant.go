@@ -138,8 +138,7 @@ type VarScanner struct {
 
 func NewVarScanner(reader io.Reader) VarScanner {
 	scanner := bufio.NewScanner(reader)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	return VarScanner{scanner: scanner}
 }
 

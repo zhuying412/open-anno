@@ -34,8 +34,7 @@ type BEDScanner struct {
 
 func NewBEDScanner(reader io.Reader) BEDScanner {
 	scanner := bufio.NewScanner(reader)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	return BEDScanner{scanner: scanner}
 }
 
