@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg/io"
+	"open-anno/pkg/io/refgene"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -40,6 +41,7 @@ func NewAnnoCmd(varType string) *cobra.Command {
 					if dbType == "g" {
 						if varType == "snv" {
 							aashort, _ := cmd.Flags().GetBool("aashort")
+							refgene.IS_EXON_REGION, _ = cmd.Flags().GetBool("exon")
 							go RunAnnoSnvGeneBased(avinput, dbpath, dbName, builder, outfile, aashort, errChan)
 						}
 						if varType == "cnv" {
@@ -71,6 +73,7 @@ func NewAnnoCmd(varType string) *cobra.Command {
 	cmd.Flags().StringP("builder", "b", "hg19", "Database Builder")
 	if varType == "snv" {
 		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
+		cmd.Flags().BoolP("exon", "e", false, "Output ExonOrder Instead of TypeOrder")
 	}
 	if varType == "cnv" {
 		cmd.Flags().Float64P("overlap", "p", 0.75, "CNV Overlap Threshold")

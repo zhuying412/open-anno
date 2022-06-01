@@ -11,6 +11,8 @@ const (
 	RType_UTR    = "UTR"
 )
 
+var IS_EXON_REGION = false
+
 type Region struct {
 	Chrom    string `json:"chrom"`
 	Start    int    `json:"start"`
@@ -22,10 +24,14 @@ type Region struct {
 }
 
 func (this *Region) Name() string {
-	if this.Order == 0 {
-		return this.Type
+	if IS_EXON_REGION {
+		if this.Order == 0 {
+			return this.Type
+		}
+		return fmt.Sprintf("%s%d", this.Type, this.Order)
 	}
-	return fmt.Sprintf("%s%d", this.Type, this.Order)
+	return this.Exon
+
 }
 
 func (this Region) Equal(r Region) bool {
