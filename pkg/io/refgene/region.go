@@ -24,7 +24,7 @@ type Region struct {
 }
 
 func (this *Region) Name() string {
-	if IS_EXON_REGION {
+	if !IS_EXON_REGION {
 		if this.Order == 0 {
 			return this.Type
 		}

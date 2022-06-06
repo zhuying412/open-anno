@@ -9,6 +9,7 @@ import (
 	"open-anno/pkg/seq"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/brentp/faidx"
 )
@@ -68,7 +69,7 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 	}
 	// writer
 	var writer io.WriteCloser = os.Stdout
-	if outfile != "-" {
+	if !strings.HasPrefix(outfile, "-") {
 		writer, err = io.NewIoWriter(outfile)
 		if err != nil {
 			errChan <- err
@@ -106,7 +107,7 @@ func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder s
 	}
 	// writer
 	var writer io.WriteCloser = os.Stdout
-	if outfile != "-" {
+	if !strings.HasPrefix(outfile, "-") {
 		writer, err = io.NewIoWriter(outfile)
 		if err != nil {
 			errChan <- err

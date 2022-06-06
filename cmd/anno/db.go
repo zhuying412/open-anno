@@ -8,6 +8,7 @@ import (
 	"open-anno/pkg/seq"
 	"os"
 	"path"
+	"strings"
 )
 
 func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder string, outfile string, errChan chan error) {
@@ -22,7 +23,7 @@ func RunAnnoFilterBased(avinput string, dbPath string, dbName string, builder st
 	}
 	// writer
 	var writer io.WriteCloser = os.Stdout
-	if outfile != "-" {
+	if !strings.HasPrefix(outfile, "-") {
 		writer, err = io.NewIoWriter(outfile)
 		if err != nil {
 			errChan <- err
@@ -56,7 +57,7 @@ func RunAnnoRegionBased(avinput string, dbPath string, dbName string, builder st
 	}
 	// writer
 	var writer io.WriteCloser = os.Stdout
-	if outfile != "-" {
+	if !strings.HasPrefix(outfile, "-") {
 		writer, err = io.NewIoWriter(outfile)
 		if err != nil {
 			errChan <- err
