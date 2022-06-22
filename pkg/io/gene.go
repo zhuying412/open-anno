@@ -16,7 +16,10 @@ func readGene2Refseq(infile string) (map[string]string, error) {
 	defer reader.Close()
 	scanner := NewCSVScanner(reader)
 	for scanner.Scan() {
-		row := scanner.Row()
+		row, err := scanner.Row()
+		if err != nil {
+			return transToId, err
+		}
 		trans := strings.Split(row["RNA_nucleotide_accession.version"], ".")[0]
 		entrezId := row["GeneID"]
 		transToId[trans] = entrezId
@@ -34,7 +37,10 @@ func readNCBIGeneInfo(infile string) (map[string]string, map[string]string, erro
 	defer reader.Close()
 	scanner := NewCSVScanner(reader)
 	for scanner.Scan() {
-		row := scanner.Row()
+		row, err := scanner.Row()
+		if err != nil {
+			return symbolToId, synonymsToId, err
+		}
 		entrezId := row["GeneID"]
 		symbol := row["Symbol"]
 		synonyms := strings.Split(row["Synonyms"], "|")

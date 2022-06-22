@@ -10,7 +10,7 @@ import (
 
 func AnnoRegionBased(variants io.Variants, dbfile string, overlap float64, writeHeader bool, writer io.WriteCloser) error {
 	sort.Sort(variants)
-	regionBaseds, header, err := io.ReadDBBEDs(dbfile)
+	regionBaseds, header, err := io.ReadDBRegs(dbfile)
 	if err != nil {
 		return err
 	}

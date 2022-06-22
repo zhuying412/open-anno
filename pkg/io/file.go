@@ -1,8 +1,10 @@
 package io
 
 import (
+	"bufio"
 	"compress/gzip"
 	"io"
+	"log"
 	"os"
 	"strings"
 )
@@ -43,4 +45,33 @@ func CopyFile(src string, dst string) error {
 	}
 	defer writer.Close()
 	return err
+}
+
+type IScanner[T any] interface {
+	Scan() bool
+	Text() string
+	Row() (T, error)
+}
+
+type Scanner[T any] struct {
+	scanner *bufio.Scanner
+}
+
+func (this *Scanner[T]) Scan() bool {
+	return this.scanner.Scan()
+}
+
+func (this Scanner[T]) Text() string {
+	return this.scanner.Text()
+}
+
+func (this Scanner[T]) Row() (T, error) {
+	log.Fatal("Not implemented")
+	return *new(T), nil
+}
+
+func NewScanner[T any](reader io.Reader) Scanner[T] {
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	return Scanner[T]{scanner: scanner}
 }

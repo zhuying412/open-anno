@@ -1,36 +1,31 @@
 package io
 
 import (
-	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
 
 type CSVScanner struct {
-	scanner    *bufio.Scanner
+	Scanner[map[string]string]
 	FieldNames []string
 }
 
 func NewCSVScanner(reader io.Reader) CSVScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	scanner := NewScanner[map[string]string](reader)
 	scanner.Scan()
-	return CSVScanner{scanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t")}
+	return CSVScanner{Scanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t")}
 }
 
-func (this *CSVScanner) Scan() bool {
-	return this.scanner.Scan()
-}
-
-func (this CSVScanner) Text() string {
-	return this.scanner.Text()
-}
-
-func (this CSVScanner) Row() map[string]string {
+func (this CSVScanner) Row() (map[string]string, error) {
 	row := make(map[string]string)
 	fields := strings.Split(this.Text(), "\t")
+	if len(fields) == len(this.FieldNames) {
+		return row, errors.New(fmt.Sprintf("the column is not equal the FieldNames: %s", this.Text()))
+	}
 	for i, header := range this.FieldNames {
 		row[header] = fields[i]
 	}
-	return row
+	return row, nil
 }

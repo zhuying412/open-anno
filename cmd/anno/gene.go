@@ -3,7 +3,8 @@ package anno
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/gene"
+	"open-anno/anno/gene/cnv"
+	"open-anno/anno/gene/snv"
 	"open-anno/pkg/io"
 	"open-anno/pkg/io/refgene"
 	"open-anno/pkg/seq"
@@ -94,7 +95,7 @@ func RunAnnoSnvGeneBased(avinput string, dbPath string, dbName string, builder s
 			errChan <- err
 			return
 		}
-		gene.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
+		snv.AnnoSnvs(snvs, transcripts, transIndexes, aashort, writer)
 	}
 	errChan <- err
 }
@@ -125,7 +126,7 @@ func RunAnnoCnvGeneBased(avinput string, dbPath string, dbName string, builder s
 			return
 		}
 		transIndexes := refgeneIndexes.FilterChrom(chrom)
-		gene.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
+		cnv.AnnoCnvs(cnvs, transcripts, transIndexes, writer)
 	}
 	errChan <- err
 }

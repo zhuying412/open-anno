@@ -1,7 +1,6 @@
 package refgene
 
 import (
-	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -109,21 +108,12 @@ func (this Transcripts) FilterChrom(chrom string, symbolToId map[string]string, 
 }
 
 type TransScanner struct {
-	scanner *bufio.Scanner
+	io.Scanner[Transcript]
 }
 
 func NewTransScanner(reader io.Reader) TransScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	return TransScanner{scanner: scanner}
-}
-
-func (this *TransScanner) Scan() bool {
-	return this.scanner.Scan()
-}
-
-func (this TransScanner) Text() string {
-	return this.scanner.Text()
+	scanner := io.NewScanner[Transcript](reader)
+	return TransScanner{Scanner: scanner}
 }
 
 func (this TransScanner) Row() (Transcript, error) {

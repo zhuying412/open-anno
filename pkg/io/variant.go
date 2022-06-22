@@ -1,7 +1,6 @@
 package io
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -133,21 +132,12 @@ func (this Variant) VCF(fai *faidx.Faidx) (VCF, error) {
 }
 
 type VarScanner struct {
-	scanner *bufio.Scanner
+	Scanner[Variant]
 }
 
 func NewVarScanner(reader io.Reader) VarScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	return VarScanner{scanner: scanner}
-}
-
-func (this *VarScanner) Scan() bool {
-	return this.scanner.Scan()
-}
-
-func (this VarScanner) Text() string {
-	return this.scanner.Text()
+	scanner := NewScanner[Variant](reader)
+	return VarScanner{Scanner: scanner}
 }
 
 func (this VarScanner) Row() (Variant, error) {

@@ -1,7 +1,6 @@
 package io
 
 import (
-	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -29,21 +28,12 @@ func (this BEDs) Less(i, j int) bool {
 }
 
 type BEDScanner struct {
-	scanner *bufio.Scanner
+	Scanner[BED]
 }
 
 func NewBEDScanner(reader io.Reader) BEDScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	return BEDScanner{scanner: scanner}
-}
-
-func (this *BEDScanner) Scan() bool {
-	return this.scanner.Scan()
-}
-
-func (this BEDScanner) Text() string {
-	return this.scanner.Text()
+	scanner := NewScanner[BED](reader)
+	return BEDScanner{Scanner: scanner}
 }
 
 func (this BEDScanner) Row() (BED, error) {

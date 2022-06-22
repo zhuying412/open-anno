@@ -1,7 +1,6 @@
 package io
 
 import (
-	"bufio"
 	"io"
 	"strings"
 )
@@ -12,35 +11,33 @@ type DBVarScanner struct {
 }
 
 func NewDBVarScanner(reader io.Reader) DBVarScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	scanner := NewVarScanner(reader)
 	scanner.Scan()
 	header := strings.TrimLeft(scanner.Text(), "#")
-	return DBVarScanner{VarScanner: VarScanner{scanner: scanner}, Header: header}
+	return DBVarScanner{VarScanner: scanner, Header: header}
 }
 
-type DBBEDScanner struct {
+type DBRegScanner struct {
 	BEDScanner
 	Header string
 }
 
-func NewDBBEDScanner(reader io.Reader) DBBEDScanner {
-	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+func NewDBRegScanner(reader io.Reader) DBRegScanner {
+	scanner := NewBEDScanner(reader)
 	scanner.Scan()
 	header := strings.TrimLeft(scanner.Text(), "#")
-	return DBBEDScanner{BEDScanner: BEDScanner{scanner: scanner}, Header: header}
+	return DBRegScanner{BEDScanner: scanner, Header: header}
 }
 
-func ReadDBBEDs(infile string) (BEDs, string, error) {
+func ReadDBRegs(infile string) (BEDs, string, error) {
 	var beds BEDs
 	reader, err := NewIoReader(infile)
 	if err != nil {
 		return beds, "", err
 	}
 	defer reader.Close()
-	var scanner DBBEDScanner
-	scanner = NewDBBEDScanner(reader)
+	var scanner DBRegScanner
+	scanner = NewDBRegScanner(reader)
 	for scanner.Scan() {
 		row, err := scanner.Row()
 		if err != nil {
