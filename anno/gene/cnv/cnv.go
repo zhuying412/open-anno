@@ -2,6 +2,8 @@ package cnv
 
 import (
 	"fmt"
+	"log"
+	"open-anno/anno/gene"
 	"open-anno/pkg/io"
 	"open-anno/pkg/io/refgene"
 	"sort"
@@ -95,40 +97,60 @@ func AnnoCnv(cnv io.Variant, trans refgene.Transcript) TransAnno {
 	return anno
 }
 
-func AnnoCnvs(cnvs io.Variants, transcripts refgene.Transcripts, transIndexes refgene.TransIndexes, writer io.WriteCloser) {
-	sort.Sort(cnvs)
-	sort.Sort(transIndexes)
-	for _, cnv := range cnvs {
-		transNames := make(map[string]bool)
-		annos := make([]TransAnno, 0)
-		for _, index := range transIndexes {
-			if cnv.Start <= index.End && cnv.End >= index.Start {
-				for _, transName := range index.Transcripts {
-					trans := transcripts[transName]
-					if _, ok := transNames[transName]; ok || trans.IsUnk() {
-						continue
-					}
-					transNames[transName] = true
-					if !trans.IsUnk() {
-						if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
-							anno := AnnoCnv(cnv, trans)
-							annos = append(annos, anno)
+func AnnoCnvs(avinput, outfile, dbname string, geneData gene.GeneData) error {
+	cnvMap, err := io.ReadVariantMap(avinput)
+	if err != nil {
+		return err
+	}
+	// writer
+	writer, err := io.NewIoWriter(outfile)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s.Region\n", dbname)
+	for chrom, cnvs := range cnvMap {
+		log.Printf("Filter GeneBased DB by %s ...", chrom)
+		transcripts, err := geneData.FilterTranscripts(chrom, false)
+		if err != nil {
+			return err
+		}
+		transIndexes := geneData.FilterTransIndexes(chrom)
+		sort.Sort(cnvs)
+		sort.Sort(transIndexes)
+		for _, cnv := range cnvs {
+			transNames := make(map[string]bool)
+			annos := make([]TransAnno, 0)
+			for _, index := range transIndexes {
+				if cnv.Start <= index.End && cnv.End >= index.Start {
+					for _, transName := range index.Transcripts {
+						trans := transcripts[transName]
+						if _, ok := transNames[transName]; ok || trans.IsUnk() {
+							continue
+						}
+						transNames[transName] = true
+						if !trans.IsUnk() {
+							if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
+								anno := AnnoCnv(cnv, trans)
+								annos = append(annos, anno)
+							}
 						}
 					}
 				}
 			}
+			annoTexts := make([]string, 0)
+			for _, anno := range annos {
+				annoTexts = append(annoTexts, fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s",
+					anno.Gene, anno.GeneID, anno.Transcript, anno.Strand, anno.Region, anno.CDS, anno.Position,
+				))
+			}
+			if len(annoTexts) == 0 {
+				annoTexts = []string{"."}
+			}
+			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
+				cnv.Chrom, cnv.Start, cnv.End, cnv.Ref, cnv.Alt, strings.Join(annoTexts, ","),
+			)
 		}
-		annoTexts := make([]string, 0)
-		for _, anno := range annos {
-			annoTexts = append(annoTexts, fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s",
-				anno.Gene, anno.GeneID, anno.Transcript, anno.Strand, anno.Region, anno.CDS, anno.Position,
-			))
-		}
-		if len(annoTexts) == 0 {
-			annoTexts = []string{"."}
-		}
-		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
-			cnv.Chrom, cnv.Start, cnv.End, cnv.Ref, cnv.Alt, strings.Join(annoTexts, ","),
-		)
 	}
+	return err
 }

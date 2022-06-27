@@ -6,81 +6,75 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/seq"
-	"os"
-	"path"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-func RunPreDatabase(infile string, builder string, outdir string) {
+func RunIndexDatabase(infile string, binSize int) {
 	log.Println("Init parameters ...")
-	seq.SetGenome(builder)
-	if _, err := os.Stat(outdir); os.IsNotExist(err) {
-		err := os.MkdirAll(outdir, os.ModePerm)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	log.Printf("Write database: %s ...", outdir)
+	idxfile := infile + ".idx"
 	reader, err := io.NewIoReader(infile)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer reader.Close()
+	var offset int64
+	idxMap := make(map[string]*io.DBVarIdx)
+	idxs := make([]string, 0)
 	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	scanner.Scan()
-	header := scanner.Text()
-	if !strings.HasPrefix(header, "#Chr") {
-		log.Fatalf("error database file, header not found: %s", infile)
-	}
-	writers := make(map[string]io.WriteCloser)
 	for scanner.Scan() {
 		line := scanner.Text()
-		fileds := strings.Split(line, "\t")
-		chrom := pkg.FormatChrom(fileds[0])
-		if _, ok := seq.GENOME[chrom]; ok {
-			if _, ok := writers[chrom]; !ok {
-				outfile := path.Join(outdir, fmt.Sprintf("chr%s.txt", chrom))
-				writers[chrom], err = io.NewIoWriter(outfile)
-				fmt.Fprintf(writers[chrom], "%s\n", header)
-				log.Printf("Prepare %s", outfile)
-			}
-			fmt.Fprintf(writers[chrom], "%s\n", line)
+		length := int64(len(line) + 1)
+		if strings.HasPrefix(line, "#") {
+			offset += length
+			continue
 		}
-	}
-	for _, writer := range writers {
-		err := writer.Close()
+		field := strings.Split(line, "\t")
+		chrom := field[0]
+		start, err := strconv.Atoi(field[1])
 		if err != nil {
 			log.Fatal(err)
 		}
+		curbin := pkg.CurBin(chrom, start, binSize)
+		if _, ok := idxMap[curbin]; ok {
+			idxMap[curbin].End = offset + length
+		} else {
+			idxs = append(idxs, curbin)
+			idxMap[curbin] = &io.DBVarIdx{Bin: curbin, Start: offset, End: offset + length}
+		}
+		offset += length
+	}
+	writer, err := io.NewIoWriter(idxfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Fprintf(writer, "#Bin\t%d\n", binSize)
+	for _, key := range idxs {
+		idx := idxMap[key]
+		fmt.Fprintf(writer, "%s\t%d\t%d\n", idx.Bin, idx.Start, idx.End)
 	}
 }
 
-func NewPreDatabaseCmd() *cobra.Command {
+func NewIndexDatabaseCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "db",
-		Short: "Prepare required FilterBased or RegionBased database",
+		Use:   "idx",
+		Short: "Index FilterBased or RegionBased database",
 		Run: func(cmd *cobra.Command, args []string) {
 			infile, _ := cmd.Flags().GetString("infile")
-			dbpath, _ := cmd.Flags().GetString("dbpath")
-			builder, _ := cmd.Flags().GetString("builder")
-			name, _ := cmd.Flags().GetString("name")
-			if infile == "" || dbpath == "" || builder == "" || name == "" {
+			binSize, _ := cmd.Flags().GetInt("binsize")
+			if infile == "" {
 				err := cmd.Help()
 				if err != nil {
 					log.Panic(err)
 				}
 			} else {
-				RunPreDatabase(infile, strings.ToLower(builder), path.Join(dbpath, builder, name))
+				RunIndexDatabase(infile, binSize)
 			}
 		},
 	}
 	cmd.Flags().StringP("infile", "i", "", "Input Fileter-Based File")
-	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
-	cmd.Flags().StringP("name", "n", "", "Database Name")
-	cmd.Flags().StringP("builder", "b", "hg19", "Database Path")
+	cmd.Flags().IntP("binsize", "b", 1000, "Bin Size")
 	return cmd
 }

@@ -17,22 +17,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func writeGeneID(maneSelect, ncbiGeneInfo, refGene, outGeneId string) error {
-	geneSymbolToId, err := io.NewGeneSymbolToId(maneSelect, ncbiGeneInfo, refGene)
-	if err != nil {
-		return err
-	}
-	writer, err := io.NewIoWriter(outGeneId)
-	if err != err {
-		return err
-	}
-	defer writer.Close()
-	for symbol, entrezId := range geneSymbolToId {
-		fmt.Fprintf(writer, "%s\t%s\n", symbol, entrezId)
-	}
-	return err
-}
-
 func writemRNA(transcripts refgene.Transcripts, fai *faidx.Faidx, outmRNA string) error {
 	writer, err := io.NewIoWriter(outmRNA)
 	if err != err {
@@ -117,28 +101,38 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 	// param
 	log.Println("Init parameters ...")
 	seq.SetGenome(builder)
-	builderDir := path.Join(dbpath, builder)
-	outdir := path.Join(builderDir, name)
+	outdir := path.Join(dbpath, builder)
 	if _, err := os.Stat(outdir); os.IsNotExist(err) {
 		err := os.MkdirAll(outdir, os.ModePerm)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+	// gene2refseq
+	outGene2Refseq := path.Join(outdir, "Homo_sapiens.gene2refseq.gz")
 	if gene2refseq != "" {
-		// gene2refseq
-		outGene2Refseq := path.Join(builderDir, "Homo_sapiens.gene2refseq.gz")
 		log.Printf("Create NCBI Gene2Refseq to %s ...", outGene2Refseq)
 		writeGene2Refseq(gene2refseq, outGene2Refseq)
+	} else {
+		_, err := os.Stat(outGene2Refseq)
+		if os.IsNotExist(err) {
+			log.Fatalf("Not Found: %s", outGene2Refseq)
+		}
 	}
+	// gene_info
+	outNcbiGeneInfo := path.Join(outdir, "Homo_sapiens.gene_info.gz")
 	if ncbiGeneInfo != "" {
-		// gene_info
-		outNcbiGeneInfo := path.Join(builderDir, "Homo_sapiens.gene_info.gz")
 		log.Printf("Copy NCBI Gene Info to %s ...", outNcbiGeneInfo)
 		io.CopyFile(ncbiGeneInfo, outNcbiGeneInfo)
+	} else {
+		_, err := os.Stat(outGene2Refseq)
+		if os.IsNotExist(err) {
+			log.Fatalf("Not Found: %s", outGene2Refseq)
+		}
 	}
+	genePrefix := path.Join(outdir, name)
 	// refgene
-	outRefGene := path.Join(outdir, "GenePred.txt")
+	outRefGene := genePrefix + ".txt"
 	log.Printf("Create refgene to %s ...", outRefGene)
 	err := writeRefgene(refGene, outRefGene)
 	if err != nil {
@@ -156,7 +150,7 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 		log.Fatal(err)
 	}
 	// mRNA
-	outmRNA := path.Join(outdir, "mRNA.fa")
+	outmRNA := genePrefix + "_mRNA.fa"
 	log.Printf("Write mRNA: %s ...", outmRNA)
 	err = writemRNA(transcripts, fai, outmRNA)
 	if err != nil {
@@ -169,7 +163,7 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 		log.Printf("Now you need run the command: 'samtools faidx %s'", outmRNA)
 	}
 	// index
-	outIndex := path.Join(outdir, "GenePred.idx")
+	outIndex := genePrefix + ".txt.idx"
 	log.Printf("Write Transcript Index: %s ...", outIndex)
 	err = writeTransIndex(transcripts, indexStep, outIndex)
 	if err != nil {
@@ -179,7 +173,7 @@ func RunPreGeneBased(dbpath, name, refGene, gene2refseq, ncbiGeneInfo, fasta, bu
 
 func NewPreGeneBasedCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "gb",
+		Use:   "gene",
 		Short: "Prepare Genebased database",
 		Run: func(cmd *cobra.Command, args []string) {
 			genome, _ := cmd.Flags().GetString("genome")

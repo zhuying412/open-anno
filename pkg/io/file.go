@@ -14,6 +14,14 @@ type Writer io.Writer
 type ReadCloser io.ReadCloser
 type WriteCloser io.WriteCloser
 
+const (
+	SeekStart   = io.SeekStart
+	SeekCurrent = io.SeekCurrent
+	SeekEnd     = io.SeekEnd
+)
+
+var EOF = io.EOF
+
 func NewIoReader(infile string) (ReadCloser, error) {
 	fi, err := os.Open(infile)
 	if strings.HasSuffix(strings.ToLower(infile), ".gz") && err == nil {
@@ -23,6 +31,10 @@ func NewIoReader(infile string) (ReadCloser, error) {
 }
 
 func NewIoWriter(infile string) (WriteCloser, error) {
+	if !strings.HasPrefix(infile, "-") {
+		return os.Stdout, nil
+
+	}
 	fi, err := os.Create(infile)
 	if strings.HasSuffix(strings.ToLower(infile), ".gz") && err == nil {
 		return gzip.NewWriter(fi), nil

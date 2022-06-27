@@ -8,6 +8,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func readVariants(avinput string) (io.Variants, error) {
+	variants := make(io.Variants, 0)
+	reader, err := io.NewIoReader(avinput)
+	if err != nil {
+		return variants, err
+	}
+	defer reader.Close()
+	scanner := io.NewVarScanner(reader)
+	for scanner.Scan() {
+		row, err := scanner.Row()
+		if err != nil {
+			return variants, err
+		}
+		variants = append(variants, row)
+	}
+	return variants, err
+}
+
 func RunVCf2AV(vcf string, avinput string) {
 	vcfs, err := io.ReadVCFs(vcf)
 	if err != nil {
@@ -28,7 +46,7 @@ func RunAV2VCF(avinput string, vcf string, genome string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	variants, err := io.ReadVariants(avinput)
+	variants, err := readVariants(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}

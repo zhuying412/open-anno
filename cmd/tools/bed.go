@@ -8,7 +8,7 @@ import (
 )
 
 func RunAV2BED(avinput string, bed string) {
-	variants, err := io.ReadVariants(avinput)
+	variants, err := readVariants(avinput)
 	if err != nil {
 		log.Fatal(err)
 	}

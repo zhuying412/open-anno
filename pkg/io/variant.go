@@ -188,24 +188,6 @@ func ReadVariantMap(avinput string) (map[string]Variants, error) {
 	return variants, err
 }
 
-func ReadVariants(avinput string) (Variants, error) {
-	variants := make(Variants, 0)
-	reader, err := NewIoReader(avinput)
-	if err != nil {
-		return variants, err
-	}
-	defer reader.Close()
-	scanner := NewVarScanner(reader)
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return variants, err
-		}
-		variants = append(variants, row)
-	}
-	return variants, err
-}
-
 func WriteVariants(outfile string, variants ...Variants) error {
 	writer, err := NewIoWriter(outfile)
 	if err != nil {

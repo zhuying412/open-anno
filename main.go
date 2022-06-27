@@ -26,7 +26,7 @@ func NewPreCmd() *cobra.Command {
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewPreGeneBasedCmd())
-	cmd.AddCommand(pre.NewPreDatabaseCmd())
+	cmd.AddCommand(pre.NewIndexDatabaseCmd())
 	return cmd
 }
 

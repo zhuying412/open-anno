@@ -3,39 +3,60 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"log"
+	"open-anno/pkg/io"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
 
-func RunTest(infile string) {
-	reader, _ := os.Open(infile)
-	scanner := bufio.NewScanner(reader)
-	var i int
-	var curOffset int64
-	for scanner.Scan() {
-		i++
-		if i%10000 == 0 {
-			fmt.Println(i)
-			if i%50000 == 0 {
-				curOffset, _ = reader.Seek(0, os.SEEK_CUR)
-				fmt.Println(curOffset)
-				fmt.Println(scanner.Text())
-				break
-			}
-		}
+func IndexDatabse(infile string, bin int) error {
+	reader, err := io.NewIoReader(infile)
+	if err != nil {
+		return err
 	}
-	reader.Close()
-	fmt.Println("=====================")
-	reader, _ = os.Open(infile)
-	// scanner = bufio.NewScanner(reader)
-	reader.Seek(curOffset, os.SEEK_SET)
-	// scanner.Scan()
-	// fmt.Println(scanner.Text())
-	bufReader := bufio.NewReader(reader)
-	line, _, _ := bufReader.ReadLine()
-	fmt.Printf("%s", line)
-	reader.Close()
+	defer reader.Close()
+	var offset int
+	binMap := make(map[string][]int)
+	bins := make([]string, 0)
+	rd := bufio.NewReader(reader)
+	for {
+		line, err := rd.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		length := len(line)
+		if strings.HasPrefix(line, "#") {
+			offset += length
+			continue
+		}
+		field := strings.Split(line, "\t")
+		chrom := field[0]
+		start, err := strconv.Atoi(field[1])
+		if err != nil {
+			return err
+		}
+		curbin := fmt.Sprintf("%s\t%d", chrom, start-(start%bin))
+		if _, ok := binMap[curbin]; ok {
+			binMap[curbin][1] = offset + length
+		} else {
+			bins = append(bins, curbin)
+			binMap[curbin] = []int{offset, offset + length}
+		}
+		offset += length
+	}
+	for _, bin := range bins {
+		fmt.Printf("%s\t%d\t%d\n", bin, binMap[bin][0], binMap[bin][1])
+	}
+	return nil
+}
+
+func RunTest(infile string) {
+	IndexDatabse(infile, 1000)
 }
 
 func NewTestCmd() *cobra.Command {
@@ -43,20 +64,17 @@ func NewTestCmd() *cobra.Command {
 		Use:   "test",
 		Short: "Test",
 		Run: func(cmd *cobra.Command, args []string) {
-			input, _ := cmd.Flags().GetStringArray("input")
-			for _, i := range input {
-				fmt.Println(i)
+			input, _ := cmd.Flags().GetString("input")
+			if input == "" {
+				err := cmd.Help()
+				if err != nil {
+					log.Fatal(err)
+				}
+			} else {
+				RunTest(input)
 			}
-			// if input == "" {
-			// 	err := cmd.Help()
-			// 	if err != nil {
-			// 		log.Panic(err)
-			// 	}
-			// } else {
-			// 	RunTest(input)
-			// }
 		},
 	}
-	cmd.Flags().StringArrayP("input", "i", []string{}, "input")
+	cmd.Flags().StringP("input", "i", "", "input")
 	return cmd
 }
