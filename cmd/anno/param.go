@@ -11,8 +11,10 @@ import (
 	"open-anno/pkg/seq"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/spf13/cobra"
 )
 
 func CheckPathExists(fl validator.FieldLevel) bool {
@@ -77,11 +79,6 @@ func (this AnnoParam) Valid() error {
 }
 
 func (this AnnoParam) RunAnno(varType string, errChan chan error) {
-	err := this.Valid()
-	if err != nil {
-		errChan <- err
-		return
-	}
 	if this.DBType == "g" {
 		geneData, err := this.GeneData()
 		if err != nil {
@@ -101,4 +98,41 @@ func (this AnnoParam) RunAnno(varType string, errChan chan error) {
 	if this.DBType == "r" {
 		errChan <- db.AnnoRegionBased(this.Input, this.DBFile(), this.Output(), this.Overlap)
 	}
+}
+
+func NewAnnoParams(cmd *cobra.Command) ([]AnnoParam, error) {
+	input, _ := cmd.Flags().GetString("avinput")
+	outprefix, _ := cmd.Flags().GetString("outprefix")
+	dbpath, _ := cmd.Flags().GetString("dbpath")
+	builder, _ := cmd.Flags().GetString("builder")
+	aashort, _ := cmd.Flags().GetBool("aashort")
+	exon, _ := cmd.Flags().GetBool("exon")
+	overlap, _ := cmd.Flags().GetFloat64("overlap")
+	dbtypes, _ := cmd.Flags().GetString("dbtypes")
+	dbnames, _ := cmd.Flags().GetString("dbnames")
+	dbNames := strings.Split(dbnames, ",")
+	dbTypes := strings.Split(dbtypes, ",")
+	annoParams := make([]AnnoParam, len(dbNames))
+	for i := 0; i < len(dbNames); i++ {
+		dbname := strings.TrimSpace(dbNames[i])
+		dbtype := strings.TrimSpace(dbTypes[i])
+		param := AnnoParam{
+			Input:     input,
+			OutPrefix: outprefix,
+			DBpath:    dbpath,
+			Builder:   builder,
+			AAshort:   aashort,
+			Exon:      exon,
+			Overlap:   overlap,
+			DBname:    dbname,
+			DBType:    dbtype,
+		}
+		err := param.Valid()
+		if err != nil {
+			cmd.Help()
+			return annoParams, err
+		}
+		annoParams[i] = param
+	}
+	return annoParams, nil
 }

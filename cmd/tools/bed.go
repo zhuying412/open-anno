@@ -7,19 +7,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func RunAV2BED(avinput string, bed string) {
-	variants, err := readVariants(avinput)
+type Av2BedParam struct {
+	Av2AnyParam
+}
+
+func (this Av2BedParam) Run() error {
+	variants, err := this.Variants()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	beds := make(io.BEDs, len(variants))
 	for i, row := range variants {
 		beds[i] = io.BED{Chrom: row.Chrom, Start: row.Start, End: row.End, Name: row.Alt}
 	}
-	err = io.WriteBEDs(bed, beds)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return io.WriteBEDs(this.Ouput, beds)
 }
 
 func NewAV2BEDCmd() *cobra.Command {
@@ -27,19 +28,21 @@ func NewAV2BEDCmd() *cobra.Command {
 		Use:   "av2bed",
 		Short: "Convert CNV AVINPUT to BED",
 		Run: func(cmd *cobra.Command, args []string) {
-			bed, _ := cmd.Flags().GetString("bed")
-			avinput, _ := cmd.Flags().GetString("avinput")
-			if bed == "" || avinput == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				RunAV2BED(avinput, bed)
+			var param Av2BedParam
+			param.Input, _ = cmd.Flags().GetString("bed")
+			param.Ouput, _ = cmd.Flags().GetString("avinput")
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
+			if err != nil {
+				log.Fatal(err)
 			}
 		},
 	}
-	cmd.Flags().StringP("vcf", "i", "", "VCF File")
-	cmd.Flags().StringP("avinput", "o", "", "AVINPUT File")
+	cmd.Flags().StringP("avinput", "i", "", "AVINPUT File")
+	cmd.Flags().StringP("bed", "o", "", "BED File")
 	return cmd
 }

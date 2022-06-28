@@ -8,57 +8,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func readVariants(avinput string) (io.Variants, error) {
-	variants := make(io.Variants, 0)
-	reader, err := io.NewIoReader(avinput)
-	if err != nil {
-		return variants, err
-	}
-	defer reader.Close()
-	scanner := io.NewVarScanner(reader)
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return variants, err
-		}
-		variants = append(variants, row)
-	}
-	return variants, err
+type Vcf2AvParam struct {
+	Any2AnyParam
 }
 
-func RunVCf2AV(vcf string, avinput string) {
-	vcfs, err := io.ReadVCFs(vcf)
+func (this Vcf2AvParam) Run() error {
+	vcfs, err := io.ReadVCFs(this.Input)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	variants := make(io.Variants, len(vcfs))
 	for i, vcf := range vcfs {
 		variants[i] = vcf.Variant()
 	}
-	err = io.WriteVariants(avinput, variants)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func RunAV2VCF(avinput string, vcf string, genome string) {
-	fai, err := faidx.New(genome)
-	if err != nil {
-		log.Fatal(err)
-	}
-	variants, err := readVariants(avinput)
-	if err != nil {
-		log.Fatal(err)
-	}
-	vcfs := make(io.VCFs, len(variants))
-	for i, row := range variants {
-		vcfs[i], err = row.VCF(fai)
-		log.Fatal(err)
-	}
-	err = io.WriteVCFs(vcf, vcfs)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return io.WriteVariants(this.Ouput, variants)
 }
 
 func NewVCf2AVCmd() *cobra.Command {
@@ -66,15 +29,17 @@ func NewVCf2AVCmd() *cobra.Command {
 		Use:   "vcf2av",
 		Short: "Convert SNV VCF to AVINPUT",
 		Run: func(cmd *cobra.Command, args []string) {
-			vcf, _ := cmd.Flags().GetString("vcf")
-			avinput, _ := cmd.Flags().GetString("avinput")
-			if vcf == "" || avinput == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				RunVCf2AV(vcf, avinput)
+			var param Vcf2AvParam
+			param.Input, _ = cmd.Flags().GetString("vcf")
+			param.Ouput, _ = cmd.Flags().GetString("avinput")
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
+			if err != nil {
+				log.Fatal(err)
 			}
 		},
 	}
@@ -83,21 +48,45 @@ func NewVCf2AVCmd() *cobra.Command {
 	return cmd
 }
 
+type Av2VcfParam struct {
+	Av2AnyParam
+	Genome string `validate:"required"`
+}
+
+func (this Av2VcfParam) Run() error {
+	fai, err := faidx.New(this.Genome)
+	if err != nil {
+		return err
+	}
+	variants, err := this.Variants()
+	if err != nil {
+		return err
+	}
+	vcfs := make(io.VCFs, len(variants))
+	for i, row := range variants {
+		vcfs[i], err = row.VCF(fai)
+		return err
+	}
+	return io.WriteVCFs(this.Ouput, vcfs)
+}
+
 func NewAV2VCFCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "av2vcf",
 		Short: "Convert SNV AVINPUT to VCF",
 		Run: func(cmd *cobra.Command, args []string) {
-			vcf, _ := cmd.Flags().GetString("vcf")
-			avinput, _ := cmd.Flags().GetString("avinput")
-			genome, _ := cmd.Flags().GetString("genome")
-			if vcf == "" || avinput == "" || genome == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				RunAV2VCF(avinput, vcf, genome)
+			var param Av2VcfParam
+			param.Input, _ = cmd.Flags().GetString("avinput")
+			param.Ouput, _ = cmd.Flags().GetString("vcf")
+			param.Genome, _ = cmd.Flags().GetString("genome")
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
+			if err != nil {
+				log.Fatal(err)
 			}
 		},
 	}

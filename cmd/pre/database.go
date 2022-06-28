@@ -9,15 +9,34 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
 
-func RunIndexDatabase(infile string, binSize int) {
-	log.Println("Init parameters ...")
-	idxfile := infile + ".idx"
-	reader, err := io.NewIoReader(infile)
+type IdxDBParam struct {
+	Input   string `validate:"required,pathexists"`
+	BinSize int    `validate:"required"`
+}
+
+func (this IdxDBParam) OutIndex() string {
+	return this.Input + ".idx"
+}
+
+func (this IdxDBParam) Valid() error {
+	validate := validator.New()
+	validate.RegisterValidation("pathexists", CheckPathExists)
+	err := validate.Struct(this)
 	if err != nil {
-		log.Fatal(err)
+		return err
+	}
+	return nil
+}
+
+func (this IdxDBParam) Run() error {
+	log.Println("Init parameters ...")
+	reader, err := io.NewIoReader(this.Input)
+	if err != nil {
+		return err
 	}
 	defer reader.Close()
 	var offset int64
@@ -35,9 +54,9 @@ func RunIndexDatabase(infile string, binSize int) {
 		chrom := field[0]
 		start, err := strconv.Atoi(field[1])
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-		curbin := pkg.CurBin(chrom, start, binSize)
+		curbin := pkg.CurBin(chrom, start, this.BinSize)
 		if _, ok := idxMap[curbin]; ok {
 			idxMap[curbin].End = offset + length
 		} else {
@@ -46,15 +65,16 @@ func RunIndexDatabase(infile string, binSize int) {
 		}
 		offset += length
 	}
-	writer, err := io.NewIoWriter(idxfile)
+	writer, err := io.NewIoWriter(this.OutIndex())
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	fmt.Fprintf(writer, "#Bin\t%d\n", binSize)
+	fmt.Fprintf(writer, "#Bin\t%d\n", this.BinSize)
 	for _, key := range idxs {
 		idx := idxMap[key]
 		fmt.Fprintf(writer, "%s\t%d\t%d\n", idx.Bin, idx.Start, idx.End)
 	}
+	return err
 }
 
 func NewIndexDatabaseCmd() *cobra.Command {
@@ -62,15 +82,17 @@ func NewIndexDatabaseCmd() *cobra.Command {
 		Use:   "idx",
 		Short: "Index FilterBased or RegionBased database",
 		Run: func(cmd *cobra.Command, args []string) {
-			infile, _ := cmd.Flags().GetString("infile")
-			binSize, _ := cmd.Flags().GetInt("binsize")
-			if infile == "" {
-				err := cmd.Help()
-				if err != nil {
-					log.Panic(err)
-				}
-			} else {
-				RunIndexDatabase(infile, binSize)
+			var param IdxDBParam
+			param.Input, _ = cmd.Flags().GetString("infile")
+			param.BinSize, _ = cmd.Flags().GetInt("binsize")
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
+			if err != nil {
+				log.Fatal(err)
 			}
 		},
 	}
