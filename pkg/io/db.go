@@ -20,7 +20,7 @@ type DBVarIdxScanner struct {
 
 func (this DBVarIdxScanner) Row() (DBVarIdx, error) {
 	field := strings.Split(this.Text(), "\t")
-	bin := fmt.Sprintf("%s:%s", field[0], field[1])
+	bin := fmt.Sprintf("%s\t%s", field[0], field[1])
 	start, err := strconv.ParseInt(field[2], 10, 0)
 	if err != nil {
 		return DBVarIdx{}, err

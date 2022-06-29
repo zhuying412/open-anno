@@ -22,7 +22,7 @@ import (
 func CheckPathExists(fl validator.FieldLevel) bool {
 	path := fl.Field().String()
 	_, err := os.Stat(path)
-	return os.IsExist(err)
+	return !os.IsNotExist(err)
 }
 
 type PreGBParam struct {

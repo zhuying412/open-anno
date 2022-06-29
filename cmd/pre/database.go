@@ -62,6 +62,7 @@ func (this IdxDBParam) Run() error {
 		} else {
 			idxs = append(idxs, curbin)
 			idxMap[curbin] = &io.DBVarIdx{Bin: curbin, Start: offset, End: offset + length}
+			log.Println(curbin)
 		}
 		offset += length
 	}

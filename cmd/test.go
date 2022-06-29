@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"open-anno/pkg"
 	"open-anno/pkg/io"
 	"strconv"
 	"strings"
@@ -40,7 +41,7 @@ func IndexDatabse(infile string, bin int) error {
 		if err != nil {
 			return err
 		}
-		curbin := fmt.Sprintf("%s\t%d", chrom, start-(start%bin))
+		curbin := pkg.CurBin(chrom, start, bin)
 		if _, ok := binMap[curbin]; ok {
 			binMap[curbin][1] = offset + length
 		} else {

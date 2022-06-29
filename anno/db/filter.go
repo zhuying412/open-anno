@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"open-anno/pkg"
 	"open-anno/pkg/io"
 	"os"
 	"sort"
@@ -38,7 +39,7 @@ func ReadVariantMap(avinput string, binSize int) (map[string]io.Variants, error)
 		if err != nil {
 			return variants, err
 		}
-		curbin := fmt.Sprintf("%s:%d", row.Chrom, row.Start-(row.Start%binSize))
+		curbin := pkg.CurBin(row.Chrom, row.Start, binSize)
 		if rows, ok := variants[curbin]; ok {
 			variants[curbin] = append(rows, row)
 		} else {

@@ -36,7 +36,7 @@ func FindArr[T string | int | float64](arr []T, k T) int {
 }
 
 func CurBin[T int | int64](chrom string, start T, size int) string {
-	return fmt.Sprintf("%s:%d", chrom, start-(start%T(size)))
+	return fmt.Sprintf("%s\t%d", chrom, start-(start%T(size)))
 }
 
 func FormatChrom(chrom string) string {

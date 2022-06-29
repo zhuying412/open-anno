@@ -21,7 +21,7 @@ func NewCSVScanner(reader io.Reader) CSVScanner {
 func (this CSVScanner) Row() (map[string]string, error) {
 	row := make(map[string]string)
 	fields := strings.Split(this.Text(), "\t")
-	if len(fields) == len(this.FieldNames) {
+	if len(fields) != len(this.FieldNames) {
 		return row, errors.New(fmt.Sprintf("the column is not equal the FieldNames: %s", this.Text()))
 	}
 	for i, header := range this.FieldNames {

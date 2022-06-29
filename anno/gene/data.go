@@ -41,7 +41,7 @@ func NewGeneData(refgeneFile, indexFile, ncbiGeneInfoFile, gene2RefseqFile, mrna
 	if err != nil {
 		return geneData, err
 	}
-	if mrnaFile == "" {
+	if mrnaFile != "" {
 		log.Printf("Read mRNA: %s ...", mrnaFile)
 		geneData.MrnaFaidx, err = faidx.New(mrnaFile)
 		if err != nil {
