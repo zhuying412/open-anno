@@ -65,15 +65,7 @@ type IScanner[T any] interface {
 }
 
 type Scanner[T any] struct {
-	scanner *bufio.Scanner
-}
-
-func (this *Scanner[T]) Scan() bool {
-	return this.scanner.Scan()
-}
-
-func (this Scanner[T]) Text() string {
-	return this.scanner.Text()
+	bufio.Scanner
 }
 
 func (this Scanner[T]) Row() (T, error) {
@@ -84,5 +76,5 @@ func (this Scanner[T]) Row() (T, error) {
 func NewScanner[T any](reader io.Reader) Scanner[T] {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	return Scanner[T]{scanner: scanner}
+	return Scanner[T]{Scanner: *scanner}
 }
