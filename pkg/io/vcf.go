@@ -1,171 +1,134 @@
 package io
 
 import (
-	"fmt"
-	"io"
-	"open-anno/pkg/seq"
+	"open-anno/pkg"
+	"open-anno/pkg/scheme"
 	"sort"
 	"strings"
 
 	"github.com/brentp/vcfgo"
 )
 
-type VCF struct {
-	Chrom  string  `json:"CHROM"`
-	Pos    int     `json:"POS"`
-	ID     string  `json:"ID"`
-	Ref    string  `json:"REF"`
-	Alt    string  `json:"ALT"`
-	Qual   float32 `json:"QUAL"`
-	Filter string  `json:"FILTER"`
-	Info   string  `json:"INFO"`
-}
-
-func (this VCF) Variant() Variant {
-	chrom, pos, ref, alt := this.Chrom, this.Pos, this.Ref, this.Alt
-	if chrom == "M" {
-		chrom = "MT"
-	}
-	start, ref, alt := pos, strings.ToUpper(ref), strings.ToUpper(alt)
-	if len(ref) > 1 || len(alt) > 1 && ref != alt {
-		if strings.HasPrefix(ref, alt) || strings.HasSuffix(ref, alt) {
-			if strings.HasPrefix(ref, alt) {
-				start += len(alt)
-			}
-			ref = strings.Replace(ref, alt, "", 1)
-			alt = ""
-		} else if strings.HasPrefix(alt, ref) || strings.HasSuffix(alt, ref) {
-			if strings.HasPrefix(alt, ref) {
-				start += len(ref) - 1
-			} else {
-				start += len(ref) - len(alt)
-			}
-			alt = strings.Replace(alt, ref, "", 1)
-			ref = ""
-		} else {
-			refRev := seq.Reverse(ref)
-			altRef := seq.Reverse(alt)
-			var length int
-			length = seq.DifferenceSimple(refRev, altRef) - 1
-			ref = ref[0 : len(ref)-length]
-			alt = ref[0 : len(alt)-length]
-			length = seq.DifferenceSimple(ref, alt) - 1
-			ref = ref[length:]
-			alt = alt[length:]
-			start += length
-			if length > 0 && len(ref) == 0 {
-				start--
-			}
-		}
-	}
-	var end int
-	if len(ref) == 0 {
-		end = start
-		ref = "-"
-	} else {
-		end = start + len(ref) - 1
-	}
-	if len(alt) == 0 {
-		alt = "-"
-	}
-	return Variant{Chrom: chrom, Start: start, End: end, Ref: ref, Alt: alt, Otherinfo: []string{this.Info}}
-}
-
-type VCFs []VCF
-
-func (this VCFs) Len() int           { return len(this) }
-func (this VCFs) Swap(i, j int)      { this[i], this[j] = this[j], this[i] }
-func (this VCFs) Less(i, j int) bool { return this[i].Pos < this[j].Pos }
-
-type VCFScanner struct {
-	reader *vcfgo.Reader
-	buffer *vcfgo.Variant
-}
-
-func NewVCFScanner(reader io.Reader) (VCFScanner, error) {
-	vcfReader, err := vcfgo.NewReader(reader, false)
-	if err != nil {
-		return VCFScanner{}, err
-	}
-	return VCFScanner{reader: vcfReader}, err
-}
-
-func (this *VCFScanner) Close() error {
-	return this.reader.Close()
-}
-
-func (this *VCFScanner) Scan() bool {
-	row := this.reader.Read()
-	if row == nil {
-		return false
-	}
-	this.buffer = row
-	return true
-}
-
-func (this VCFScanner) Text() string {
-	return this.buffer.String()
-}
-
-func (this VCFScanner) Row() (VCFs, error) {
-	vcfs := make(VCFs, len(this.buffer.Alt()))
-	sample := this.buffer.Samples[0]
-	depth := sample.DP
-	alleles, err := sample.AltDepths()
-	if err != nil {
-		return vcfs, err
-	}
-	for i, alt := range this.buffer.Alt() {
-		info := fmt.Sprintf("DEPTH=%d;VAF=%f;", depth, float64(alleles[i+1])/float64(depth))
-		vcf := VCF{
-			Chrom:  this.buffer.Chromosome,
-			Pos:    int(this.buffer.Pos),
-			ID:     this.buffer.Id(),
-			Ref:    this.buffer.Reference,
-			Alt:    alt,
-			Qual:   this.buffer.Quality,
-			Filter: this.buffer.Filter,
-			Info:   info,
-		}
-		vcfs = append(vcfs, vcf)
-	}
-	return vcfs, err
-}
-
-func ReadVCFs(infile string) (VCFs, error) {
-	var vcfs VCFs
+func ReadVCF(infile string) (scheme.Variants, error) {
+	var variants scheme.Variants
 	reader, err := NewIoReader(infile)
 	if err != nil {
-		return vcfs, err
+		return variants, err
 	}
 	defer reader.Close()
-	scanner, err := NewVCFScanner(reader)
+	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return vcfs, err
+		return variants, err
 	}
-	defer scanner.Close()
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return vcfs, err
+	defer vcfReader.Close()
+	for {
+		row := vcfReader.Read()
+		if row == nil {
+			break
 		}
-		vcfs = append(vcfs, row...)
+		sample := row.Samples[0]
+		alleles, err := sample.AltDepths()
+		if err != nil {
+			return variants, err
+		}
+		for i, alt := range row.Alt() {
+			vcfVariant := scheme.VCFVariant{
+				Chrom:  row.Chromosome,
+				Pos:    int(row.Pos),
+				Ref:    row.Reference,
+				Alt:    alt,
+				Qual:   float64(row.Quality),
+				Filter: strings.ReplaceAll(row.Filter, ";", ","),
+				Info: scheme.VCFInfo{
+					Depth: sample.DP,
+					VAF:   float64(alleles[i+1]) / float64(sample.DP),
+					GQ:    float64(sample.GQ),
+				},
+			}
+			variants = append(variants, vcfVariant.Variant())
+		}
 	}
-	sort.Sort(vcfs)
-	return vcfs, err
+	sort.Sort(variants)
+	return variants, err
 }
 
-func WriteVCFs(outfile string, vcfs ...VCFs) error {
-	writer, err := NewIoWriter(outfile)
+func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, error) {
+	var variants scheme.Variants
+	reader, err := NewIoReader(infile)
 	if err != nil {
-		return err
+		return variants, err
 	}
-	fmt.Fprint(writer, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
-	for _, rows := range vcfs {
-		for _, row := range rows {
-			fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%f\t%s\t%s\n",
-				row.Chrom, row.Pos, row.ID, row.Ref, row.Alt, row.Qual, row.Filter, row.Info)
+	defer reader.Close()
+	vcfReader, err := vcfgo.NewReader(reader, false)
+	if err != nil {
+		return variants, err
+	}
+	defer vcfReader.Close()
+	samples := vcfReader.Header.SampleNames
+	pIndex, mIndex, fIndex := pkg.FindArr(samples, proband), pkg.FindArr(samples, mother), pkg.FindArr(samples, father)
+	for {
+		row := vcfReader.Read()
+		if row == nil {
+			break
+		}
+		var proband, mother, father *vcfgo.SampleGenotype
+		var pAlleles, mAlleles, fAlleles []int
+		proband = row.Samples[pIndex]
+		if pkg.Sum(proband.GT...) <= 0 {
+			continue
+		}
+		pAlleles, err := proband.AltDepths()
+		if err != nil {
+			return variants, err
+		}
+		if mIndex >= 0 {
+			mother = row.Samples[mIndex]
+			mAlleles, err = mother.AltDepths()
+			if err != nil {
+				return variants, err
+			}
+		}
+		if fIndex >= 0 {
+			father = row.Samples[fIndex]
+			fAlleles, err = father.AltDepths()
+			if err != nil {
+				return variants, err
+			}
+		}
+		for i, alt := range row.Alt() {
+			vcfVariant := scheme.TriosVCFVariant{
+				VCFVariant: scheme.VCFVariant{
+					Chrom:  row.Chromosome,
+					Pos:    int(row.Pos),
+					Ref:    row.Reference,
+					Alt:    alt,
+					Qual:   float64(row.Quality),
+					Filter: strings.ReplaceAll(row.Filter, ";", ","),
+					Info: scheme.VCFInfo{
+						Depth: proband.DP,
+						VAF:   float64(pAlleles[i+1]) / float64(proband.DP),
+						GQ:    float64(proband.GQ),
+					},
+				},
+			}
+			if mIndex >= 0 && pkg.Sum(mother.GT...) > 0 {
+				vcfVariant.MInfo = scheme.VCFInfo{
+					Depth: mother.DP,
+					VAF:   float64(mAlleles[i+1]) / float64(mother.DP),
+					GQ:    float64(mother.GQ),
+				}
+
+			}
+			if pIndex >= 0 && pkg.Sum(mother.GT...) > 0 {
+				vcfVariant.FInfo = scheme.VCFInfo{
+					Depth: father.DP,
+					VAF:   float64(fAlleles[i+1]) / float64(father.DP),
+					GQ:    float64(father.GQ),
+				}
+			}
+			variants = append(variants, vcfVariant.Variant())
 		}
 	}
-	return nil
+	sort.Sort(variants)
+	return variants, err
 }

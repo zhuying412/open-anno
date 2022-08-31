@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
+	"open-anno/pkg/scheme"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 		return err
 	}
 	// 读取BED DB文件
-	var regMap map[string]io.BEDs
+	var regMap map[string][]scheme.DBReg
 	refReader, err := io.NewIoReader(infile)
 	if err != nil {
 		return err
@@ -28,10 +29,9 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 			return err
 		}
 		if _, ok := regMap[row.Chrom]; ok {
-			regMap[row.Chrom] = append(regMap[row.Chrom], row)
-		} else {
-			regMap[row.Chrom] = io.BEDs{row}
+			regMap[row.Chrom] = make([]scheme.DBReg, 0)
 		}
+		regMap[row.Chrom] = append(regMap[row.Chrom], row)
 	}
 	// 定义输出
 	writer, err := io.NewIoWriter(outfile)
@@ -41,8 +41,7 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 	defer writer.Close()
 	// 开始注释
 	// 输出表头
-	headers := strings.Split(scanner.Header, "\t")
-	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\n", headers[3])
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\n", scanner.FieldName)
 	for chrom, variants := range variantMap {
 		if regs, ok := regMap[chrom]; ok {
 			for _, variant := range variants {
@@ -52,7 +51,7 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 						vlen := variant.End - variant.Start + 1
 						olen := pkg.Min(variant.End, reg.End) - pkg.Max(variant.Start, reg.Start) + 1
 						if float64(olen)/float64(vlen) >= overlap {
-							annos = append(annos, reg.Name)
+							annos = append(annos, reg.Info)
 						}
 					}
 				}

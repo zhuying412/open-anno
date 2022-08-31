@@ -3,22 +3,26 @@ package io
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"strings"
 )
 
-type DBAnno struct {
-	Length int
-	Header string
-	Data   map[string]string
+type AnnoResult struct {
+	ID   string `json:"id"`
+	Text string `json:"text"`
 }
 
-func (this DBAnno) Text(id string) string {
-	if text, ok := this.Data[id]; ok {
-		return text
-	}
+type AnnoResultScanner struct {
+	Scanner[AnnoResult]
+	FieldNames []string
+}
+
+func (this AnnoResultScanner) Header() string {
+	return strings.Join(this.FieldNames, "\t")
+}
+
+func (this AnnoResultScanner) FillDot() string {
 	var buffer bytes.Buffer
-	for i := 0; i < this.Length; i++ {
+	for i, _ := range this.FieldNames {
 		if i == 0 {
 			buffer.WriteString(".")
 		} else {
@@ -28,117 +32,66 @@ func (this DBAnno) Text(id string) string {
 	return buffer.String()
 }
 
-type DBAnnos []DBAnno
-
-func (this DBAnnos) Header() string {
-	var buffer bytes.Buffer
-	for i, dbAnno := range this {
-		if i == 0 {
-			buffer.WriteString(dbAnno.Header)
-		} else {
-			buffer.WriteString("\t" + dbAnno.Header)
-		}
-	}
-	return buffer.String()
+func NewAnnoResultScanner(reader Reader) AnnoResultScanner {
+	scanner := NewScanner[AnnoResult](reader)
+	scanner.Scan()
+	fieldNames := strings.Split(scanner.Text(), "\t")[5:]
+	return AnnoResultScanner{Scanner: scanner, FieldNames: fieldNames}
 }
 
-func (this DBAnnos) Text(id string) string {
-	var buffer bytes.Buffer
-	for i, dbAnno := range this {
-		if i == 0 {
-			buffer.WriteString(dbAnno.Text(id))
-		} else {
-			buffer.WriteString("\t" + dbAnno.Text(id))
-		}
+func (this AnnoResultScanner) Row() AnnoResult {
+	fields := strings.Split(this.Text(), "\t")
+	return AnnoResult{
+		ID:   strings.Join(fields[0:5], ":"),
+		Text: strings.Join(fields[5:], "\t"),
 	}
-	return buffer.String()
 }
 
-func readOtherbased(infile string) (DBAnno, error) {
-	var dbAnno DBAnno
-	reader, err := NewIoReader(infile)
-	if err != nil {
-		return dbAnno, err
-	}
-	defer reader.Close()
-	scanner := NewDBVarScanner(reader)
-	headers := strings.Split(scanner.Header, "\t")[5:]
-	dbAnno = DBAnno{
-		Header: strings.Join(headers, "\t"),
-		Length: len(headers),
-		Data:   map[string]string{},
-	}
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return dbAnno, err
-		}
-		dbAnno.Data[row.ID()] = strings.Join(row.Otherinfo, "\t")
-	}
-	return dbAnno, err
-}
-
-func readAVinput(infile string) (DBAnno, error) {
-	var dbAnno DBAnno
-	reader, err := NewIoReader(infile)
-	if err != nil {
-		return dbAnno, err
-	}
-	defer reader.Close()
-	scanner := NewVarScanner(reader)
-	flag := false
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return dbAnno, err
-		}
-		if !flag {
-			headers := make([]string, len(row.Otherinfo))
-			for i := 0; i < len(row.Otherinfo); i++ {
-				headers[i] = fmt.Sprintf("Otherinfo%d", i+1)
-			}
-			dbAnno.Header = strings.Join(headers, "\t")
-			dbAnno.Length = len(row.Otherinfo)
-			dbAnno.Data = map[string]string{}
-			flag = true
-		}
-		dbAnno.Data[row.ID()] = strings.Join(row.Otherinfo, "\t")
-	}
-	return dbAnno, err
-}
-
-func MergeAnno(outfile string, avinput string, genebased string, otherbaseds ...string) error {
-	dbAnnos := make(DBAnnos, 0)
-	for _, otherbased := range otherbaseds {
-		dbAnno, err := readOtherbased(otherbased)
-		if err != nil {
-			return err
-		}
-		dbAnnos = append(dbAnnos, dbAnno)
-	}
-	dbAnno, err := readAVinput(avinput)
-	if err != nil {
-		return err
-	}
-	dbAnnos = append(dbAnnos, dbAnno)
-	reader, err := os.Open(genebased)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
+func MergeAnnoResult(outfile, annoInput string, annoOuputs ...string) error {
 	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
-	scanner := NewDBVarScanner(reader)
-	fmt.Fprintf(writer, "%s\t%s\n", scanner.Header, dbAnnos.Header())
-	for scanner.Scan() {
-		row, err := scanner.Row()
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t")
+	scanners := make([]AnnoResultScanner, len(annoOuputs))
+	for i, annoOutput := range annoOuputs {
+		reader, err := NewIoReader(annoOutput)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(writer, "%s\t%s\n", scanner.Text(), dbAnnos.Text(row.ID()))
+		defer reader.Close()
+		scanner := NewAnnoResultScanner(reader)
+		scanners[i] = scanner
+		fmt.Fprintf(writer, strings.Join(scanner.FieldNames, "\t"))
 	}
-	return err
+	fmt.Fprint(writer, "\tOtherInfo\n")
+	results := make([]map[string]string, len(scanners))
+	for _, scanner := range scanners {
+		result := make(map[string]string)
+		for scanner.Scan() {
+			row := scanner.Row()
+			result[row.ID] = row.Text
+		}
+		results = append(results, result)
+	}
+	reader, err := NewIoReader(annoInput)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	scanner := NewAnnoResultScanner(reader)
+	for scanner.Scan() {
+		row := scanner.Row()
+		fmt.Fprint(writer, row.ID)
+		for i, result := range results {
+			if text, ok := result[row.ID]; ok {
+				fmt.Fprintf(writer, "\t%s", text)
+			} else {
+				fmt.Fprintf(writer, "\t%s", scanners[i].FillDot())
+			}
+		}
+		fmt.Fprintf(writer, "\t%s\n", row.Text)
+	}
+	return nil
 }

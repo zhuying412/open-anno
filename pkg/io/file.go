@@ -73,7 +73,7 @@ func (this Scanner[T]) Row() (T, error) {
 	return *new(T), nil
 }
 
-func NewScanner[T any](reader io.Reader) Scanner[T] {
+func NewScanner[T any](reader Reader) Scanner[T] {
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	return Scanner[T]{Scanner: *scanner}

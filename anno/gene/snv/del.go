@@ -3,44 +3,43 @@ package snv
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/io"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"strings"
 )
 
-func getDelCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Region, refgene.Region, bool) {
+func getDelCLen(trans scheme.Transcript, snv scheme.Variant) (int, int, scheme.Region, scheme.Region, bool) {
 	var cStart, cEnd int
-	var region1, region2 refgene.Region
+	var region1, region2 scheme.Region
 	var hasCDS, hasIntron bool
 	for _, region := range trans.Regions {
 		if region.End < snv.Start {
-			if region.Type == refgene.RType_CDS {
+			if region.Type == scheme.RType_CDS {
 				cStart += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.Start && snv.Start <= region.End {
-			if region.Type == refgene.RType_CDS {
+			if region.Type == scheme.RType_CDS {
 				cStart += snv.Start - region.Start + 1
 			}
 			region1 = region
 		}
 		if region.End < snv.End {
-			if region.Type == refgene.RType_CDS {
+			if region.Type == scheme.RType_CDS {
 				cEnd += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.End && snv.End <= region.End {
-			if region.Type == refgene.RType_CDS {
+			if region.Type == scheme.RType_CDS {
 				cEnd += snv.End - region.Start + 1
 			}
 			region2 = region
 		}
 		if region.Start <= snv.End && region.End >= snv.Start {
-			if region.Type == refgene.RType_CDS {
+			if region.Type == scheme.RType_CDS {
 				hasCDS = true
 			}
-			if region.Type == refgene.RType_INTRON {
+			if region.Type == scheme.RType_INTRON {
 				hasIntron = true
 			}
 		}
@@ -49,7 +48,7 @@ func getDelCLen(trans refgene.Transcript, snv io.Variant) (int, int, refgene.Reg
 	return cStart, cEnd, region1, region2, hasCDS && hasIntron
 }
 
-func setDelAAChange(anno TransAnno, trans refgene.Transcript, cstart int, cend int) TransAnno {
+func setDelAAChange(anno TransAnno, trans scheme.Transcript, cstart int, cend int) TransAnno {
 	cdna := trans.CDNA()
 	ncdna := seq.Delete(cdna, cstart, cend)
 	if trans.Strand == "-" {
@@ -121,7 +120,7 @@ func setDelAAChange(anno TransAnno, trans refgene.Transcript, cstart int, cend i
 	return anno
 }
 
-func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
+func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
@@ -192,7 +191,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
 		}
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := snv.End - trans.CdsStart + 1 + l
-		if region2.Type == refgene.RType_CDS {
+		if region2.Type == scheme.RType_CDS {
 			// ...+++,,,+++...
 			//  |--|
 			//|----|
@@ -232,7 +231,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
 		anno = setDelAAChange(anno, trans, 1, cEnd)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := trans.CdsEnd - snv.End + 1 + r
-		if region1.Type == refgene.RType_CDS {
+		if region1.Type == scheme.RType_CDS {
 			// ...,,,+++...
 			//        |--|
 			//        |----|
@@ -275,7 +274,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
 
 	} else {
 		if region1.Equal(region2) {
-			if region1.Type == refgene.RType_CDS {
+			if region1.Type == scheme.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
 				anno = setDelAAChange(anno, trans, cStart, cEnd)
@@ -306,8 +305,8 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
 				}
 			}
 		} else {
-			if region1.Type == refgene.RType_CDS {
-				if region2.Type != refgene.RType_CDS {
+			if region1.Type == scheme.RType_CDS {
+				if region2.Type != scheme.RType_CDS {
 					// ...+++,,,+++...
 					//     |--|
 					if trans.Strand == "+" {
@@ -318,7 +317,7 @@ func AnnoDel(snv io.Variant, trans refgene.Transcript) TransAnno {
 				}
 				anno = setDelAAChange(anno, trans, cStart, cEnd)
 			} else {
-				if region2.Type == refgene.RType_CDS {
+				if region2.Type == scheme.RType_CDS {
 					// ...+++,,,+++...
 					//        |--|
 					if trans.Strand == "+" {

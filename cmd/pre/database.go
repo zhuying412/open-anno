@@ -6,6 +6,7 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
+	"open-anno/pkg/scheme"
 	"strconv"
 	"strings"
 
@@ -40,7 +41,7 @@ func (this IdxDBParam) Run() error {
 	}
 	defer reader.Close()
 	var offset int64
-	idxMap := make(map[string]*io.DBVarIdx)
+	idxMap := make(map[string]*scheme.DBVarIdx)
 	idxs := make([]string, 0)
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -61,7 +62,7 @@ func (this IdxDBParam) Run() error {
 			idxMap[curbin].End = offset + length
 		} else {
 			idxs = append(idxs, curbin)
-			idxMap[curbin] = &io.DBVarIdx{Bin: curbin, Start: offset, End: offset + length}
+			idxMap[curbin] = &scheme.DBVarIdx{Bin: curbin, Start: offset, End: offset + length}
 			log.Println(curbin)
 		}
 		offset += length

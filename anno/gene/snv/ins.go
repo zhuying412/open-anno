@@ -3,27 +3,26 @@ package snv
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/io"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"strings"
 )
 
-func findInsRegion(regions refgene.Regions, strand string, snv io.Variant) (refgene.Region, int) {
+func findInsRegion(regions scheme.Regions, strand string, snv scheme.Variant) (scheme.Region, int) {
 	var cLen int
 	for _, region := range regions {
 		if (strand == "+" && snv.Start >= region.Start-1 && snv.End < region.End) ||
 			(strand == "-" && snv.Start >= region.Start && snv.End <= region.End) {
 			return region, cLen
 		}
-		if region.Type == refgene.RType_CDS {
+		if region.Type == scheme.RType_CDS {
 			cLen += region.End - region.Start + 1
 		}
 	}
-	return refgene.Region{}, cLen
+	return scheme.Region{}, cLen
 }
 
-func AnnoIns(snv io.Variant, trans refgene.Transcript) TransAnno {
+func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 	region, cLen := findInsRegion(trans.Regions, trans.Strand, snv)
 	anno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {
@@ -39,7 +38,7 @@ func AnnoIns(snv io.Variant, trans refgene.Transcript) TransAnno {
 			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.CdsEnd+1, snv.Start-trans.CdsEnd+1, seq.RevComp(snv.Alt))
 		}
 	} else {
-		if region.Type == refgene.RType_INTRON {
+		if region.Type == scheme.RType_INTRON {
 			dist1s, dist2s := snv.Start-region.Start+1, region.End-snv.End+1
 			dist1e, dist2e := dist1s+1, dist2s-1
 			dist1, dist2 := dist1e, dist2s

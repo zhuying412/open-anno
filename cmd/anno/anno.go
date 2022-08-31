@@ -9,7 +9,7 @@ import (
 	"open-anno/anno/gene/cnv"
 	"open-anno/anno/gene/snv"
 	"open-anno/cmd/pre"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"path"
 	"strings"
@@ -46,17 +46,13 @@ func (this AnnoParam) Mrna() string {
 	return path.Join(this.DBpath, this.Builder, this.DBname+"_mRNA.fa")
 }
 
-func (this AnnoParam) NcbiGeneInfo() string {
-	return path.Join(this.DBpath, this.Builder, "Homo_sapiens.gene_info.gz")
-}
-
-func (this AnnoParam) Gene2Refseq() string {
-	return path.Join(this.DBpath, this.Builder, "Homo_sapiens.gene2refseq.gz")
+func (this AnnoParam) GeneInfo() string {
+	return path.Join(this.DBpath, this.Builder, this.DBname+".geneinfo.txt")
 }
 
 func (this AnnoParam) GeneData() (gene.GeneData, error) {
 	if this.DBType == "g" {
-		return gene.NewGeneData(this.DBFile(), this.DBIndex(), this.NcbiGeneInfo(), this.Gene2Refseq(), this.Mrna())
+		return gene.NewGeneData(this.DBFile(), this.DBIndex(), this.GeneInfo(), this.Mrna())
 	}
 	return gene.GeneData{}, errors.New("Non GeneBased has no GeneData")
 }
@@ -69,7 +65,7 @@ func (this AnnoParam) Valid() error {
 		return err
 	}
 	seq.SetGenome(this.Builder)
-	refgene.IS_EXON_REGION = this.Exon
+	scheme.IS_EXON_REGION = this.Exon
 	return nil
 }
 

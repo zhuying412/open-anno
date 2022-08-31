@@ -2,15 +2,13 @@ package pre
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"os"
-	"os/exec"
 	"path"
 	"strings"
 
@@ -26,14 +24,12 @@ func CheckPathExists(fl validator.FieldLevel) bool {
 }
 
 type PreGBParam struct {
-	Genome       string `validate:"required,pathexists"`
-	Refgene      string `validate:"required,pathexists"`
-	Gene2Refseq  string `validate:"pathexists"`
-	NcbiGeneInfo string `validate:"pathexists"`
-	DBpath       string `validate:"required"`
-	Builder      string `validate:"required"`
-	Name         string `validate:"required"`
-	IndexStep    int    `validate:"required"`
+	Genome    string `validate:"required,pathexists"`
+	GenePred  string `validate:"required,pathexists"`
+	DBpath    string `validate:"required"`
+	Builder   string `validate:"required"`
+	Name      string `validate:"required"`
+	IndexStep int    `validate:"required"`
 }
 
 func (this PreGBParam) Outdir() string {
@@ -55,21 +51,8 @@ func (this PreGBParam) OutTransIndex() string {
 	return path.Join(this.Outdir(), this.Name+".txt.idx")
 }
 
-func (this PreGBParam) OutRefGene() string {
-	return path.Join(this.Outdir(), this.Name+".txt")
-}
-
-func (this PreGBParam) OutGene2Refseq() string {
-	return path.Join(this.Outdir(), "Homo_sapiens.gene2refseq.gz")
-}
-
-func (this PreGBParam) OutNcbiGeneInfo() string {
-	return path.Join(this.Outdir(), "Homo_sapiens.gene_info.gz")
-}
-
-func (this PreGBParam) NewGenomeFaidx() (*faidx.Faidx, error) {
-	log.Printf("Read genome: %s ...", this.Genome)
-	return faidx.New(this.Genome)
+func (this PreGBParam) OutGenePred() string {
+	return path.Join(this.Outdir(), this.Name+".geneinfo.txt")
 }
 
 func (this PreGBParam) Valid() error {
@@ -83,101 +66,30 @@ func (this PreGBParam) Valid() error {
 	return nil
 }
 
-func (this PreGBParam) WriteAndIndexmRNA(transcripts refgene.Transcripts) error {
+func (this PreGBParam) CreateAndIndexmRNA(transcripts scheme.Transcripts) error {
 	log.Printf("Write and Index mRNA: %s ...", this.OutmRNA())
-	writer, err := io.NewIoWriter(this.OutmRNA())
+	log.Printf("Read genome: %s ...", this.Genome)
+	fai, err := faidx.New(this.Genome)
 	if err != err {
 		return err
 	}
-	defer writer.Close()
-	fai, err := this.NewGenomeFaidx()
-	if err != err {
-		return err
-	}
-	for _, trans := range transcripts {
-		sequence, err := seq.Fetch(fai, trans.Chrom, trans.TxStart-1, trans.TxEnd)
-		if err != nil {
-			return err
-		}
-		sequence = strings.ToUpper(sequence)
-		fmt.Fprintf(writer, ">%s:%s:%s\n%s\n", trans.Chrom, trans.Gene, trans.Name, sequence)
-	}
-	command := exec.Command("samtools", "faidx", this.OutmRNA())
-	err = command.Run()
-	if err != nil {
-		log.Print(err)
-		log.Printf("Now you need run the command: 'samtools faidx %s'", this.OutmRNA())
-	}
-	return nil
+	return io.CreateAndIndexmRNA(transcripts, fai, this.OutmRNA())
 }
 
-func (this PreGBParam) WriteTransIndex(transcripts refgene.Transcripts) error {
+func (this PreGBParam) CreateTransIndex(transcripts scheme.Transcripts) error {
 	log.Printf("Write Transcript Index: %s ...", this.OutTransIndex())
-	writer, err := io.NewIoWriter(this.OutTransIndex())
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	transIndexes := refgene.NewTransIndexes(this.IndexStep)
-	for _, index := range transIndexes {
-		index.SetTranscripts(transcripts)
-		if len(index.Transcripts) > 0 {
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\n", index.Chrom, index.Start, index.End, strings.Join(index.Transcripts, ","))
-		}
-	}
-	return err
+	return io.CreateTransIndexes(transcripts, this.IndexStep, this.OutTransIndex())
 }
 
-func (this PreGBParam) WriteGene2Refseq() error {
-	if this.Gene2Refseq == "" {
-		_, err := os.Stat(this.OutGene2Refseq())
-		if os.IsNotExist(err) {
-			return errors.New(fmt.Sprintf("Not Found: %s", this.OutGene2Refseq()))
-		}
-		return nil
-	}
-	log.Printf("Create NCBI Gene2Refseq to %s ...", this.OutGene2Refseq())
-	reader, err := io.NewIoReader(this.Gene2Refseq)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	writer, err := io.NewIoWriter(this.OutGene2Refseq())
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if strings.HasPrefix(text, "#tax_id") || strings.HasPrefix(text, "9606") {
-			fmt.Fprintf(writer, "%s\n", text)
-		}
-	}
-	return err
-}
-
-func (this PreGBParam) WriteNcbiGeneInfo() error {
-	if this.NcbiGeneInfo == "" {
-		_, err := os.Stat(this.OutNcbiGeneInfo())
-		if os.IsNotExist(err) {
-			return errors.New(fmt.Sprintf("Not Found: %s", this.OutNcbiGeneInfo()))
-		}
-		return nil
-	}
-	log.Printf("Copy NCBI Gene Info to %s ...", this.OutNcbiGeneInfo())
-	return io.CopyFile(this.NcbiGeneInfo, this.OutNcbiGeneInfo())
-}
-
-func (this PreGBParam) WriteAndReadRefgene() (refgene.Transcripts, error) {
-	var transcripts refgene.Transcripts
-	log.Printf("Create refgene to %s ...", this.OutRefGene())
-	reader, err := io.NewIoReader(this.Refgene)
+func (this PreGBParam) CreateAndReadRefgene() (scheme.Transcripts, error) {
+	var transcripts scheme.Transcripts
+	log.Printf("Create refgene to %s ...", this.OutGenePred())
+	reader, err := io.NewIoReader(this.GenePred)
 	if err != nil {
 		return transcripts, err
 	}
 	defer reader.Close()
-	writer, err := io.NewIoWriter(this.OutRefGene())
+	writer, err := io.NewIoWriter(this.OutGenePred())
 	if err != nil {
 		return transcripts, err
 	}
@@ -194,33 +106,23 @@ func (this PreGBParam) WriteAndReadRefgene() (refgene.Transcripts, error) {
 			fmt.Fprintf(writer, "%s\n", text)
 		}
 	}
-	log.Printf("Read refgene: %s ...", this.OutRefGene())
-	return refgene.ReadRefgene(this.OutRefGene())
+	log.Printf("Read refgene: %s ...", this.OutGenePred())
+	return io.ReadGenePred(this.OutGenePred())
 }
 
 func (this PreGBParam) Run() error {
-	// gene2refseq
-	err := this.WriteGene2Refseq()
-	if err != nil {
-		return err
-	}
-	// gene_info
-	err = this.WriteNcbiGeneInfo()
-	if err != nil {
-		return err
-	}
 	// refgene
-	transcripts, err := this.WriteAndReadRefgene()
+	transcripts, err := this.CreateAndReadRefgene()
 	if err != nil {
 		return err
 	}
 	// mRNA
-	err = this.WriteAndIndexmRNA(transcripts)
+	err = this.CreateAndIndexmRNA(transcripts)
 	if err != nil {
 		return err
 	}
 	// index
-	err = this.WriteTransIndex(transcripts)
+	err = this.CreateTransIndex(transcripts)
 	if err != nil {
 		return err
 	}
@@ -234,9 +136,7 @@ func NewPreGeneBasedCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			var param PreGBParam
 			param.Genome, _ = cmd.Flags().GetString("genome")
-			param.Refgene, _ = cmd.Flags().GetString("refgene")
-			param.Gene2Refseq, _ = cmd.Flags().GetString("gene2refseq")
-			param.NcbiGeneInfo, _ = cmd.Flags().GetString("ncbi_gene_info")
+			param.GenePred, _ = cmd.Flags().GetString("genepred")
 			param.DBpath, _ = cmd.Flags().GetString("dbpath")
 			param.Builder, _ = cmd.Flags().GetString("builder")
 			param.Name, _ = cmd.Flags().GetString("name")
@@ -253,12 +153,10 @@ func NewPreGeneBasedCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("genome", "g", "", "Reference Fasta File")
-	cmd.Flags().StringP("refgene", "r", "", "RefGene File")
+	cmd.Flags().StringP("genepred", "r", "", "RefGene File")
 	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
 	cmd.Flags().StringP("name", "n", "", "Database Name")
 	cmd.Flags().StringP("builder", "b", "hg19", "Database Path")
-	cmd.Flags().StringP("gene2refseq", "m", "", "NCBI Gene to Refseq file, gzip")
-	cmd.Flags().StringP("ncbi_gene_info", "c", "", "NCBI Gene Info file, gzip")
 	cmd.Flags().IntP("step", "L", 300000, "Transcript Index Step Length")
 	return cmd
 }

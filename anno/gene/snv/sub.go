@@ -3,8 +3,7 @@ package snv
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/io"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"strings"
 )
@@ -21,7 +20,7 @@ func getSubNcdna(cdna string, start int, end int, alt string, strand string, inS
 	return seq.Substitute2(cdna, start, end, alt)
 }
 
-func setSubAAChange(anno TransAnno, trans refgene.Transcript, cstart int, cend int, alt string) TransAnno {
+func setSubAAChange(anno TransAnno, trans scheme.Transcript, cstart int, cend int, alt string) TransAnno {
 	cdna := trans.CDNA()
 	ncdna := getSubNcdna(cdna, cstart, cend, alt, trans.Strand, strings.Contains(anno.Region, "splic"))
 	if trans.Strand == "-" {
@@ -93,7 +92,7 @@ func setSubAAChange(anno TransAnno, trans refgene.Transcript, cstart int, cend i
 	return anno
 }
 
-func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
+func AnnoSub(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
@@ -160,7 +159,7 @@ func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
 			anno.NAChange = fmt.Sprintf("c.-%d_-%ddelins%s", snv.End-trans.CdsEnd, r, seq.RevComp(snv.Alt))
 		}
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
-		if region2.Type == refgene.RType_CDS {
+		if region2.Type == scheme.RType_CDS {
 			// ...+++,,,+++...
 			//  |--|
 			//|----|
@@ -198,7 +197,7 @@ func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
 		}
 		anno = setSubAAChange(anno, trans, 1, cEnd, snv.Alt)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
-		if region1.Type == refgene.RType_CDS {
+		if region1.Type == scheme.RType_CDS {
 			// ...,,,+++...
 			//        |--|
 			//        |----|
@@ -241,7 +240,7 @@ func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
 
 	} else {
 		if region1.Equal(region2) {
-			if region1.Type == refgene.RType_CDS {
+			if region1.Type == scheme.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
 				anno = setSubAAChange(anno, trans, cStart, cEnd, snv.Alt)
@@ -272,8 +271,8 @@ func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
 				}
 			}
 		} else {
-			if region1.Type == refgene.RType_CDS {
-				if region2.Type != refgene.RType_CDS {
+			if region1.Type == scheme.RType_CDS {
+				if region2.Type != scheme.RType_CDS {
 					// ...+++,,,+++...
 					//     |--|
 					if trans.Strand == "+" {
@@ -284,7 +283,7 @@ func AnnoSub(snv io.Variant, trans refgene.Transcript) TransAnno {
 				}
 				anno = setSubAAChange(anno, trans, cStart, cEnd, snv.Alt)
 			} else {
-				if region2.Type == refgene.RType_CDS {
+				if region2.Type == scheme.RType_CDS {
 					// ...+++,,,+++...
 					//        |--|
 					if trans.Strand == "+" {

@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
+	"open-anno/pkg/scheme"
 	"os"
 	"sort"
-	"strings"
 )
 
-func ReadFilterBasedIndexMap(infile string) (map[string]io.DBVarIdx, int, error) {
-	idxMap := make(map[string]io.DBVarIdx)
+func ReadFilterBasedIndexMap(infile string) (map[string]scheme.DBVarIdx, int, error) {
+	idxMap := make(map[string]scheme.DBVarIdx)
 	reader, err := io.NewIoReader(infile)
 	if err != nil {
 		return idxMap, 0, err
@@ -26,8 +26,8 @@ func ReadFilterBasedIndexMap(infile string) (map[string]io.DBVarIdx, int, error)
 	return idxMap, scanner.BinSize, err
 }
 
-func ReadVariantMap(avinput string, binSize int) (map[string]io.Variants, error) {
-	variants := make(map[string]io.Variants)
+func ReadVariantMap(avinput string, binSize int) (map[string]scheme.Variants, error) {
+	variants := make(map[string]scheme.Variants)
 	reader, err := io.NewIoReader(avinput)
 	if err != nil {
 		return variants, err
@@ -43,7 +43,7 @@ func ReadVariantMap(avinput string, binSize int) (map[string]io.Variants, error)
 		if rows, ok := variants[curbin]; ok {
 			variants[curbin] = append(rows, row)
 		} else {
-			variants[curbin] = io.Variants{row}
+			variants[curbin] = scheme.Variants{row}
 		}
 	}
 	return variants, err
@@ -51,7 +51,7 @@ func ReadVariantMap(avinput string, binSize int) (map[string]io.Variants, error)
 
 func AnnoFilterBased(infile, dbfile, outfile string) error {
 	// 读取 index file
-	idxMap := make(map[string]io.DBVarIdx)
+	idxMap := make(map[string]scheme.DBVarIdx)
 	idxReader, err := io.NewIoReader(dbfile + ".idx")
 	if err != nil {
 		return err
@@ -89,12 +89,12 @@ func AnnoFilterBased(infile, dbfile, outfile string) error {
 		sort.Sort(variants)
 		if idx, ok := idxMap[curbin]; ok {
 			reader.Seek(idx.Start, io.SeekStart)
-			var dbvar io.Variant
+			var dbvar scheme.DBVar
 			for i, length := 0, idx.Start; i < len(variants) && length <= idx.End; {
-				switch variants[i].Compare(dbvar) {
-				case io.VCMP_LT:
+				switch dbvar.Compare(variants[i]) {
+				case scheme.VCMP_GT:
 					i++
-				case io.VCMP_GT:
+				case scheme.VCMP_LT:
 					if !scanner.Scan() {
 						break
 					}
@@ -103,10 +103,8 @@ func AnnoFilterBased(infile, dbfile, outfile string) error {
 					if err != nil {
 						return err
 					}
-				case io.VCMP_EQ:
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
-						dbvar.Chrom, dbvar.Start, dbvar.End,
-						dbvar.Ref, dbvar.Alt, strings.Join(dbvar.Otherinfo, "\t"))
+				case scheme.VCMP_EQ:
+					fmt.Fprintf(writer, "%s\n", dbvar.Text)
 					i++
 				}
 			}

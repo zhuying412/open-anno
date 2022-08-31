@@ -21,10 +21,9 @@ func CheckPathsExists(fl validator.FieldLevel) bool {
 }
 
 type MergeParam struct {
-	AVinput string   `validate:"required,pathexists"`
-	GBAnno  string   `validate:"required,pathexists"`
-	DBAnnos []string `validate:"required,pathsexists"`
-	Output  string   `validate:"required"`
+	AnnoInput   string   `validate:"required,pathexists"`
+	AnnoOutputs []string `validate:"required,pathsexists"`
+	Output      string   `validate:"required"`
 }
 
 func (this MergeParam) Valid() error {
@@ -39,7 +38,7 @@ func (this MergeParam) Valid() error {
 }
 
 func (this MergeParam) Run() error {
-	return io.MergeAnno(this.Output, this.AVinput, this.GBAnno, this.DBAnnos...)
+	return io.MergeAnnoResult(this.Output, this.AnnoInput, this.AnnoOutputs...)
 }
 
 func NewMergeCmd() *cobra.Command {
@@ -48,9 +47,8 @@ func NewMergeCmd() *cobra.Command {
 		Short: "Merge Annotation",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param MergeParam
-			param.AVinput, _ = cmd.Flags().GetString("avinput")
-			param.GBAnno, _ = cmd.Flags().GetString("gbanno")
-			param.DBAnnos, _ = cmd.Flags().GetStringArray("dbannos")
+			param.AnnoInput, _ = cmd.Flags().GetString("annoInput")
+			param.AnnoOutputs, _ = cmd.Flags().GetStringArray("annoOutputs")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -63,9 +61,8 @@ func NewMergeCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("avinput", "i", "", "Annotated Variants Input File")
-	cmd.Flags().StringP("gbanno", "g", "", "GeneBased Annotation File")
-	cmd.Flags().StringArrayP("dbannos", "d", []string{}, "FilterBased or RegionBased Annotation Files")
+	cmd.Flags().StringP("annoInput", "i", "", "Annotated Variants Input File")
+	cmd.Flags().StringArrayP("annoOutputs", "d", []string{}, "FilterBased or RegionBased Annotation Files")
 	cmd.Flags().StringP("output", "o", "", "Output Merged Annotation File")
 	return cmd
 }

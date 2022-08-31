@@ -6,7 +6,7 @@ import (
 	"open-anno/anno/gene"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/io/refgene"
+	"open-anno/pkg/scheme"
 	"sort"
 	"strings"
 )
@@ -35,13 +35,13 @@ func (this TransAnno) Detail() string {
 	return detail
 }
 
-func NewTransAnno(trans refgene.Transcript, regions ...refgene.Region) TransAnno {
+func NewTransAnno(trans scheme.Transcript, regions ...scheme.Region) TransAnno {
 	anno := TransAnno{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
 		Transcript: trans.Name,
 	}
-	nregions := make(refgene.Regions, 0)
+	nregions := make(scheme.Regions, 0)
 	for _, region := range regions {
 		if region.Exists() {
 			nregions = append(nregions, region)
@@ -65,13 +65,13 @@ func NewTransAnno(trans refgene.Transcript, regions ...refgene.Region) TransAnno
 				anno.Region2 = region2.Name()
 			}
 		}
-		if region1.Type == refgene.RType_CDS || region2.Type == refgene.RType_CDS {
+		if region1.Type == scheme.RType_CDS || region2.Type == scheme.RType_CDS {
 			anno.Region = "exonic"
 		} else {
-			if region1.Type == refgene.RType_UTR {
+			if region1.Type == scheme.RType_UTR {
 				anno.Region = region1.Name()
 			} else {
-				if region2.Type == refgene.RType_UTR {
+				if region2.Type == scheme.RType_UTR {
 					anno.Region = region2.Name()
 				} else {
 					anno.Region = "intronic"
@@ -146,7 +146,7 @@ func (this GeneAnno) Detail() string {
 	return "."
 }
 
-func AnnoSnv(snv io.Variant, transNames []string, transcripts refgene.Transcripts) map[string]GeneAnno {
+func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcripts) map[string]GeneAnno {
 	// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
 	var transAnnos []TransAnno
 	for _, transName := range transNames {
@@ -157,11 +157,11 @@ func AnnoSnv(snv io.Variant, transNames []string, transcripts refgene.Transcript
 				anno.Region = "ncRNA"
 				transAnnos = append(transAnnos, anno)
 			} else {
-				if snv.Type() == io.VType_SNP {
+				if snv.Type() == scheme.VType_SNP {
 					anno = AnnoSnp(snv, trans)
-				} else if snv.Type() == io.VType_INS {
+				} else if snv.Type() == scheme.VType_INS {
 					anno = AnnoIns(snv, trans)
-				} else if snv.Type() == io.VType_DEL {
+				} else if snv.Type() == scheme.VType_DEL {
 					anno = AnnoDel(snv, trans)
 				} else {
 					anno = AnnoSub(snv, trans)

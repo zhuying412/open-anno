@@ -1,8 +1,6 @@
 package io
 
 import (
-	"fmt"
-	"io"
 	"log"
 	"open-anno/pkg"
 	"strconv"
@@ -31,7 +29,7 @@ type BEDScanner struct {
 	Scanner[BED]
 }
 
-func NewBEDScanner(reader io.Reader) BEDScanner {
+func NewBEDScanner(reader Reader) BEDScanner {
 	scanner := NewScanner[BED](reader)
 	return BEDScanner{Scanner: scanner}
 }
@@ -55,35 +53,4 @@ func (this BEDScanner) Row() (BED, error) {
 		return bed, err
 	}
 	return bed, nil
-}
-
-func ReadBEDs(infile string) (BEDs, error) {
-	var beds BEDs
-	reader, err := NewIoReader(infile)
-	if err != nil {
-		return beds, err
-	}
-	defer reader.Close()
-	scanner := NewBEDScanner(reader)
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return beds, err
-		}
-		beds = append(beds, row)
-	}
-	return beds, err
-}
-
-func WriteBEDs(outfile string, beds ...BEDs) error {
-	writer, err := NewIoWriter(outfile)
-	if err != nil {
-		return err
-	}
-	for _, rows := range beds {
-		for _, row := range rows {
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\n", row.Chrom, row.Start, row.End, row.Name)
-		}
-	}
-	return nil
 }
