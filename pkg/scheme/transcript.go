@@ -68,21 +68,29 @@ func (this Transcript) IsUnk() bool {
 	return this.CdsEnd-this.CdsStart+1 == 0
 }
 
-func (this *Transcript) SetRegions(mrna *faidx.Faidx, geneInfoMap GeneInfoMap, seqRequired bool) error {
-	regions, err := NewRegions(*this)
+func (this *Transcript) SetRegions(geneInfoMap GeneInfoMap) error {
+	var err error
+	this.Regions, err = NewRegions(*this)
 	if err != nil {
 		return err
 	}
-	for i, region := range regions {
-		mrnaName := fmt.Sprintf("%s:%s:%s", this.Chrom, this.Gene, this.Name)
-		regions[i].Sequence, err = seq.Fetch(mrna, mrnaName, region.Start-this.TxStart, region.End-this.TxStart+1)
-		if err != nil && seqRequired {
-			return err
-		}
-	}
-	this.Regions = regions
 	if geneInfo, ok := geneInfoMap[this.Chrom][this.Gene]; ok {
 		this.GeneID = geneInfo.EntrezId
+	}
+	return nil
+}
+
+func (this *Transcript) SetRegionsWithSeq(geneInfoMap GeneInfoMap, mrna *faidx.Faidx) error {
+	err := this.SetRegions(geneInfoMap)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(this.Regions); i++ {
+		mrnaName := fmt.Sprintf("%s:%s:%s", this.Chrom, this.Gene, this.Name)
+		this.Regions[i].Sequence, err = seq.Fetch(mrna, mrnaName, this.Regions[i].Start-this.TxStart, this.Regions[i].End-this.TxStart+1)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -90,11 +98,25 @@ func (this *Transcript) SetRegions(mrna *faidx.Faidx, geneInfoMap GeneInfoMap, s
 // Transcripts
 type Transcripts map[string]Transcript
 
-func (this Transcripts) FilterChrom(chrom string, geneInfoMap GeneInfoMap, mrna *faidx.Faidx, seqRequired bool) (Transcripts, error) {
+func (this Transcripts) FilterChrom(chrom string, geneInfoMap GeneInfoMap) (Transcripts, error) {
 	transcripts := make(Transcripts)
 	for sn, trans := range this {
 		if trans.Chrom == chrom {
-			err := trans.SetRegions(mrna, geneInfoMap, seqRequired)
+			err := trans.SetRegions(geneInfoMap)
+			if err != nil {
+				return transcripts, err
+			}
+			transcripts[sn] = trans
+		}
+	}
+	return transcripts, nil
+}
+
+func (this Transcripts) FilterChromWithSeq(chrom string, geneInfoMap GeneInfoMap, mrna *faidx.Faidx) (Transcripts, error) {
+	transcripts := make(Transcripts)
+	for sn, trans := range this {
+		if trans.Chrom == chrom {
+			err := trans.SetRegionsWithSeq(geneInfoMap, mrna)
 			if err != nil {
 				return transcripts, err
 			}

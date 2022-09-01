@@ -3,7 +3,6 @@ package cnv
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/gene"
 	"open-anno/pkg/io"
 	"open-anno/pkg/scheme"
 	"sort"
@@ -97,7 +96,7 @@ func AnnoCnv(cnv scheme.Variant, trans scheme.Transcript) TransAnno {
 	return anno
 }
 
-func AnnoCnvs(avinput, outfile, dbname string, geneData gene.GeneData) error {
+func AnnoCnvs(avinput, outfile, dbname string, geneData GeneData) error {
 	cnvMap, err := io.ReadVariantMap(avinput)
 	if err != nil {
 		return err
@@ -111,7 +110,7 @@ func AnnoCnvs(avinput, outfile, dbname string, geneData gene.GeneData) error {
 	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s.Region\n", dbname)
 	for chrom, cnvs := range cnvMap {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
-		transcripts, err := geneData.FilterTranscripts(chrom, false)
+		transcripts, err := geneData.FilterTranscripts(chrom)
 		if err != nil {
 			return err
 		}

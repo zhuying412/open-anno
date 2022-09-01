@@ -1,4 +1,4 @@
-package tools
+package pre
 
 import (
 	"bufio"
@@ -6,7 +6,6 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/seq"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
@@ -88,14 +87,17 @@ func (this GeneInfoParam) ReadNCBIGeneInfo() (map[string]map[string]string, map[
 
 func (this GeneInfoParam) GetSymbolToId() (map[string]map[string]string, error) {
 	symbolToId := make(map[string]map[string]string)
+	log.Printf("Read NCBI Gene2Refseq from %s ...", this.Gene2Refseq)
 	transToId, err := this.ReadGene2Refseq()
 	if err != nil {
 		return symbolToId, err
 	}
+	log.Printf("Read NCBI GeneInfo from %s ...", this.GeneInfo)
 	ncbiSymbolToId, ncbiSynonymsToId, err := this.ReadNCBIGeneInfo()
 	if err != nil {
 		return symbolToId, err
 	}
+	log.Printf("Read GenePred  from %s ...", this.GenePred)
 	reader, err := io.NewIoReader(this.GenePred)
 	if err != nil {
 		return symbolToId, err
@@ -105,22 +107,20 @@ func (this GeneInfoParam) GetSymbolToId() (map[string]map[string]string, error) 
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
 		chrom := pkg.FormatChrom(fields[2])
-		if _, ok := seq.GENOME[chrom]; ok {
-			trans := strings.Split(fields[1], ".")[0]
-			symbol := fields[12]
-			if _, ok := symbolToId[chrom]; !ok {
-				symbolToId[chrom] = make(map[string]string)
-			}
-			if _, ok := symbolToId[chrom][symbol]; !ok {
-				if entrezId, ok := transToId[trans]; ok {
+		trans := strings.Split(fields[1], ".")[0]
+		symbol := fields[12]
+		if _, ok := symbolToId[chrom]; !ok {
+			symbolToId[chrom] = make(map[string]string)
+		}
+		if _, ok := symbolToId[chrom][symbol]; !ok {
+			if entrezId, ok := transToId[trans]; ok {
+				symbolToId[chrom][symbol] = entrezId
+			} else {
+				if entrezId, ok = ncbiSymbolToId[chrom][symbol]; ok {
 					symbolToId[chrom][symbol] = entrezId
 				} else {
-					if entrezId, ok = ncbiSymbolToId[chrom][symbol]; ok {
+					if entrezId, ok = ncbiSynonymsToId[chrom][symbol]; ok {
 						symbolToId[chrom][symbol] = entrezId
-					} else {
-						if entrezId, ok = ncbiSynonymsToId[chrom][symbol]; ok {
-							symbolToId[chrom][symbol] = entrezId
-						}
 					}
 				}
 			}
@@ -150,13 +150,14 @@ func (this GeneInfoParam) Run() error {
 
 func NewGeneInfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "geneinfo",
+		Use:   "gene",
 		Short: "Get Gene Symbol to EntrezId",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param GeneInfoParam
 			param.Gene2Refseq, _ = cmd.Flags().GetString("gene2refseq")
 			param.GeneInfo, _ = cmd.Flags().GetString("geneinfo")
 			param.GenePred, _ = cmd.Flags().GetString("genepred")
+			param.Ouput, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
 				cmd.Help()
@@ -169,7 +170,8 @@ func NewGeneInfoCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("genepred", "p", "", "GenePred File")
-	cmd.Flags().StringP("gene2refseq", "r", "", "Gene2Refseq File")
-	cmd.Flags().StringP("geneinfo", "i", "", "GeneInfo File")
+	cmd.Flags().StringP("gene2refseq", "r", "", "NCBI Gene2Refseq File")
+	cmd.Flags().StringP("geneinfo", "i", "", "NCBI GeneInfo File")
+	cmd.Flags().StringP("output", "o", "", "Output File")
 	return cmd
 }

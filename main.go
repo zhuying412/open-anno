@@ -27,16 +27,31 @@ func NewPreCmd() *cobra.Command {
 	}
 	cmd.AddCommand(pre.NewPreGeneBasedCmd())
 	cmd.AddCommand(pre.NewIndexDatabaseCmd())
+	cmd.AddCommand(pre.NewGeneInfoCmd())
 	return cmd
 }
 
 func NewAnnoCmd() *cobra.Command {
+
+	annoSnv := &cobra.Command{
+		Use:   "snv",
+		Short: "Annotate SNV",
+	}
+	annoSnv.AddCommand(anno.NewAnnoCmd("gb", anno.VType_SNV, anno.DType_G))
+	annoSnv.AddCommand(anno.NewAnnoCmd("fb", anno.VType_SNV, anno.DType_F))
+	annoSnv.AddCommand(anno.NewAnnoCmd("rb", anno.VType_SNV, anno.DType_R))
+	annoCnv := &cobra.Command{
+		Use:   "cnv",
+		Short: "Annotate SNV",
+	}
+	annoCnv.AddCommand(anno.NewAnnoCmd("gb", anno.VType_CNV, anno.DType_G))
+	annoCnv.AddCommand(anno.NewAnnoCmd("rb", anno.VType_CNV, anno.DType_R))
 	cmd := &cobra.Command{
 		Use:   "anno",
 		Short: "Annotate variants",
 	}
-	cmd.AddCommand(anno.NewAnnoCmd("snv"))
-	cmd.AddCommand(anno.NewAnnoCmd("cnv"))
+	cmd.AddCommand(annoSnv)
+	cmd.AddCommand(annoCnv)
 	cmd.AddCommand(anno.NewMergeCmd())
 	return cmd
 }

@@ -3,10 +3,10 @@ package snv
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/gene"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
 	"open-anno/pkg/scheme"
+	"open-anno/pkg/seq"
 	"sort"
 	"strings"
 )
@@ -188,7 +188,7 @@ func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcr
 	return geneAnnos
 }
 
-func AnnoSnvs(avinput, output, dbname string, geneData gene.GeneData, aashort bool) error {
+func AnnoSnvs(avinput, output, dbname string, geneData GeneData, aashort bool) error {
 	AA_SHORT = aashort
 	snvMap, err := io.ReadVariantMap(avinput)
 	if err != nil {
@@ -206,43 +206,45 @@ func AnnoSnvs(avinput, output, dbname string, geneData gene.GeneData, aashort bo
 	)
 	// anno
 	for chrom, snvs := range snvMap {
-		log.Printf("Start run annotate %s chr%s ...", dbname, chrom)
-		if err != nil {
-			return err
-		}
-		transcripts, err := geneData.FilterTranscripts(chrom, true)
-		if err != nil {
-			return err
-		}
-		transIndexes := geneData.FilterTransIndexes(chrom)
-		if err != nil {
-			return err
-		}
-		sort.Sort(snvs)
-		sort.Sort(transIndexes)
-		results := make(map[string]map[string]GeneAnno)
-		for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
-			if snvs[i].End < transIndexes[j].Start {
-				i++
-			} else if snvs[i].Start > transIndexes[j].End {
-				j++
-			} else {
-				results[snvs[i].ID()] = AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
-				i++
+		if _, ok := seq.GENOME[chrom]; ok {
+			log.Printf("Start run annotate %s chr%s ...", dbname, chrom)
+			if err != nil {
+				return err
 			}
-		}
-		for _, snv := range snvs {
-			if geneAnnos, ok := results[snv.ID()]; ok {
-				for _, geneAnno := range geneAnnos {
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			transcripts, err := geneData.FilterTranscripts(chrom)
+			if err != nil {
+				return err
+			}
+			transIndexes := geneData.FilterTransIndexes(chrom)
+			if err != nil {
+				return err
+			}
+			sort.Sort(snvs)
+			sort.Sort(transIndexes)
+			results := make(map[string]map[string]GeneAnno)
+			for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
+				if snvs[i].End < transIndexes[j].Start {
+					i++
+				} else if snvs[i].Start > transIndexes[j].End {
+					j++
+				} else {
+					results[snvs[i].ID()] = AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
+					i++
+				}
+			}
+			for _, snv := range snvs {
+				if geneAnnos, ok := results[snv.ID()]; ok {
+					for _, geneAnno := range geneAnnos {
+						fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+							snv.Chrom, snv.Start, snv.End, snv.Ref, snv.Alt,
+							geneAnno.Gene, geneAnno.GeneID, geneAnno.Event(), geneAnno.Region(), geneAnno.Detail(),
+						)
+					}
+				} else {
+					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t.\t.\t.\t.\t.\n",
 						snv.Chrom, snv.Start, snv.End, snv.Ref, snv.Alt,
-						geneAnno.Gene, geneAnno.GeneID, geneAnno.Event(), geneAnno.Region(), geneAnno.Detail(),
 					)
 				}
-			} else {
-				fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t.\t.\t.\t.\t.\n",
-					snv.Chrom, snv.Start, snv.End, snv.Ref, snv.Alt,
-				)
 			}
 		}
 	}

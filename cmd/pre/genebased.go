@@ -52,7 +52,7 @@ func (this PreGBParam) OutTransIndex() string {
 }
 
 func (this PreGBParam) OutGenePred() string {
-	return path.Join(this.Outdir(), this.Name+".geneinfo.txt")
+	return path.Join(this.Outdir(), this.Name+".txt")
 }
 
 func (this PreGBParam) Valid() error {

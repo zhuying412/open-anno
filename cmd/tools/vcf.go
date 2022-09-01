@@ -57,8 +57,8 @@ func (this TriosVCF2AnnoInputParam) Run() error {
 
 func NewVCF2AnnoInputCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "vcf2av",
-		Short: "Convert SNV VCF to AVINPUT",
+		Use:   "vcf2ai",
+		Short: "Convert SNV VCF to AnnoInput",
 		Run: func(cmd *cobra.Command, args []string) {
 			is_trios, _ := cmd.Flags().GetBool("trios")
 			if is_trios {
@@ -122,8 +122,8 @@ func (this Av2VcfParam) Run() error {
 
 func NewAnnoInput2VCFCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "av2vcf",
-		Short: "Convert SNV AVINPUT to VCF",
+		Use:   "ai2vcf",
+		Short: "Convert SNV AnnoInput to VCF",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param Av2VcfParam
 			param.Input, _ = cmd.Flags().GetString("avinput")

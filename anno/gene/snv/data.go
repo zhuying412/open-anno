@@ -1,4 +1,4 @@
-package gene
+package snv
 
 import (
 	"log"
@@ -15,8 +15,8 @@ type GeneData struct {
 	MrnaFaidx    *faidx.Faidx                          `json:"mrna"`
 }
 
-func (this GeneData) FilterTranscripts(chrom string, seqRequired bool) (scheme.Transcripts, error) {
-	return this.Transcripts.FilterChrom(chrom, this.GeneInfo, this.MrnaFaidx, seqRequired)
+func (this GeneData) FilterTranscripts(chrom string) (scheme.Transcripts, error) {
+	return this.Transcripts.FilterChromWithSeq(chrom, this.GeneInfo, this.MrnaFaidx)
 }
 
 func (this GeneData) FilterTransIndexes(chrom string) scheme.TransIndexes {
@@ -41,12 +41,10 @@ func NewGeneData(refgeneFile, indexFile, geneInfoFile, mrnaFile string) (GeneDat
 	if err != nil {
 		return geneData, err
 	}
-	if mrnaFile != "" {
-		log.Printf("Read mRNA: %s ...", mrnaFile)
-		geneData.MrnaFaidx, err = faidx.New(mrnaFile)
-		if err != nil {
-			return geneData, err
-		}
+	log.Printf("Read mRNA: %s ...", mrnaFile)
+	geneData.MrnaFaidx, err = faidx.New(mrnaFile)
+	if err != nil {
+		return geneData, err
 	}
 	return geneData, err
 }

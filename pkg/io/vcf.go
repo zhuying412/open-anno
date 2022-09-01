@@ -33,7 +33,7 @@ func ReadVCF(infile string) (scheme.Variants, error) {
 		}
 		for i, alt := range row.Alt() {
 			vcfVariant := scheme.VCFVariant{
-				Chrom:  row.Chromosome,
+				Chrom:  pkg.FormatChrom(row.Chromosome),
 				Pos:    int(row.Pos),
 				Ref:    row.Reference,
 				Alt:    alt,
@@ -41,7 +41,7 @@ func ReadVCF(infile string) (scheme.Variants, error) {
 				Filter: strings.ReplaceAll(row.Filter, ";", ","),
 				Info: scheme.VCFInfo{
 					Depth: sample.DP,
-					VAF:   float64(alleles[i+1]) / float64(sample.DP),
+					VAF:   float64(alleles[i]) / float64(sample.DP),
 					GQ:    float64(sample.GQ),
 				},
 			}
@@ -98,7 +98,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 		for i, alt := range row.Alt() {
 			vcfVariant := scheme.TriosVCFVariant{
 				VCFVariant: scheme.VCFVariant{
-					Chrom:  row.Chromosome,
+					Chrom:  pkg.FormatChrom(row.Chromosome),
 					Pos:    int(row.Pos),
 					Ref:    row.Reference,
 					Alt:    alt,
@@ -106,7 +106,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 					Filter: strings.ReplaceAll(row.Filter, ";", ","),
 					Info: scheme.VCFInfo{
 						Depth: proband.DP,
-						VAF:   float64(pAlleles[i+1]) / float64(proband.DP),
+						VAF:   float64(pAlleles[1]) / float64(proband.DP),
 						GQ:    float64(proband.GQ),
 					},
 				},
@@ -114,7 +114,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 			if mIndex >= 0 && pkg.Sum(mother.GT...) > 0 {
 				vcfVariant.MInfo = scheme.VCFInfo{
 					Depth: mother.DP,
-					VAF:   float64(mAlleles[i+1]) / float64(mother.DP),
+					VAF:   float64(mAlleles[i]) / float64(mother.DP),
 					GQ:    float64(mother.GQ),
 				}
 
@@ -122,7 +122,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 			if pIndex >= 0 && pkg.Sum(mother.GT...) > 0 {
 				vcfVariant.FInfo = scheme.VCFInfo{
 					Depth: father.DP,
-					VAF:   float64(fAlleles[i+1]) / float64(father.DP),
+					VAF:   float64(fAlleles[i]) / float64(father.DP),
 					GQ:    float64(father.GQ),
 				}
 			}

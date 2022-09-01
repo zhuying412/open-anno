@@ -70,14 +70,14 @@ func AnnoSnp(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 			cstart := seq.DifferenceSimple(cdna, ncdna)
 			na1, na2 := cdna[cstart-1], ncdna[cstart-1]
 			anno.NAChange = fmt.Sprintf("c.%d%c>%c", cstart, na1, na2)
-			pstart := seq.DifferenceSimple(protein, protein)
+			pstart := seq.DifferenceSimple(protein, nprotein)
 			if pstart > len(protein) {
 				pstart = cstart / 3
 
 			}
 			aa1, aa2 := protein[pstart-1], nprotein[pstart-1]
 			if aa1 == aa2 {
-				anno.Event = "synonymous_snv"
+				anno.Event = "synonymous"
 			} else {
 				if aa1 == 'M' && pstart == 1 {
 					anno.Event = "startloss"
@@ -86,7 +86,7 @@ func AnnoSnp(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 				} else if aa2 == '*' {
 					anno.Event = "stopgain"
 				} else {
-					anno.Event = "nonsynonymous_snv"
+					anno.Event = "nonsynonymous"
 				}
 			}
 			anno.AAChange = fmt.Sprintf("p.%s%d%s", seq.AAName(aa1, AA_SHORT), pstart, seq.AAName(aa2, AA_SHORT))

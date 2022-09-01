@@ -4,30 +4,38 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"open-anno/anno/db"
-	"open-anno/anno/gene"
-	"open-anno/anno/gene/cnv"
-	"open-anno/anno/gene/snv"
 	"open-anno/cmd/pre"
-	"open-anno/pkg/scheme"
 	"open-anno/pkg/seq"
 	"path"
-	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
+
+var (
+	VType_SNV string = "SNV"
+	VType_CNV string = "CNV"
+)
+
+var (
+	DType_G string = "GeneBased"
+	DType_F string = "FilterBased"
+	DType_R string = "RegionBased"
+)
+
+type IAnnoParam interface {
+	Bind(*pflag.FlagSet)
+	Valid() error
+	Run() error
+}
 
 type AnnoParam struct {
 	Input     string `validate:"required,pathexists"`
-	DBType    string `validate:"required,oneof=g f r"`
 	DBpath    string `validate:"required,pathexists"`
 	DBname    string `validate:"required"`
 	Builder   string `validate:"required"`
 	OutPrefix string `validate:"required"`
-	AAshort   bool
-	Exon      bool
-	Overlap   float64 `validate:"omitempty,min=0,max=1"`
 }
 
 func (this AnnoParam) Output() string {
@@ -42,19 +50,16 @@ func (this AnnoParam) DBIndex() string {
 	return path.Join(this.DBpath, this.Builder, this.DBname+".txt.idx")
 }
 
-func (this AnnoParam) Mrna() string {
-	return path.Join(this.DBpath, this.Builder, this.DBname+"_mRNA.fa")
-}
-
 func (this AnnoParam) GeneInfo() string {
 	return path.Join(this.DBpath, this.Builder, this.DBname+".geneinfo.txt")
 }
 
-func (this AnnoParam) GeneData() (gene.GeneData, error) {
-	if this.DBType == "g" {
-		return gene.NewGeneData(this.DBFile(), this.DBIndex(), this.GeneInfo(), this.Mrna())
-	}
-	return gene.GeneData{}, errors.New("Non GeneBased has no GeneData")
+func (this *AnnoParam) Bind(flagSet *pflag.FlagSet) {
+	this.Input, _ = flagSet.GetString("avinput")
+	this.OutPrefix, _ = flagSet.GetString("outprefix")
+	this.DBpath, _ = flagSet.GetString("dbpath")
+	this.Builder, _ = flagSet.GetString("builder")
+	this.DBname, _ = flagSet.GetString("dbname")
 }
 
 func (this AnnoParam) Valid() error {
@@ -65,105 +70,61 @@ func (this AnnoParam) Valid() error {
 		return err
 	}
 	seq.SetGenome(this.Builder)
-	scheme.IS_EXON_REGION = this.Exon
 	return nil
 }
 
-func (this AnnoParam) RunAnno(varType string, errChan chan error) {
-	if this.DBType == "g" {
-		geneData, err := this.GeneData()
-		if err != nil {
-			errChan <- err
-			return
-		}
-		if varType == "snv" {
-			errChan <- snv.AnnoSnvs(this.Input, this.Output(), this.DBname, geneData, this.AAshort)
-		}
-		if varType == "cnv" {
-			errChan <- cnv.AnnoCnvs(this.Input, this.Output(), this.DBname, geneData)
-		}
-	}
-	if this.DBType == "f" {
-		errChan <- db.AnnoFilterBased(this.Input, this.DBFile(), this.Output())
-	}
-	if this.DBType == "r" {
-		errChan <- db.AnnoRegionBased(this.Input, this.DBFile(), this.Output(), this.Overlap)
-	}
+func (this AnnoParam) Run() error {
+	return errors.New("Not Impl")
 }
 
-func NewAnnoParams(cmd *cobra.Command) ([]AnnoParam, error) {
-	input, _ := cmd.Flags().GetString("avinput")
-	outprefix, _ := cmd.Flags().GetString("outprefix")
-	dbpath, _ := cmd.Flags().GetString("dbpath")
-	builder, _ := cmd.Flags().GetString("builder")
-	aashort, _ := cmd.Flags().GetBool("aashort")
-	exon, _ := cmd.Flags().GetBool("exon")
-	overlap, _ := cmd.Flags().GetFloat64("overlap")
-	dbtypes, _ := cmd.Flags().GetString("dbtypes")
-	dbnames, _ := cmd.Flags().GetString("dbnames")
-	dbNames := strings.Split(dbnames, ",")
-	dbTypes := strings.Split(dbtypes, ",")
-	annoParams := make([]AnnoParam, len(dbNames))
-	for i := 0; i < len(dbNames); i++ {
-		dbname := strings.TrimSpace(dbNames[i])
-		dbtype := strings.TrimSpace(dbTypes[i])
-		param := AnnoParam{
-			Input:     input,
-			OutPrefix: outprefix,
-			DBpath:    dbpath,
-			Builder:   builder,
-			AAshort:   aashort,
-			Exon:      exon,
-			Overlap:   overlap,
-			DBname:    dbname,
-			DBType:    dbtype,
-		}
-		err := param.Valid()
-		if err != nil {
-			cmd.Help()
-			return annoParams, err
-		}
-		annoParams[i] = param
-	}
-	return annoParams, nil
-}
-
-func NewAnnoCmd(varType string) *cobra.Command {
-	varType = strings.ToLower(varType)
-	if varType != "snv" && varType != "cnv" {
-		log.Fatalln("only 'snv' or 'cnv'")
-	}
+func NewAnnoCmd(use, varType, dbType string) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   varType,
-		Short: fmt.Sprintf("Annotate for %s", strings.ToUpper(varType)),
+		Use:   use,
+		Short: fmt.Sprintf("Annotate %s for %s", dbType, varType),
 		Run: func(cmd *cobra.Command, args []string) {
-			annoParams, err := NewAnnoParams(cmd)
+			var param IAnnoParam
+			switch varType {
+			case VType_SNV:
+				switch dbType {
+				case DType_G:
+					param = new(AnnoSnvGBParam)
+				case DType_F:
+					param = new(AnnoSnvFBParam)
+				case DType_R:
+					param = new(AnnoSnvRBParam)
+				}
+			case VType_CNV:
+				switch dbType {
+				case DType_G:
+					param = new(AnnoCnvGBParam)
+				case DType_R:
+					param = new(AnnoCnvRBParam)
+				}
+			}
+			param.Bind(cmd.Flags())
+			fmt.Println(param)
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
 			if err != nil {
 				log.Fatal(err)
 			}
-			errChan := make(chan error, len(annoParams))
-			for _, annoParam := range annoParams {
-				go annoParam.RunAnno(varType, errChan)
-			}
-			for i := 0; i < len(annoParams); i++ {
-				err := <-errChan
-				if err != nil {
-					log.Fatal(err)
-				}
-			}
+
 		},
 	}
 	cmd.Flags().StringP("avinput", "i", "", "Annotated Variants Input File")
 	cmd.Flags().StringP("outprefix", "o", "", "Output Prefix")
 	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
-	cmd.Flags().StringP("dbnames", "n", "", "Database Names")
-	cmd.Flags().StringP("dbtypes", "t", "", "Database Types")
-	cmd.Flags().StringP("builder", "b", "hg19", "Database Builder")
-	if varType == "snv" {
+	cmd.Flags().StringP("dbname", "n", "", "Database Names")
+	cmd.Flags().StringP("builder", "b", "hg38", "Database Builder")
+	if varType == VType_SNV && dbType == DType_G {
 		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
 		cmd.Flags().BoolP("exon", "e", false, "Output ExonOrder Instead of TypeOrder")
 	}
-	if varType == "cnv" {
+	if dbType == DType_R {
 		cmd.Flags().Float64P("overlap", "p", 0.75, "CNV Overlap Threshold")
 	}
 	return cmd

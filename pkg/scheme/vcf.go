@@ -33,7 +33,7 @@ type VCFVariant struct {
 }
 
 func (this VCFVariant) ID() string {
-	return fmt.Sprintf("%s-%d-%s-%s", this.Chrom, this.Pos, this.Ref, this.Alt)
+	return fmt.Sprintf("%s:%d:%s:%s", this.Chrom, this.Pos, this.Ref, this.Alt)
 }
 
 func (this VCFVariant) InfoText() string {
@@ -68,11 +68,11 @@ func (this VCFVariant) Variant() Variant {
 			ref = ""
 		} else {
 			refRev := seq.Reverse(ref)
-			altRef := seq.Reverse(alt)
+			altRev := seq.Reverse(alt)
 			var length int
-			length = seq.DifferenceSimple(refRev, altRef) - 1
+			length = seq.DifferenceSimple(refRev, altRev) - 1
 			ref = ref[0 : len(ref)-length]
-			alt = ref[0 : len(alt)-length]
+			alt = alt[0 : len(alt)-length]
 			length = seq.DifferenceSimple(ref, alt) - 1
 			ref = ref[length:]
 			alt = alt[length:]

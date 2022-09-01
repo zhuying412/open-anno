@@ -11,6 +11,7 @@ import (
 func findInsRegion(regions scheme.Regions, strand string, snv scheme.Variant) (scheme.Region, int) {
 	var cLen int
 	for _, region := range regions {
+
 		if (strand == "+" && snv.Start >= region.Start-1 && snv.End < region.End) ||
 			(strand == "-" && snv.Start >= region.Start && snv.End <= region.End) {
 			return region, cLen
@@ -27,15 +28,31 @@ func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 	anno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {
 		if trans.Strand == "+" {
-			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", trans.CdsStart-snv.End, trans.CdsStart-snv.End-1, snv.Alt)
+			if trans.CdsStart-snv.End > 1 {
+				anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", trans.CdsStart-snv.End, trans.CdsStart-snv.End-1, snv.Alt)
+			} else {
+				anno.NAChange = fmt.Sprintf("c.-%d_1ins%s", trans.CdsStart-snv.End, snv.Alt)
+			}
 		} else {
-			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", trans.CdsStart-snv.End-1, trans.CdsStart-snv.End, seq.RevComp(snv.Alt))
+			if trans.CdsStart-snv.End > 1 {
+				anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", trans.CdsStart-snv.End-1, trans.CdsStart-snv.End, seq.RevComp(snv.Alt))
+			} else {
+				anno.NAChange = fmt.Sprintf("c.%d_+%dins%s", trans.CLen(), trans.CdsStart-snv.End, seq.RevComp(snv.Alt))
+			}
 		}
 	} else if region.Start > trans.CdsEnd {
 		if trans.Strand == "+" {
-			anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", snv.Start-trans.CdsEnd, snv.Start-trans.CdsEnd+1, snv.Alt)
+			if snv.Start-trans.CdsEnd > 0 {
+				anno.NAChange = fmt.Sprintf("c.+%d_+%dins%s", snv.Start-trans.CdsEnd, snv.Start-trans.CdsEnd+1, snv.Alt)
+			} else {
+				anno.NAChange = fmt.Sprintf("c.%d_+%dins%s", trans.CLen(), snv.Start-trans.CdsEnd+1, snv.Alt)
+			}
 		} else {
-			anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.CdsEnd+1, snv.Start-trans.CdsEnd+1, seq.RevComp(snv.Alt))
+			if snv.Start-trans.CdsEnd > 0 {
+				anno.NAChange = fmt.Sprintf("c.-%d_-%dins%s", snv.Start-trans.CdsEnd+1, snv.Start-trans.CdsEnd, seq.RevComp(snv.Alt))
+			} else {
+				anno.NAChange = fmt.Sprintf("c.-%d_1ins%s", snv.Start-trans.CdsEnd+1, seq.RevComp(snv.Alt))
+			}
 		}
 	} else {
 		if region.Type == scheme.RType_INTRON {
@@ -90,49 +107,54 @@ func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 			start := seq.DifferenceSimple(cdna, ncdna)
 			alt := ncdna[start-1 : start+len(snv.Alt)-1]
 			unit := seq.DupUnit(alt)
-			pre := cdna[start-len(unit)-1 : start-1]
-			if unit == pre {
-				anno.NAChange = fmt.Sprintf("c.%ddup%s", start-1, unit)
+			if start == 1 {
+				// 在CDNA第一个碱基前插入，不影响起始密码子
+				anno.NAChange = fmt.Sprintf("c.-1_1ins%s", alt)
 			} else {
-				anno.NAChange = fmt.Sprintf("c.%d_%dins%s", start-1, start, alt)
-			}
-			start, end1, end2 := seq.Difference(protein, nprotein)
-			aa1 := protein[start-1 : end1]
-			aa2 := nprotein[start-1 : end2]
-			if len(snv.Alt)%3 == 0 {
-				anno.Event = "ins_nonframeshift"
-				if len(aa1) == 0 {
-					anno.AAChange = fmt.Sprintf(
-						"p.%s%d_%s%dins%s",
-						seq.AAName(protein[start-2], AA_SHORT),
-						start-1,
-						seq.AAName(protein[start-1], AA_SHORT),
-						start,
-						seq.AAName(aa2, AA_SHORT),
-					)
-				} else if len(aa1) == 1 {
-					anno.AAChange = fmt.Sprintf("p.%s%ddelins%s", seq.AAName(aa1, AA_SHORT), start-1, seq.AAName(aa2, AA_SHORT))
+				if start > len(unit) && unit == cdna[start-len(unit)-1:start-1] {
+					// 比较重复单元和其之前的碱基
+					anno.NAChange = fmt.Sprintf("c.%ddup%s", start-1, unit)
 				} else {
-					anno.AAChange = fmt.Sprintf(
-						"p.%s%d_%s%ddelins%s",
-						seq.AAName(aa1[0], AA_SHORT),
-						start-1,
-						seq.AAName(aa1[len(aa1)-1], AA_SHORT),
-						end1-1,
-						seq.AAName(aa2, AA_SHORT))
+					anno.NAChange = fmt.Sprintf("c.%d_%dins%s", start-1, start, alt)
 				}
-			} else {
-				if start < len(protein) {
-					anno.Event = "ins_frameshift"
-					var fs string
-					fsi := strings.IndexByte(nprotein[start-1:], '*')
-					if fsi == -1 {
-						fs = "?"
+				start, end1, end2 := seq.Difference(protein, nprotein)
+				aa1 := protein[start-1 : end1]
+				aa2 := nprotein[start-1 : end2]
+				if len(snv.Alt)%3 == 0 {
+					anno.Event = "ins_nonframeshift"
+					if len(aa1) == 0 {
+						anno.AAChange = fmt.Sprintf(
+							"p.%s%d_%s%dins%s",
+							seq.AAName(protein[start-2], AA_SHORT),
+							start-1,
+							seq.AAName(protein[start-1], AA_SHORT),
+							start,
+							seq.AAName(aa2, AA_SHORT),
+						)
+					} else if len(aa1) == 1 {
+						anno.AAChange = fmt.Sprintf("p.%s%ddelins%s", seq.AAName(aa1, AA_SHORT), start-1, seq.AAName(aa2, AA_SHORT))
+					} else {
+						anno.AAChange = fmt.Sprintf(
+							"p.%s%d_%s%ddelins%s",
+							seq.AAName(aa1[0], AA_SHORT),
+							start-1,
+							seq.AAName(aa1[len(aa1)-1], AA_SHORT),
+							end1-1,
+							seq.AAName(aa2, AA_SHORT))
 					}
-					if fsi != 0 {
-						fs = fmt.Sprintf("%d", fsi+1)
+				} else {
+					if start < len(protein) {
+						anno.Event = "ins_frameshift"
+						var fs string
+						fsi := strings.IndexByte(nprotein[start-1:], '*')
+						if fsi == -1 {
+							fs = "?"
+						}
+						if fsi != 0 {
+							fs = fmt.Sprintf("%d", fsi+1)
+						}
+						anno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", seq.AAName(aa1[0], AA_SHORT), start, seq.AAName(aa2[0], AA_SHORT), fs)
 					}
-					anno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", seq.AAName(aa1[0], AA_SHORT), start, seq.AAName(aa2[0], AA_SHORT), fs)
 				}
 			}
 		}
