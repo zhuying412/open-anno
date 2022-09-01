@@ -10,6 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type IAny2AnyParam interface {
+	Valid() error
+	Run() error
+}
+
 type Any2AnyParam struct {
 	Input string `validate:"required"`
 	Ouput string `validate:"required"`
@@ -42,13 +47,24 @@ func (this VCF2AnnoInputParam) Run() error {
 
 type TriosVCF2AnnoInputParam struct {
 	Any2AnyParam
-	Proband string `validate:"required"`
-	Mother  string `validate:"required"`
-	Father  string `validate:"required"`
+	TriosSamples []string `validate:"required"`
 }
 
 func (this TriosVCF2AnnoInputParam) Run() error {
-	variants, err := io.ReadTriosVCF(this.Input, this.Proband, this.Mother, this.Father)
+	variants, err := io.ReadTriosVCF(this.Input, this.TriosSamples[0], this.TriosSamples[1], this.TriosSamples[2])
+	if err != nil {
+		return err
+	}
+	return io.WriteVariants(variants, this.Ouput)
+}
+
+type McVCF2AnnoInputParam struct {
+	Any2AnyParam
+	McSamples []string `validate:"required"`
+}
+
+func (this McVCF2AnnoInputParam) Run() error {
+	variants, err := io.ReadMcVCF(this.Input, this.McSamples[0], this.McSamples[1])
 	if err != nil {
 		return err
 	}
@@ -60,46 +76,34 @@ func NewVCF2AnnoInputCmd() *cobra.Command {
 		Use:   "vcf2ai",
 		Short: "Convert SNV VCF to AnnoInput",
 		Run: func(cmd *cobra.Command, args []string) {
-			is_trios, _ := cmd.Flags().GetBool("trios")
-			if is_trios {
-				var param TriosVCF2AnnoInputParam
-				param.Input, _ = cmd.Flags().GetString("vcf")
-				param.Ouput, _ = cmd.Flags().GetString("avinput")
-				param.Proband, _ = cmd.Flags().GetString("mother")
-				param.Father, _ = cmd.Flags().GetString("father")
-				param.Mother, _ = cmd.Flags().GetString("mother")
-				err := param.Valid()
-				if err != nil {
-					cmd.Help()
-					log.Fatal(err)
-				}
-				err = param.Run()
-				if err != nil {
-					log.Fatal(err)
-				}
+			triosSamples, _ := cmd.Flags().GetStringArray("trios")
+			mcSamples, _ := cmd.Flags().GetStringArray("mother_child")
+			var param IAny2AnyParam
+			var baseParam Any2AnyParam
+			baseParam.Input, _ = cmd.Flags().GetString("vcf")
+			baseParam.Ouput, _ = cmd.Flags().GetString("avinput")
+			if len(triosSamples) > 0 {
+				param = TriosVCF2AnnoInputParam{Any2AnyParam: baseParam, TriosSamples: triosSamples}
+			} else if len(mcSamples) > 0 {
+				param = McVCF2AnnoInputParam{Any2AnyParam: baseParam, McSamples: mcSamples}
 			} else {
-				var param VCF2AnnoInputParam
-				param.Input, _ = cmd.Flags().GetString("vcf")
-				param.Ouput, _ = cmd.Flags().GetString("avinput")
-				err := param.Valid()
-				if err != nil {
-					cmd.Help()
-					log.Fatal(err)
-				}
-				err = param.Run()
-				if err != nil {
-					log.Fatal(err)
-				}
+				param = TriosVCF2AnnoInputParam{Any2AnyParam: baseParam}
 			}
-
+			err := param.Valid()
+			if err != nil {
+				cmd.Help()
+				log.Fatal(err)
+			}
+			err = param.Run()
+			if err != nil {
+				log.Fatal(err)
+			}
 		},
 	}
 	cmd.Flags().StringP("vcf", "i", "", "VCF File")
 	cmd.Flags().StringP("avinput", "o", "", "AVINPUT File")
-	cmd.Flags().BoolP("trios", "t", false, "Is Trios VCF or not")
-	cmd.Flags().StringP("proband", "p", "", "Proband Sample Name, -t required")
-	cmd.Flags().StringP("father", "f", "", "Father Sample Name, -t required")
-	cmd.Flags().StringP("mother", "m", "", "Mother Sample Name, -t required")
+	cmd.Flags().StringArrayP("trios", "t", []string{}, "Trios Samples, the order must be Proband, Mother, Father")
+	cmd.Flags().StringArrayP("mother_child", "m", []string{}, "Mother & Child Samples, the order must be Proband, Mother")
 	return cmd
 }
 

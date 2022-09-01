@@ -154,6 +154,7 @@ func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcr
 		if trans.TxStart <= snv.End && trans.TxEnd >= snv.Start {
 			var anno TransAnno
 			if trans.IsUnk() {
+				anno = NewTransAnno(trans)
 				anno.Region = "ncRNA"
 				transAnnos = append(transAnnos, anno)
 			} else {

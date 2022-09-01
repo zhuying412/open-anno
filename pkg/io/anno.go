@@ -22,7 +22,7 @@ func (this AnnoResultScanner) Header() string {
 
 func (this AnnoResultScanner) FillDot() string {
 	var buffer bytes.Buffer
-	for i, _ := range this.FieldNames {
+	for i := range this.FieldNames {
 		if i == 0 {
 			buffer.WriteString(".")
 		} else {

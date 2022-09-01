@@ -102,7 +102,6 @@ func NewAnnoCmd(use, varType, dbType string) *cobra.Command {
 				}
 			}
 			param.Bind(cmd.Flags())
-			fmt.Println(param)
 			err := param.Valid()
 			if err != nil {
 				cmd.Help()

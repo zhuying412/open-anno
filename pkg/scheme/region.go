@@ -24,14 +24,13 @@ type Region struct {
 }
 
 func (this *Region) Name() string {
-	if !IS_EXON_REGION {
-		if this.Order == 0 {
-			return this.Type
-		}
-		return fmt.Sprintf("%s%d", this.Type, this.Order)
+	if IS_EXON_REGION && this.Type == RType_CDS {
+		return this.Exon
 	}
-	return this.Exon
-
+	if this.Order == 0 {
+		return this.Type
+	}
+	return fmt.Sprintf("%s%d", this.Type, this.Order)
 }
 
 func (this Region) Equal(r Region) bool {

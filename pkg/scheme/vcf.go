@@ -97,6 +97,24 @@ func (this VCFVariant) Variant() Variant {
 
 type VCFVariants []IVCFVariant
 
+type McVCFVariant struct {
+	VCFVariant
+	MInfo VCFInfo `json:"MINFO"`
+}
+
+func (this McVCFVariant) InfoText() string {
+	return fmt.Sprintf("%s;%s",
+		this.VCFVariant.InfoText(),
+		this.MInfo.Text("M"),
+	)
+}
+
+func (this McVCFVariant) Variant() Variant {
+	variant := this.Variant()
+	variant.Otherinfo = this.InfoText()
+	return variant
+}
+
 type TriosVCFVariant struct {
 	VCFVariant
 	MInfo VCFInfo `json:"MINFO"`
@@ -107,7 +125,7 @@ func (this TriosVCFVariant) InfoText() string {
 	return fmt.Sprintf("%s;%s;%s",
 		this.VCFVariant.InfoText(),
 		this.MInfo.Text("M"),
-		this.FInfo.Text("M"),
+		this.FInfo.Text("F"),
 	)
 }
 
