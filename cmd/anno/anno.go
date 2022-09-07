@@ -6,6 +6,7 @@ import (
 	"log"
 	"open-anno/cmd/pre"
 	"open-anno/pkg/seq"
+	"os"
 	"path"
 
 	"github.com/go-playground/validator/v10"
@@ -23,6 +24,16 @@ var (
 	DType_F string = "FilterBased"
 	DType_R string = "RegionBased"
 )
+
+func CheckPathsExists(fl validator.FieldLevel) bool {
+	for _, path := range fl.Field().Interface().([]string) {
+		_, err := os.Stat(path)
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
+}
 
 type IAnnoParam interface {
 	Bind(*pflag.FlagSet)

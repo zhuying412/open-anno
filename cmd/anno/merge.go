@@ -4,26 +4,16 @@ import (
 	"log"
 	"open-anno/cmd/pre"
 	"open-anno/pkg/io"
-	"os"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
 
-func CheckPathsExists(fl validator.FieldLevel) bool {
-	for _, path := range fl.Field().Interface().([]string) {
-		_, err := os.Stat(path)
-		if os.IsNotExist(err) {
-			return false
-		}
-	}
-	return true
-}
-
 type MergeParam struct {
-	AnnoInput   string   `validate:"required,pathexists"`
-	AnnoOutputs []string `validate:"required,pathsexists"`
-	Output      string   `validate:"required"`
+	AnnoInput    string   `validate:"required,pathexists"`
+	AnnoGBOutput string   `validate:"required,pathexists"`
+	AnnoOutputs  []string `validate:"required,pathsexists"`
+	Output       string   `validate:"required"`
 }
 
 func (this MergeParam) Valid() error {
@@ -38,7 +28,7 @@ func (this MergeParam) Valid() error {
 }
 
 func (this MergeParam) Run() error {
-	return io.MergeAnnoResult(this.Output, this.AnnoInput, this.AnnoOutputs...)
+	return io.MergeAnnoResult(this.Output, this.AnnoInput, this.AnnoGBOutput, this.AnnoOutputs...)
 }
 
 func NewMergeCmd() *cobra.Command {
@@ -47,8 +37,9 @@ func NewMergeCmd() *cobra.Command {
 		Short: "Merge Annotation",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param MergeParam
-			param.AnnoInput, _ = cmd.Flags().GetString("annoInput")
-			param.AnnoOutputs, _ = cmd.Flags().GetStringArray("annoOutputs")
+			param.AnnoInput, _ = cmd.Flags().GetString("input")
+			param.AnnoGBOutput, _ = cmd.Flags().GetString("gbanno")
+			param.AnnoOutputs, _ = cmd.Flags().GetStringArray("annos")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -61,8 +52,9 @@ func NewMergeCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("annoInput", "i", "", "Annotated Variants Input File")
-	cmd.Flags().StringArrayP("annoOutputs", "d", []string{}, "FilterBased or RegionBased Annotation Files")
+	cmd.Flags().StringP("input", "i", "", "Annotated Variants Input File")
+	cmd.Flags().StringP("gbanno", "g", "", "Annotate Result File of GeneBased")
+	cmd.Flags().StringArrayP("annos", "d", []string{}, "FilterBased or RegionBased Annotation Files")
 	cmd.Flags().StringP("output", "o", "", "Output Merged Annotation File")
 	return cmd
 }

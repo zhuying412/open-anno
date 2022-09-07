@@ -39,6 +39,29 @@ func NewAnnoResultScanner(reader Reader) AnnoResultScanner {
 	return AnnoResultScanner{Scanner: scanner, FieldNames: fieldNames}
 }
 
+type AnnoResultScanners []AnnoResultScanner
+
+func (this AnnoResultScanners) Header() string {
+	fieldNames := make([]string, 0)
+	for _, scanner := range this {
+		fieldNames = append(fieldNames, scanner.FieldNames...)
+	}
+	return strings.Join(fieldNames, "\t")
+}
+
+func (this AnnoResultScanners) Results() []map[string]string {
+	results := make([]map[string]string, len(this))
+	for i, scanner := range this {
+		result := make(map[string]string)
+		for scanner.Scan() {
+			row := scanner.Row()
+			result[row.ID] = row.Text
+		}
+		results[i] = result
+	}
+	return results
+}
+
 func (this AnnoResultScanner) Row() AnnoResult {
 	fields := strings.Split(this.Text(), "\t")
 	return AnnoResult{
@@ -47,15 +70,14 @@ func (this AnnoResultScanner) Row() AnnoResult {
 	}
 }
 
-func MergeAnnoResult(outfile, annoInput string, annoOuputs ...string) error {
+func MergeAnnoResult(outfile, annoInput, annoGBOutput string, annoOuputs ...string) error {
 	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
-	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t")
-	scanners := make([]AnnoResultScanner, len(annoOuputs))
-	for i, annoOutput := range annoOuputs {
+	scanners := make(AnnoResultScanners, len(annoOuputs)+1)
+	for i, annoOutput := range append(annoOuputs, annoInput) {
 		reader, err := NewIoReader(annoOutput)
 		if err != nil {
 			return err
@@ -63,27 +85,18 @@ func MergeAnnoResult(outfile, annoInput string, annoOuputs ...string) error {
 		defer reader.Close()
 		scanner := NewAnnoResultScanner(reader)
 		scanners[i] = scanner
-		fmt.Fprintf(writer, strings.Join(scanner.FieldNames, "\t"))
 	}
-	fmt.Fprint(writer, "\tOtherInfo\n")
-	results := make([]map[string]string, len(scanners))
-	for _, scanner := range scanners {
-		result := make(map[string]string)
-		for scanner.Scan() {
-			row := scanner.Row()
-			result[row.ID] = row.Text
-		}
-		results = append(results, result)
-	}
-	reader, err := NewIoReader(annoInput)
+	results := scanners.Results()
+	reader, err := NewIoReader(annoGBOutput)
 	if err != nil {
 		return err
 	}
 	defer reader.Close()
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\n", scanners.Header())
 	scanner := NewAnnoResultScanner(reader)
 	for scanner.Scan() {
 		row := scanner.Row()
-		fmt.Fprint(writer, row.ID)
+		fmt.Fprint(writer, scanner.Text())
 		for i, result := range results {
 			if text, ok := result[row.ID]; ok {
 				fmt.Fprintf(writer, "\t%s", text)
@@ -91,7 +104,7 @@ func MergeAnnoResult(outfile, annoInput string, annoOuputs ...string) error {
 				fmt.Fprintf(writer, "\t%s", scanners[i].FillDot())
 			}
 		}
-		fmt.Fprintf(writer, "\t%s\n", row.Text)
+		fmt.Fprint(writer, "\n")
 	}
 	return nil
 }
