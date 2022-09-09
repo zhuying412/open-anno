@@ -129,6 +129,7 @@ func NewAnnoCmd(use, varType, dbType string) *cobra.Command {
 	if varType == VType_SNV && dbType == DType_G {
 		cmd.Flags().BoolP("aashort", "s", false, "Database Builder")
 		cmd.Flags().BoolP("exon", "e", false, "Output ExonOrder Instead of TypeOrder")
+		cmd.Flags().BoolP("with_aggs", "a", false, "With Aggregated")
 	}
 	if dbType == DType_R {
 		cmd.Flags().Float64P("overlap", "p", 0.75, "CNV Overlap Threshold")

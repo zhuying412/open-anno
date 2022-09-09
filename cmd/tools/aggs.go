@@ -2,8 +2,8 @@ package tools
 
 import (
 	"log"
+	"open-anno/anno/gene/snv"
 	"open-anno/cmd/pre"
-	"open-anno/pkg/io"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
@@ -26,7 +26,7 @@ func (this AggsParam) Valid() error {
 }
 
 func (this AggsParam) Run() error {
-	return io.AggsSnvGBAnno(this.AnnoGBOutput, this.DBname, this.Output)
+	return snv.AggsTransAnno(this.AnnoGBOutput, this.DBname, this.Output)
 }
 
 func NewAggsCmd() *cobra.Command {

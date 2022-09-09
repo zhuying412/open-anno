@@ -1,9 +1,11 @@
 package anno
 
 import (
+	"log"
 	"open-anno/anno/db"
 	"open-anno/anno/gene/snv"
 	"open-anno/pkg/schema"
+	"os"
 	"path"
 
 	"github.com/spf13/pflag"
@@ -11,8 +13,9 @@ import (
 
 type AnnoSnvGBParam struct {
 	AnnoParam
-	AAshort bool
-	Exon    bool
+	AAshort  bool
+	Exon     bool
+	WithAggs bool
 }
 
 func (this AnnoSnvGBParam) Mrna() string {
@@ -25,6 +28,7 @@ func (this AnnoSnvGBParam) GeneData() (snv.GeneData, error) {
 
 func (this *AnnoSnvGBParam) Bind(flagSet *pflag.FlagSet) {
 	this.AnnoParam.Bind(flagSet)
+	this.WithAggs, _ = flagSet.GetBool("with_aggs")
 	this.AAshort, _ = flagSet.GetBool("aashort")
 	this.Exon, _ = flagSet.GetBool("exon")
 }
@@ -38,6 +42,19 @@ func (this AnnoSnvGBParam) Run() error {
 	geneData, err := this.GeneData()
 	if err != nil {
 		return err
+	}
+	if this.WithAggs {
+		tempOutput := path.Join(path.Dir(this.Output), path.Base(this.Output))
+		err = snv.AnnoSnvs(this.Input, tempOutput, this.DBname, geneData, this.AAshort)
+		if err != nil {
+			return err
+		}
+		log.Println("Run Aggregating ...")
+		err = snv.AggsTransAnno(tempOutput, this.DBname, this.Output)
+		if err != nil {
+			return err
+		}
+		return os.Remove(tempOutput)
 	}
 	return snv.AnnoSnvs(this.Input, this.Output, this.DBname, geneData, this.AAshort)
 }
