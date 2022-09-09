@@ -1,4 +1,4 @@
-package scheme
+package schema
 
 type GeneInfo struct {
 	EntrezId string `json:"entrez_id"`

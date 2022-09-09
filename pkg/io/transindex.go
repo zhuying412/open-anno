@@ -2,21 +2,21 @@ package io
 
 import (
 	"fmt"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"sort"
 	"strings"
 )
 
-func CreateTransIndexes(transcripts scheme.Transcripts, step int, outfile string) error {
-	transIndexes := make(scheme.TransIndexes, 0)
+func CreateTransIndexes(transcripts schema.Transcripts, step int, outfile string) error {
+	transIndexes := make(schema.TransIndexes, 0)
 	for chrom, length := range seq.GENOME {
 		for start := 1; start <= length; start += step {
 			end := start + step - 1
 			if end > length {
 				end = length
 			}
-			transIndex := scheme.TransIndex{Chrom: chrom, Start: start, End: end}
+			transIndex := schema.TransIndex{Chrom: chrom, Start: start, End: end}
 			transIndexes = append(transIndexes, transIndex)
 		}
 	}
@@ -40,8 +40,8 @@ func CreateTransIndexes(transcripts scheme.Transcripts, step int, outfile string
 	return err
 }
 
-func ReadTransIndexs(dbFile string) (scheme.TransIndexes, error) {
-	indexes := make(scheme.TransIndexes, 0)
+func ReadTransIndexs(dbFile string) (schema.TransIndexes, error) {
+	indexes := make(schema.TransIndexes, 0)
 	reader, err := NewIoReader(dbFile)
 	if err != nil {
 		return indexes, err
@@ -53,7 +53,7 @@ func ReadTransIndexs(dbFile string) (scheme.TransIndexes, error) {
 		if err != nil {
 			return indexes, err
 		}
-		indexes = append(indexes, scheme.TransIndex{
+		indexes = append(indexes, schema.TransIndex{
 			Chrom:       row.Chrom,
 			Start:       row.Start,
 			End:         row.End,

@@ -3,7 +3,7 @@ package io
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"strconv"
 	"strings"
 
@@ -11,17 +11,17 @@ import (
 )
 
 type VarScanner struct {
-	Scanner[scheme.DBVar]
+	GenericsTSVScanner[schema.DBVar]
 }
 
 func NewVarScanner(reader Reader) VarScanner {
-	scanner := NewScanner[scheme.DBVar](reader)
-	return VarScanner{Scanner: scanner}
+	scanner := NewGenericsTSVScanner[schema.DBVar](reader)
+	return VarScanner{GenericsTSVScanner: scanner}
 }
 
-func (this VarScanner) Row() (scheme.Variant, error) {
+func (this VarScanner) Row() (schema.Variant, error) {
 	fields := strings.Split(this.Text(), "\t")
-	variant := scheme.Variant{
+	variant := schema.Variant{
 		Chrom:     pkg.FormatChrom(fields[0]),
 		Ref:       fields[3],
 		Alt:       fields[4],
@@ -39,8 +39,8 @@ func (this VarScanner) Row() (scheme.Variant, error) {
 	return variant, nil
 }
 
-func ReadVariantMap(annoInputFile string) (map[string]scheme.Variants, error) {
-	variants := make(map[string]scheme.Variants)
+func ReadVariantMap(annoInputFile string) (map[string]schema.Variants, error) {
+	variants := make(map[string]schema.Variants)
 	reader, err := NewIoReader(annoInputFile)
 	if err != nil {
 		return variants, err
@@ -55,14 +55,14 @@ func ReadVariantMap(annoInputFile string) (map[string]scheme.Variants, error) {
 		if rows, ok := variants[row.Chrom]; ok {
 			variants[row.Chrom] = append(rows, row)
 		} else {
-			variants[row.Chrom] = scheme.Variants{row}
+			variants[row.Chrom] = schema.Variants{row}
 		}
 	}
 	return variants, err
 }
 
-func ReadVariants(annoInputFile, vcfFile string) (scheme.Variants, error) {
-	variants := make(scheme.Variants, 0)
+func ReadVariants(annoInputFile string) (schema.Variants, error) {
+	variants := make(schema.Variants, 0)
 	reader, err := NewIoReader(annoInputFile)
 	if err != nil {
 		return variants, err
@@ -79,19 +79,20 @@ func ReadVariants(annoInputFile, vcfFile string) (scheme.Variants, error) {
 	return variants, err
 }
 
-func WriteVariants(variants scheme.Variants, outfile string) error {
+func WriteVariants(variants schema.Variants, outfile string) error {
 	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
+	fmt.Fprint(writer, "Chr\tStart\tEnd\tRef\tAlt\tOtherinfo\n")
 	for _, row := range variants {
 		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n", row.Chrom, row.Start, row.End, row.Ref, row.Alt, row.Otherinfo)
 	}
 	return err
 }
 
-func WriteVariantsToVCF(variants scheme.Variants, fai *faidx.Faidx, outfile string) error {
+func WriteVariantsToVCF(variants schema.Variants, fai *faidx.Faidx, outfile string) error {
 	writer, err := NewIoWriter(outfile)
 	if err != nil {
 		return err

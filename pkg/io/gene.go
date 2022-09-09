@@ -1,9 +1,9 @@
 package io
 
-import "open-anno/pkg/scheme"
+import "open-anno/pkg/schema"
 
-func ReadGeneInfo(infile string) (scheme.GeneInfoMap, error) {
-	geneInfo := make(scheme.GeneInfoMap)
+func ReadGeneInfo(infile string) (schema.GeneInfoMap, error) {
+	geneInfo := make(schema.GeneInfoMap)
 	reader, err := NewIoReader(infile)
 	if err != nil {
 		return geneInfo, err
@@ -15,13 +15,13 @@ func ReadGeneInfo(infile string) (scheme.GeneInfoMap, error) {
 		if err != nil {
 			return geneInfo, err
 		}
-		gene := scheme.GeneInfo{
+		gene := schema.GeneInfo{
 			Symbol:   row["Symbol"],
 			EntrezId: row["EntrezId"],
 			Chrom:    row["Chrom"],
 		}
 		if _, ok := geneInfo[gene.Chrom]; !ok {
-			geneInfo[gene.Chrom] = make(map[string]scheme.GeneInfo)
+			geneInfo[gene.Chrom] = make(map[string]schema.GeneInfo)
 		}
 		geneInfo[gene.Chrom][gene.Symbol] = gene
 

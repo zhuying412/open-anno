@@ -2,24 +2,24 @@ package snv
 
 import (
 	"fmt"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 )
 
-func findSnpRegion(regions scheme.Regions, snv scheme.Variant) (scheme.Region, int) {
+func findSnpRegion(regions schema.Regions, snv schema.Variant) (schema.Region, int) {
 	var cLen int
 	for _, region := range regions {
 		if region.Start <= snv.Start && snv.End <= region.End {
 			return region, cLen
 		}
-		if region.Type == scheme.RType_CDS {
+		if region.Type == schema.RType_CDS {
 			cLen += region.End - region.Start + 1
 		}
 	}
-	return scheme.Region{}, cLen
+	return schema.Region{}, cLen
 }
 
-func AnnoSnp(snv scheme.Variant, trans scheme.Transcript) TransAnno {
+func AnnoSnp(snv schema.Variant, trans schema.Transcript) TransAnno {
 	region, cLen := findSnpRegion(trans.Regions, snv)
 	anno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {
@@ -36,7 +36,7 @@ func AnnoSnp(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 			anno.NAChange = fmt.Sprintf("c.-%d%s>%s", snv.Start-trans.CdsEnd, seq.RevComp(snv.Ref), seq.RevComp(snv.Alt))
 		}
 	} else {
-		if region.Type == scheme.RType_INTRON {
+		if region.Type == schema.RType_INTRON {
 			dist1 := snv.Start - region.Start + 1
 			dist2 := region.End - snv.Start + 1
 			if dist1 <= 2 || dist2 <= 2 {
@@ -84,9 +84,9 @@ func AnnoSnp(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 				} else if aa1 == '*' {
 					anno.Event = "stoploss"
 				} else if aa2 == '*' {
-					anno.Event = "stopgain"
+					anno.Event = "nonsense"
 				} else {
-					anno.Event = "nonsynonymous"
+					anno.Event = "missense"
 				}
 			}
 			anno.AAChange = fmt.Sprintf("p.%s%d%s", seq.AAName(aa1, AA_SHORT), pstart, seq.AAName(aa2, AA_SHORT))

@@ -3,12 +3,10 @@ package snv
 import (
 	"fmt"
 	"log"
-	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"sort"
-	"strings"
 )
 
 var AA_SHORT = false
@@ -17,11 +15,11 @@ type TransAnno struct {
 	Gene       string `json:"gene"`
 	GeneID     string `json:"gene_id"`
 	Transcript string `json:"transcript"`
-	Region     string `json:"region"`
+	Region     string `json:"region"` // such as: exonic, intronic
 	NAChange   string `json:"na_change"`
 	AAChange   string `json:"aa_change"`
 	Event      string `json:"event"`
-	Region2    string `json:"region2"`
+	Region2    string `json:"region2"` // such as: CDS1, exon1, intron1
 }
 
 func (this TransAnno) Detail() string {
@@ -35,13 +33,13 @@ func (this TransAnno) Detail() string {
 	return detail
 }
 
-func NewTransAnno(trans scheme.Transcript, regions ...scheme.Region) TransAnno {
+func NewTransAnno(trans schema.Transcript, regions ...schema.Region) TransAnno {
 	anno := TransAnno{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
 		Transcript: trans.Name,
 	}
-	nregions := make(scheme.Regions, 0)
+	nregions := make(schema.Regions, 0)
 	for _, region := range regions {
 		if region.Exists() {
 			nregions = append(nregions, region)
@@ -65,13 +63,13 @@ func NewTransAnno(trans scheme.Transcript, regions ...scheme.Region) TransAnno {
 				anno.Region2 = region2.Name()
 			}
 		}
-		if region1.Type == scheme.RType_CDS || region2.Type == scheme.RType_CDS {
+		if region1.Type == schema.RType_CDS || region2.Type == schema.RType_CDS {
 			anno.Region = "exonic"
 		} else {
-			if region1.Type == scheme.RType_UTR {
+			if region1.Type == schema.RType_UTR {
 				anno.Region = region1.Name()
 			} else {
-				if region2.Type == scheme.RType_UTR {
+				if region2.Type == schema.RType_UTR {
 					anno.Region = region2.Name()
 				} else {
 					anno.Region = "intronic"
@@ -82,71 +80,7 @@ func NewTransAnno(trans scheme.Transcript, regions ...scheme.Region) TransAnno {
 	return anno
 }
 
-type GeneAnno struct {
-	Gene    string
-	GeneID  string
-	Regions []string
-	Events  []string
-	Details []string
-}
-
-func (this *GeneAnno) AddTransAnno(transAnno TransAnno) {
-	if transAnno.Region != "" && pkg.FindArr(this.Regions, transAnno.Region) < 0 {
-		this.Regions = append(this.Regions, transAnno.Region)
-	}
-	if transAnno.Event != "" && pkg.FindArr(this.Events, transAnno.Event) < 0 {
-		this.Events = append(this.Events, transAnno.Event)
-	}
-	detail := transAnno.Detail()
-	if detail != "" && pkg.FindArr(this.Details, detail) < 0 {
-		this.Details = append(this.Details, detail)
-	}
-}
-
-func (this GeneAnno) Region() string {
-	var regions1, regions2, regions3, regions4 []string
-	for _, region := range this.Regions {
-		switch region {
-		case "exonic", "splicing", "exonic_splicing", "transcript":
-			regions1 = append(regions1, region)
-		case "ncRNA":
-			regions2 = append(regions2, region)
-		case "UTR3", "UTR5":
-			regions3 = append(regions3, region)
-		case "intronic":
-			regions4 = append(regions4, region)
-		}
-	}
-	if len(regions1) > 0 {
-		return strings.Join(regions1, ",")
-	}
-	if len(regions2) > 0 {
-		return strings.Join(regions2, ",")
-	}
-	if len(regions3) > 0 {
-		return strings.Join(regions3, ",")
-	}
-	if len(regions4) > 0 {
-		return strings.Join(regions4, ",")
-	}
-	return "."
-}
-
-func (this GeneAnno) Event() string {
-	if len(this.Events) > 0 {
-		return strings.Join(this.Events, ",")
-	}
-	return "."
-}
-
-func (this GeneAnno) Detail() string {
-	if len(this.Details) > 0 {
-		return strings.Join(this.Details, ",")
-	}
-	return "."
-}
-
-func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcripts) map[string]GeneAnno {
+func AnnoSnv(snv schema.Variant, transNames []string, transcripts schema.Transcripts) []TransAnno {
 	// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
 	var transAnnos []TransAnno
 	for _, transName := range transNames {
@@ -158,11 +92,11 @@ func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcr
 				anno.Region = "ncRNA"
 				transAnnos = append(transAnnos, anno)
 			} else {
-				if snv.Type() == scheme.VType_SNP {
+				if snv.Type() == schema.VType_SNP {
 					anno = AnnoSnp(snv, trans)
-				} else if snv.Type() == scheme.VType_INS {
+				} else if snv.Type() == schema.VType_INS {
 					anno = AnnoIns(snv, trans)
-				} else if snv.Type() == scheme.VType_DEL {
+				} else if snv.Type() == schema.VType_DEL {
 					anno = AnnoDel(snv, trans)
 				} else {
 					anno = AnnoSub(snv, trans)
@@ -171,22 +105,7 @@ func AnnoSnv(snv scheme.Variant, transNames []string, transcripts scheme.Transcr
 			}
 		}
 	}
-	geneAnnos := make(map[string]GeneAnno)
-	for _, transAnno := range transAnnos {
-		geneAnno, ok := geneAnnos[transAnno.Gene]
-		if !ok {
-			geneAnno = GeneAnno{
-				Gene:   transAnno.Gene,
-				GeneID: transAnno.GeneID,
-			}
-			if geneAnno.GeneID == "" {
-				geneAnno.GeneID = "."
-			}
-		}
-		geneAnno.AddTransAnno(transAnno)
-		geneAnnos[transAnno.Gene] = geneAnno
-	}
-	return geneAnnos
+	return transAnnos
 }
 
 func AnnoSnvs(avinput, output, dbname string, geneData GeneData, aashort bool) error {
@@ -222,29 +141,33 @@ func AnnoSnvs(avinput, output, dbname string, geneData GeneData, aashort bool) e
 			}
 			sort.Sort(snvs)
 			sort.Sort(transIndexes)
-			results := make(map[string]map[string]GeneAnno)
 			for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
 				if snvs[i].End < transIndexes[j].Start {
 					i++
 				} else if snvs[i].Start > transIndexes[j].End {
 					j++
 				} else {
-					results[snvs[i].ID()] = AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
-					i++
-				}
-			}
-			for _, snv := range snvs {
-				if geneAnnos, ok := results[snv.ID()]; ok {
-					for _, geneAnno := range geneAnnos {
+					chrom, start, end, ref, alt := snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt
+					transAnnos := AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
+					for _, transAnno := range transAnnos {
+						gene, geneId, event, region, detail := transAnno.Gene, transAnno.GeneID, transAnno.Event, transAnno.Region, transAnno.Detail()
+						if geneId == "" {
+							geneId = "."
+						}
+						if event == "" {
+							event = "."
+						}
+						if region == "" {
+							region = "."
+						}
+						if detail == "" {
+							detail = "."
+						}
 						fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-							snv.Chrom, snv.Start, snv.End, snv.Ref, snv.Alt,
-							geneAnno.Gene, geneAnno.GeneID, geneAnno.Event(), geneAnno.Region(), geneAnno.Detail(),
+							chrom, start, end, ref, alt, gene, geneId, event, region, detail,
 						)
 					}
-				} else {
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t.\t.\t.\t.\t.\n",
-						snv.Chrom, snv.Start, snv.End, snv.Ref, snv.Alt,
-					)
+					i++
 				}
 			}
 		}

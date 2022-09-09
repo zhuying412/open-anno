@@ -92,8 +92,8 @@ func MergeAnnoResult(outfile, annoInput, annoGBOutput string, annoOuputs ...stri
 		return err
 	}
 	defer reader.Close()
-	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\n", scanners.Header())
 	scanner := NewAnnoResultScanner(reader)
+	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\t%s\n", scanner.Header(), scanners.Header())
 	for scanner.Scan() {
 		row := scanner.Row()
 		fmt.Fprint(writer, scanner.Text())

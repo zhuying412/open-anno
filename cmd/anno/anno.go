@@ -42,15 +42,11 @@ type IAnnoParam interface {
 }
 
 type AnnoParam struct {
-	Input     string `validate:"required,pathexists"`
-	DBpath    string `validate:"required,pathexists"`
-	DBname    string `validate:"required"`
-	Builder   string `validate:"required"`
-	OutPrefix string `validate:"required"`
-}
-
-func (this AnnoParam) Output() string {
-	return fmt.Sprintf("%s.%s.anno.txt", this.OutPrefix, this.DBname)
+	Input   string `validate:"required,pathexists"`
+	DBpath  string `validate:"required,pathexists"`
+	DBname  string `validate:"required"`
+	Builder string `validate:"required"`
+	Output  string `validate:"required"`
 }
 
 func (this AnnoParam) DBFile() string {
@@ -67,7 +63,7 @@ func (this AnnoParam) GeneInfo() string {
 
 func (this *AnnoParam) Bind(flagSet *pflag.FlagSet) {
 	this.Input, _ = flagSet.GetString("avinput")
-	this.OutPrefix, _ = flagSet.GetString("outprefix")
+	this.Output, _ = flagSet.GetString("output")
 	this.DBpath, _ = flagSet.GetString("dbpath")
 	this.Builder, _ = flagSet.GetString("builder")
 	this.DBname, _ = flagSet.GetString("dbname")
@@ -126,7 +122,7 @@ func NewAnnoCmd(use, varType, dbType string) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("avinput", "i", "", "Annotated Variants Input File")
-	cmd.Flags().StringP("outprefix", "o", "", "Output Prefix")
+	cmd.Flags().StringP("output", "o", "", "Output File")
 	cmd.Flags().StringP("dbpath", "d", "", "Database Directory")
 	cmd.Flags().StringP("dbname", "n", "", "Database Names")
 	cmd.Flags().StringP("builder", "b", "hg38", "Database Builder")

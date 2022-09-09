@@ -2,25 +2,25 @@ package io
 
 import (
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"strconv"
 	"strings"
 )
 
 type DBRegScanner struct {
-	Scanner[scheme.DBReg]
+	Scanner[schema.DBReg]
 	FieldName string
 }
 
 func NewDBRegScanner(reader Reader) DBRegScanner {
-	scanner := NewScanner[scheme.DBReg](reader)
+	scanner := NewScanner[schema.DBReg](reader)
 	scanner.Scan()
 	return DBRegScanner{Scanner: scanner, FieldName: strings.Split(scanner.Text(), "\t")[3]}
 }
 
-func (this DBRegScanner) Row() (scheme.DBReg, error) {
+func (this DBRegScanner) Row() (schema.DBReg, error) {
 	fields := strings.Split(this.Text(), "\t")
-	dbreg := scheme.DBReg{
+	dbreg := schema.DBReg{
 		Chrom: pkg.FormatChrom(fields[0]),
 		Info:  fields[3],
 	}

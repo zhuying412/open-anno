@@ -87,7 +87,7 @@ func NewVCF2AnnoInputCmd() *cobra.Command {
 			} else if len(mcSamples) > 0 {
 				param = McVCF2AnnoInputParam{Any2AnyParam: baseParam, McSamples: mcSamples}
 			} else {
-				param = TriosVCF2AnnoInputParam{Any2AnyParam: baseParam}
+				param = VCF2AnnoInputParam{Any2AnyParam: baseParam}
 			}
 			err := param.Valid()
 			if err != nil {
@@ -117,7 +117,7 @@ func (this Av2VcfParam) Run() error {
 	if err != nil {
 		return err
 	}
-	variants, err := io.ReadVariants(this.Input, this.Ouput)
+	variants, err := io.ReadVariants(this.Input)
 	if err != nil {
 		return err
 	}

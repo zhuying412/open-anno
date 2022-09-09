@@ -6,7 +6,7 @@ import (
 	"log"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"os"
 	"path"
@@ -66,7 +66,7 @@ func (this PreGBParam) Valid() error {
 	return nil
 }
 
-func (this PreGBParam) CreateAndIndexmRNA(transcripts scheme.Transcripts) error {
+func (this PreGBParam) CreateAndIndexmRNA(transcripts schema.Transcripts) error {
 	log.Printf("Write and Index mRNA: %s ...", this.OutmRNA())
 	log.Printf("Read genome: %s ...", this.Genome)
 	fai, err := faidx.New(this.Genome)
@@ -76,13 +76,13 @@ func (this PreGBParam) CreateAndIndexmRNA(transcripts scheme.Transcripts) error 
 	return io.CreateAndIndexmRNA(transcripts, fai, this.OutmRNA())
 }
 
-func (this PreGBParam) CreateTransIndex(transcripts scheme.Transcripts) error {
+func (this PreGBParam) CreateTransIndex(transcripts schema.Transcripts) error {
 	log.Printf("Write Transcript Index: %s ...", this.OutTransIndex())
 	return io.CreateTransIndexes(transcripts, this.IndexStep, this.OutTransIndex())
 }
 
-func (this PreGBParam) CreateAndReadRefgene() (scheme.Transcripts, error) {
-	var transcripts scheme.Transcripts
+func (this PreGBParam) CreateAndReadRefgene() (schema.Transcripts, error) {
+	var transcripts schema.Transcripts
 	log.Printf("Create refgene to %s ...", this.OutGenePred())
 	reader, err := io.NewIoReader(this.GenePred)
 	if err != nil {

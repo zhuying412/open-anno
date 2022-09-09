@@ -1,7 +1,8 @@
-package anno
+package tools
 
 import (
 	"log"
+	"open-anno/cmd/anno"
 	"open-anno/cmd/pre"
 	"open-anno/pkg/io"
 
@@ -18,7 +19,7 @@ type MergeParam struct {
 
 func (this MergeParam) Valid() error {
 	validate := validator.New()
-	validate.RegisterValidation("pathsexists", CheckPathsExists)
+	validate.RegisterValidation("pathsexists", anno.CheckPathsExists)
 	validate.RegisterValidation("pathexists", pre.CheckPathExists)
 	err := validate.Struct(this)
 	if err != nil {

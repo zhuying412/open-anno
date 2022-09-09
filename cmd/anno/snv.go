@@ -3,7 +3,7 @@ package anno
 import (
 	"open-anno/anno/db"
 	"open-anno/anno/gene/snv"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"path"
 
 	"github.com/spf13/pflag"
@@ -30,7 +30,7 @@ func (this *AnnoSnvGBParam) Bind(flagSet *pflag.FlagSet) {
 }
 
 func (this AnnoSnvGBParam) Valid() error {
-	scheme.IS_EXON_REGION = this.Exon
+	schema.IS_EXON_REGION = this.Exon
 	return this.AnnoParam.Valid()
 }
 
@@ -39,7 +39,7 @@ func (this AnnoSnvGBParam) Run() error {
 	if err != nil {
 		return err
 	}
-	return snv.AnnoSnvs(this.Input, this.Output(), this.DBname, geneData, this.AAshort)
+	return snv.AnnoSnvs(this.Input, this.Output, this.DBname, geneData, this.AAshort)
 }
 
 type AnnoSnvFBParam struct {
@@ -47,7 +47,7 @@ type AnnoSnvFBParam struct {
 }
 
 func (this AnnoSnvFBParam) Run() error {
-	return db.AnnoFilterBased(this.Input, this.DBFile(), this.Output())
+	return db.AnnoFilterBased(this.Input, this.DBFile(), this.Output)
 }
 
 type AnnoSnvRBParam struct {
@@ -61,5 +61,5 @@ func (this *AnnoSnvRBParam) Bind(flagSet *pflag.FlagSet) {
 }
 
 func (this AnnoSnvRBParam) Run() error {
-	return db.AnnoRegionBased(this.Input, this.DBFile(), this.Output(), this.Overlap)
+	return db.AnnoRegionBased(this.Input, this.DBFile(), this.Output, this.Overlap)
 }

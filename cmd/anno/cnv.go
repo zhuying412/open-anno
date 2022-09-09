@@ -17,7 +17,7 @@ func (this AnnoCnvGBParam) Run() error {
 	if err != nil {
 		return err
 	}
-	return cnv.AnnoCnvs(this.Input, this.Output(), this.DBname, geneData)
+	return cnv.AnnoCnvs(this.Input, this.Output, this.DBname, geneData)
 }
 
 type AnnoCnvRBParam struct {

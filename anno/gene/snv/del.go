@@ -3,43 +3,43 @@ package snv
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"strings"
 )
 
-func getDelCLen(trans scheme.Transcript, snv scheme.Variant) (int, int, scheme.Region, scheme.Region, bool) {
+func getDelCLen(trans schema.Transcript, snv schema.Variant) (int, int, schema.Region, schema.Region, bool) {
 	var cStart, cEnd int
-	var region1, region2 scheme.Region
+	var region1, region2 schema.Region
 	var hasCDS, hasIntron bool
 	for _, region := range trans.Regions {
 		if region.End < snv.Start {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				cStart += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.Start && snv.Start <= region.End {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				cStart += snv.Start - region.Start + 1
 			}
 			region1 = region
 		}
 		if region.End < snv.End {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				cEnd += region.End - region.Start + 1
 			}
 		}
 		if region.Start <= snv.End && snv.End <= region.End {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				cEnd += snv.End - region.Start + 1
 			}
 			region2 = region
 		}
 		if region.Start <= snv.End && region.End >= snv.Start {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				hasCDS = true
 			}
-			if region.Type == scheme.RType_INTRON {
+			if region.Type == schema.RType_INTRON {
 				hasIntron = true
 			}
 		}
@@ -48,7 +48,7 @@ func getDelCLen(trans scheme.Transcript, snv scheme.Variant) (int, int, scheme.R
 	return cStart, cEnd, region1, region2, hasCDS && hasIntron
 }
 
-func setDelAAChange(anno TransAnno, trans scheme.Transcript, cstart int, cend int) TransAnno {
+func setDelAAChange(anno TransAnno, trans schema.Transcript, cstart int, cend int) TransAnno {
 	cdna := trans.CDNA()
 	ncdna := seq.Delete(cdna, cstart, cend)
 	if trans.Strand == "-" {
@@ -71,7 +71,7 @@ func setDelAAChange(anno TransAnno, trans scheme.Transcript, cstart int, cend in
 	aa1 := protein[start-1 : end1]
 	aa2 := nprotein[start-1 : end2]
 	if (len(cdna)-len(ncdna))%3 == 0 {
-		anno.Event = "del_nonframeshift"
+		anno.Event = "del_inframe"
 		if len(aa2) == 0 {
 			if len(aa1) == 1 {
 				anno.AAChange = fmt.Sprintf("p.%s%ddel", seq.AAName(aa1, AA_SHORT), start)
@@ -120,7 +120,7 @@ func setDelAAChange(anno TransAnno, trans scheme.Transcript, cstart int, cend in
 	return anno
 }
 
-func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
+func AnnoDel(snv schema.Variant, trans schema.Transcript) TransAnno {
 	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)
@@ -191,7 +191,7 @@ func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 		}
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := snv.End - trans.CdsStart + 1 + l
-		if region2.Type == scheme.RType_CDS {
+		if region2.Type == schema.RType_CDS {
 			// ...+++,,,+++...
 			//  |--|
 			//|----|
@@ -231,7 +231,7 @@ func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 		anno = setDelAAChange(anno, trans, 1, cEnd)
 	} else if trans.CdsStart > snv.Start && trans.CdsStart <= snv.End && trans.CdsEnd >= snv.End {
 		ll := trans.CdsEnd - snv.End + 1 + r
-		if region1.Type == scheme.RType_CDS {
+		if region1.Type == schema.RType_CDS {
 			// ...,,,+++...
 			//        |--|
 			//        |----|
@@ -274,7 +274,7 @@ func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 
 	} else {
 		if region1.Equal(region2) {
-			if region1.Type == scheme.RType_CDS {
+			if region1.Type == schema.RType_CDS {
 				// ...++++++,,,...
 				//     |--|
 				anno = setDelAAChange(anno, trans, cStart, cEnd)
@@ -305,8 +305,8 @@ func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 				}
 			}
 		} else {
-			if region1.Type == scheme.RType_CDS {
-				if region2.Type != scheme.RType_CDS {
+			if region1.Type == schema.RType_CDS {
+				if region2.Type != schema.RType_CDS {
 					// ...+++,,,+++...
 					//     |--|
 					if trans.Strand == "+" {
@@ -317,7 +317,7 @@ func AnnoDel(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 				}
 				anno = setDelAAChange(anno, trans, cStart, cEnd)
 			} else {
-				if region2.Type == scheme.RType_CDS {
+				if region2.Type == schema.RType_CDS {
 					// ...+++,,,+++...
 					//        |--|
 					if trans.Strand == "+" {

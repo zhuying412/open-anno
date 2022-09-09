@@ -1,4 +1,4 @@
-package scheme
+package schema
 
 import (
 	"bytes"
@@ -68,20 +68,23 @@ func (this Transcript) IsUnk() bool {
 	return this.CdsEnd-this.CdsStart+1 == 0
 }
 
-func (this *Transcript) SetRegions(geneInfoMap GeneInfoMap) error {
+func (this *Transcript) SetGeneID(geneInfoMap GeneInfoMap) {
+	if geneInfo, ok := geneInfoMap[this.Chrom][this.Gene]; ok {
+		this.GeneID = geneInfo.EntrezId
+	}
+}
+
+func (this *Transcript) SetRegions() error {
 	var err error
 	this.Regions, err = NewRegions(*this)
 	if err != nil {
 		return err
 	}
-	if geneInfo, ok := geneInfoMap[this.Chrom][this.Gene]; ok {
-		this.GeneID = geneInfo.EntrezId
-	}
 	return nil
 }
 
-func (this *Transcript) SetRegionsWithSeq(geneInfoMap GeneInfoMap, mrna *faidx.Faidx) error {
-	err := this.SetRegions(geneInfoMap)
+func (this *Transcript) SetRegionsWithSeq(mrna *faidx.Faidx) error {
+	err := this.SetRegions()
 	if err != nil {
 		return err
 	}
@@ -102,7 +105,8 @@ func (this Transcripts) FilterChrom(chrom string, geneInfoMap GeneInfoMap) (Tran
 	transcripts := make(Transcripts)
 	for sn, trans := range this {
 		if trans.Chrom == chrom {
-			err := trans.SetRegions(geneInfoMap)
+			trans.SetGeneID(geneInfoMap)
+			err := trans.SetRegions()
 			if err != nil {
 				return transcripts, err
 			}
@@ -116,7 +120,8 @@ func (this Transcripts) FilterChromWithSeq(chrom string, geneInfoMap GeneInfoMap
 	transcripts := make(Transcripts)
 	for sn, trans := range this {
 		if trans.Chrom == chrom {
-			err := trans.SetRegionsWithSeq(geneInfoMap, mrna)
+			trans.SetGeneID(geneInfoMap)
+			err := trans.SetRegionsWithSeq(mrna)
 			if err != nil {
 				return transcripts, err
 			}

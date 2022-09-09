@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"os/exec"
 	"strconv"
@@ -15,16 +15,16 @@ import (
 )
 
 type TransScanner struct {
-	Scanner[scheme.Transcript]
+	Scanner[schema.Transcript]
 }
 
 func NewTransScanner(reader Reader) TransScanner {
-	scanner := NewScanner[scheme.Transcript](reader)
+	scanner := NewScanner[schema.Transcript](reader)
 	return TransScanner{Scanner: scanner}
 }
 
-func (this TransScanner) Row() (scheme.Transcript, error) {
-	transcript := scheme.Transcript{}
+func (this TransScanner) Row() (schema.Transcript, error) {
+	transcript := schema.Transcript{}
 	fields := strings.Split(this.Text(), "\t")
 	var name, chrom, strand, txStart, txEnd, cdsStart, cdsEnd, exonCount, gene string
 	var exonStarts, exonEnds []string
@@ -99,8 +99,8 @@ func (this TransScanner) Row() (scheme.Transcript, error) {
 	return transcript, err
 }
 
-func ReadGenePred(infile string) (scheme.Transcripts, error) {
-	transcripts := make(scheme.Transcripts)
+func ReadGenePred(infile string) (schema.Transcripts, error) {
+	transcripts := make(schema.Transcripts)
 	fi, err := NewIoReader(infile)
 	if err != nil {
 		return transcripts, err
@@ -119,7 +119,7 @@ func ReadGenePred(infile string) (scheme.Transcripts, error) {
 	return transcripts, err
 }
 
-func CreateAndIndexmRNA(transcripts scheme.Transcripts, fai *faidx.Faidx, outfile string) error {
+func CreateAndIndexmRNA(transcripts schema.Transcripts, fai *faidx.Faidx, outfile string) error {
 	writer, err := NewIoWriter(outfile)
 	if err != err {
 		return err

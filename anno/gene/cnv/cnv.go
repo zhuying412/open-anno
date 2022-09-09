@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"open-anno/pkg/io"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"sort"
 	"strings"
 )
@@ -19,7 +19,7 @@ type TransAnno struct {
 	Position   string `json:"position"`
 }
 
-func NewCnvGeneBased(trans scheme.Transcript) TransAnno {
+func NewCnvGeneBased(trans schema.Transcript) TransAnno {
 	anno := TransAnno{
 		Gene:       trans.Gene,
 		GeneID:     trans.GeneID,
@@ -35,22 +35,22 @@ func NewCnvGeneBased(trans scheme.Transcript) TransAnno {
 	return anno
 }
 
-func AnnoCnv(cnv scheme.Variant, trans scheme.Transcript) TransAnno {
-	var cdss, utr3s, utr5s scheme.Regions
+func AnnoCnv(cnv schema.Variant, trans schema.Transcript) TransAnno {
+	var cdss, utr3s, utr5s schema.Regions
 	var cdsCount int
 	regions := trans.Regions
 	if trans.Strand == "-" {
 		sort.Sort(sort.Reverse(regions))
 	}
 	for _, region := range regions {
-		if region.Type == scheme.RType_CDS {
+		if region.Type == schema.RType_CDS {
 			cdsCount++
 		}
 		if cnv.Start <= region.End && cnv.End >= region.Start {
-			if region.Type == scheme.RType_CDS {
+			if region.Type == schema.RType_CDS {
 				cdss = append(cdss, region)
 			}
-			if region.Type == scheme.RType_UTR {
+			if region.Type == schema.RType_UTR {
 				if region.Order == 3 {
 					utr3s = append(utr3s, region)
 				} else {

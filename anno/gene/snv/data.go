@@ -3,23 +3,23 @@ package snv
 import (
 	"log"
 	"open-anno/pkg/io"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 
 	"github.com/brentp/faidx"
 )
 
 type GeneData struct {
-	Transcripts  scheme.Transcripts                    `json:"transcirpts"`
-	TransIndexes scheme.TransIndexes                   `json:"transindexes"`
-	GeneInfo     map[string]map[string]scheme.GeneInfo `json:"symboltoid"`
+	Transcripts  schema.Transcripts                    `json:"transcirpts"`
+	TransIndexes schema.TransIndexes                   `json:"transindexes"`
+	GeneInfo     map[string]map[string]schema.GeneInfo `json:"symboltoid"`
 	MrnaFaidx    *faidx.Faidx                          `json:"mrna"`
 }
 
-func (this GeneData) FilterTranscripts(chrom string) (scheme.Transcripts, error) {
+func (this GeneData) FilterTranscripts(chrom string) (schema.Transcripts, error) {
 	return this.Transcripts.FilterChromWithSeq(chrom, this.GeneInfo, this.MrnaFaidx)
 }
 
-func (this GeneData) FilterTransIndexes(chrom string) scheme.TransIndexes {
+func (this GeneData) FilterTransIndexes(chrom string) schema.TransIndexes {
 	return this.TransIndexes.FilterChrom(chrom)
 }
 

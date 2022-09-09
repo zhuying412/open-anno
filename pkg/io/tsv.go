@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-type GenericsCSVScanner[T any] struct {
+type GenericsTSVScanner[T any] struct {
 	Scanner[T]
 	FieldNames []string
 }
 
-func NewGenericsCSVScanner[T any](reader Reader) GenericsCSVScanner[T] {
+func NewGenericsTSVScanner[T any](reader Reader) GenericsTSVScanner[T] {
 	scanner := NewScanner[T](reader)
 	scanner.Scan()
-	return GenericsCSVScanner[T]{Scanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t")}
+	return GenericsTSVScanner[T]{Scanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t")}
 }
 
-func (this GenericsCSVScanner[T]) StringMapRow() (map[string]string, error) {
+func (this GenericsTSVScanner[T]) StringMapRow() (map[string]string, error) {
 	row := make(map[string]string)
 	fields := strings.Split(this.Text(), "\t")
 	if len(fields) != len(this.FieldNames) {
@@ -30,18 +30,18 @@ func (this GenericsCSVScanner[T]) StringMapRow() (map[string]string, error) {
 	return row, nil
 }
 
-func (this GenericsCSVScanner[T]) Row() (T, error) {
+func (this GenericsTSVScanner[T]) Row() (T, error) {
 	log.Fatal("Not implemented")
 	return *new(T), nil
 }
 
 type CSVScanner struct {
-	GenericsCSVScanner[map[string]string]
+	GenericsTSVScanner[map[string]string]
 }
 
 func NewCSVScanner(reader Reader) CSVScanner {
-	scanner := NewGenericsCSVScanner[map[string]string](reader)
-	return CSVScanner{GenericsCSVScanner: scanner}
+	scanner := NewGenericsTSVScanner[map[string]string](reader)
+	return CSVScanner{GenericsTSVScanner: scanner}
 }
 
 func (this CSVScanner) Row() (map[string]string, error) {

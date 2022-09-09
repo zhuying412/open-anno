@@ -3,12 +3,12 @@ package snv
 import (
 	"fmt"
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"open-anno/pkg/seq"
 	"strings"
 )
 
-func findInsRegion(regions scheme.Regions, strand string, snv scheme.Variant) (scheme.Region, int) {
+func findInsRegion(regions schema.Regions, strand string, snv schema.Variant) (schema.Region, int) {
 	var cLen int
 	for _, region := range regions {
 
@@ -16,14 +16,14 @@ func findInsRegion(regions scheme.Regions, strand string, snv scheme.Variant) (s
 			(strand == "-" && snv.Start >= region.Start && snv.End <= region.End) {
 			return region, cLen
 		}
-		if region.Type == scheme.RType_CDS {
+		if region.Type == schema.RType_CDS {
 			cLen += region.End - region.Start + 1
 		}
 	}
-	return scheme.Region{}, cLen
+	return schema.Region{}, cLen
 }
 
-func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
+func AnnoIns(snv schema.Variant, trans schema.Transcript) TransAnno {
 	region, cLen := findInsRegion(trans.Regions, trans.Strand, snv)
 	anno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {
@@ -55,7 +55,7 @@ func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 			}
 		}
 	} else {
-		if region.Type == scheme.RType_INTRON {
+		if region.Type == schema.RType_INTRON {
 			dist1s, dist2s := snv.Start-region.Start+1, region.End-snv.End+1
 			dist1e, dist2e := dist1s+1, dist2s-1
 			dist1, dist2 := dist1e, dist2s
@@ -121,7 +121,7 @@ func AnnoIns(snv scheme.Variant, trans scheme.Transcript) TransAnno {
 				aa1 := protein[start-1 : end1]
 				aa2 := nprotein[start-1 : end2]
 				if len(snv.Alt)%3 == 0 {
-					anno.Event = "ins_nonframeshift"
+					anno.Event = "ins_inframe"
 					if len(aa1) == 0 {
 						anno.AAChange = fmt.Sprintf(
 							"p.%s%d_%s%dins%s",

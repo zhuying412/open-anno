@@ -52,7 +52,6 @@ func NewAnnoCmd() *cobra.Command {
 	}
 	cmd.AddCommand(annoSnv)
 	cmd.AddCommand(annoCnv)
-	cmd.AddCommand(anno.NewMergeCmd())
 	return cmd
 }
 
@@ -63,6 +62,8 @@ func NewToolsCmd() *cobra.Command {
 	}
 	cmd.AddCommand(tools.NewVCF2AnnoInputCmd())
 	cmd.AddCommand(tools.NewAnnoInput2VCFCmd())
+	cmd.AddCommand(tools.NewAggsCmd())
+	cmd.AddCommand(tools.NewMergeCmd())
 	return cmd
 }
 

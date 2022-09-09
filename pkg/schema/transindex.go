@@ -1,4 +1,4 @@
-package scheme
+package schema
 
 type TransIndex struct {
 	Chrom       string   `json:"chrom"`

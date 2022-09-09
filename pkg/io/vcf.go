@@ -2,27 +2,27 @@ package io
 
 import (
 	"open-anno/pkg"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"sort"
 	"strings"
 
 	"github.com/brentp/vcfgo"
 )
 
-func NewVCFInfo(sample *vcfgo.SampleGenotype, altIndex int) (scheme.VCFInfo, error) {
+func NewVCFInfo(sample *vcfgo.SampleGenotype, altIndex int) (schema.VCFInfo, error) {
 	altDepths, err := sample.AltDepths()
 	if err != nil {
-		return scheme.VCFInfo{}, err
+		return schema.VCFInfo{}, err
 	}
-	return scheme.VCFInfo{
+	return schema.VCFInfo{
 		Depth: sample.DP,
 		VAF:   float64(altDepths[altIndex]) / float64(sample.DP),
 		GQ:    float64(sample.GQ),
 	}, nil
 }
 
-func NewBaseVCFVariant(row *vcfgo.Variant, altIndex int) scheme.VCFVariant {
-	return scheme.VCFVariant{
+func NewBaseVCFVariant(row *vcfgo.Variant, altIndex int) schema.VCFVariant {
+	return schema.VCFVariant{
 		Chrom:  pkg.FormatChrom(row.Chrom()),
 		Pos:    int(row.Pos),
 		Ref:    row.Ref(),
@@ -32,8 +32,8 @@ func NewBaseVCFVariant(row *vcfgo.Variant, altIndex int) scheme.VCFVariant {
 	}
 }
 
-func ReadVCF(infile string) (scheme.Variants, error) {
-	var variants scheme.Variants
+func ReadVCF(infile string) (schema.Variants, error) {
+	var variants schema.Variants
 	reader, err := NewIoReader(infile)
 	if err != nil {
 		return variants, err
@@ -54,7 +54,7 @@ func ReadVCF(infile string) (scheme.Variants, error) {
 			vcfVariant := NewBaseVCFVariant(row, i)
 			vcfVariant.Info, err = NewVCFInfo(sample, i)
 			if err != nil {
-				return scheme.Variants{}, err
+				return schema.Variants{}, err
 			}
 			variants = append(variants, vcfVariant.Variant())
 		}
@@ -63,8 +63,8 @@ func ReadVCF(infile string) (scheme.Variants, error) {
 	return variants, err
 }
 
-func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, error) {
-	var variants scheme.Variants
+func ReadTriosVCF(infile, proband, mother, father string) (schema.Variants, error) {
+	var variants schema.Variants
 	reader, err := NewIoReader(infile)
 	if err != nil {
 		return variants, err
@@ -83,7 +83,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 			break
 		}
 		for i := range row.Alt() {
-			vcfVariant := scheme.TriosVCFVariant{VCFVariant: NewBaseVCFVariant(row, i)}
+			vcfVariant := schema.TriosVCFVariant{VCFVariant: NewBaseVCFVariant(row, i)}
 			if pIndex >= 0 {
 				proband := row.Samples[pIndex]
 				if pkg.Sum(proband.GT...) <= 0 {
@@ -91,7 +91,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 				}
 				vcfVariant.Info, err = NewVCFInfo(proband, i)
 				if err != nil {
-					return scheme.Variants{}, err
+					return schema.Variants{}, err
 				}
 			}
 			if mIndex >= 0 {
@@ -99,7 +99,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 				if pkg.Sum(mother.GT...) > 0 {
 					vcfVariant.MInfo, err = NewVCFInfo(mother, i)
 					if err != nil {
-						return scheme.Variants{}, err
+						return schema.Variants{}, err
 					}
 				}
 			}
@@ -108,7 +108,7 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 				if pkg.Sum(father.GT...) > 0 {
 					vcfVariant.FInfo, err = NewVCFInfo(father, i)
 					if err != nil {
-						return scheme.Variants{}, err
+						return schema.Variants{}, err
 					}
 				}
 			}
@@ -119,8 +119,8 @@ func ReadTriosVCF(infile, proband, mother, father string) (scheme.Variants, erro
 	return variants, err
 }
 
-func ReadMcVCF(infile, proband, mother string) (scheme.Variants, error) {
-	var variants scheme.Variants
+func ReadMcVCF(infile, proband, mother string) (schema.Variants, error) {
+	var variants schema.Variants
 	reader, err := NewIoReader(infile)
 	if err != nil {
 		return variants, err
@@ -139,7 +139,7 @@ func ReadMcVCF(infile, proband, mother string) (scheme.Variants, error) {
 			break
 		}
 		for i := range row.Alt() {
-			vcfVariant := scheme.McVCFVariant{VCFVariant: NewBaseVCFVariant(row, i)}
+			vcfVariant := schema.McVCFVariant{VCFVariant: NewBaseVCFVariant(row, i)}
 			if pIndex >= 0 {
 				proband := row.Samples[pIndex]
 				if pkg.Sum(proband.GT...) <= 0 {
@@ -147,7 +147,7 @@ func ReadMcVCF(infile, proband, mother string) (scheme.Variants, error) {
 				}
 				vcfVariant.Info, err = NewVCFInfo(proband, i)
 				if err != nil {
-					return scheme.Variants{}, err
+					return schema.Variants{}, err
 				}
 			}
 			if mIndex >= 0 {
@@ -155,7 +155,7 @@ func ReadMcVCF(infile, proband, mother string) (scheme.Variants, error) {
 				if pkg.Sum(mother.GT...) > 0 {
 					vcfVariant.MInfo, err = NewVCFInfo(mother, i)
 					if err != nil {
-						return scheme.Variants{}, err
+						return schema.Variants{}, err
 					}
 				}
 			}

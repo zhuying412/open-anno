@@ -43,6 +43,16 @@ func FindArr[T string | int | float64](arr []T, k T) int {
 	return -1
 }
 
+func UniqArr[T string | int | float64](arr []T, ex T) []T {
+	uarr := make([]T, 0)
+	for _, v := range arr {
+		if v != ex && FindArr(arr, v) < 0 {
+			uarr = append(uarr, v)
+		}
+	}
+	return uarr
+}
+
 func CurBin[T int | int64](chrom string, start T, size int) string {
 	return fmt.Sprintf("%s\t%d", chrom, start-(start%T(size)))
 }

@@ -1,4 +1,4 @@
-package scheme
+package schema
 
 type DBVar struct {
 	Chrom string `json:"chrom"`

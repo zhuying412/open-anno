@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"open-anno/pkg"
 	"open-anno/pkg/io"
-	"open-anno/pkg/scheme"
+	"open-anno/pkg/schema"
 	"strings"
 )
 
@@ -15,7 +15,7 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 		return err
 	}
 	// 读取BED DB文件
-	var regMap map[string][]scheme.DBReg
+	var regMap map[string][]schema.DBReg
 	refReader, err := io.NewIoReader(infile)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func AnnoRegionBased(infile, dbfile, outfile string, overlap float64) error {
 			return err
 		}
 		if _, ok := regMap[row.Chrom]; ok {
-			regMap[row.Chrom] = make([]scheme.DBReg, 0)
+			regMap[row.Chrom] = make([]schema.DBReg, 0)
 		}
 		regMap[row.Chrom] = append(regMap[row.Chrom], row)
 	}
