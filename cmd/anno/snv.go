@@ -5,8 +5,8 @@ import (
 	"open-anno/anno/db"
 	"open-anno/anno/gene/snv"
 	"open-anno/pkg/schema"
-	"os"
 	"path"
+	"strings"
 
 	"github.com/spf13/pflag"
 )
@@ -44,17 +44,19 @@ func (this AnnoSnvGBParam) Run() error {
 		return err
 	}
 	if this.WithAggs {
-		tempOutput := path.Join(path.Dir(this.Output), path.Base(this.Output))
+		outdir, outnames := path.Dir(this.Output), strings.Split(path.Base(this.Output), ".")
+		if len(outnames) == 1 {
+			outnames = append(outnames, "raw")
+		} else {
+			outnames = append(outnames[0:len(outnames)-1], "raw", outnames[len(outnames)-1])
+		}
+		tempOutput := path.Join(outdir, strings.Join(outnames, "."))
 		err = snv.AnnoSnvs(this.Input, tempOutput, this.DBname, geneData, this.AAshort)
 		if err != nil {
 			return err
 		}
 		log.Println("Run Aggregating ...")
-		err = snv.AggsTransAnno(tempOutput, this.DBname, this.Output)
-		if err != nil {
-			return err
-		}
-		return os.Remove(tempOutput)
+		return snv.AggsTransAnno(tempOutput, this.DBname, this.Output)
 	}
 	return snv.AnnoSnvs(this.Input, this.Output, this.DBname, geneData, this.AAshort)
 }
