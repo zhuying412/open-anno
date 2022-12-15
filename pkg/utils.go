@@ -54,6 +54,14 @@ func UniqArr[T string | int | float64](arr []T, ex T) []T {
 	return uarr
 }
 
+func NewArr[T any](size int, fill T) []T {
+	arr := make([]T, size)
+	for i := 0; i < size; i++ {
+		arr[i] = fill
+	}
+	return arr
+}
+
 func CheckPathExists(fl validator.FieldLevel) bool {
 	path := fl.Field().String()
 	_, err := os.Stat(path)

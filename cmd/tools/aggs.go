@@ -2,10 +2,10 @@ package tools
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"open-anno/pkg"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
@@ -22,30 +22,30 @@ type GeneAnno struct {
 	Details []string
 }
 
-func (this *GeneAnno) AddInfo(event, region, detail string) {
+func (this *GeneAnno) AddEvent(event string) {
 	if event != "." && pkg.FindArr(this.Events, event) < 0 {
 		this.Events = append(this.Events, event)
 	}
+}
+func (this *GeneAnno) AddRegion(region string) {
 	if region != "." && pkg.FindArr(this.Regions, region) < 0 {
 		this.Regions = append(this.Regions, region)
 	}
+}
+func (this *GeneAnno) AddDetail(detail string) {
 	if detail != "." && pkg.FindArr(this.Details, detail) < 0 {
 		this.Details = append(this.Details, detail)
 	}
 }
 
 func (this GeneAnno) Region() string {
-	var regions1, regions2, regions3, regions4 []string
+	var regions1, regions2 []string
 	for _, region := range this.Regions {
 		switch region {
 		case "exonic", "splicing", "exonic_splicing", "transcript":
 			regions1 = append(regions1, region)
-		case "ncRNA":
+		case "ncRNA", "UTR3", "UTR5", "intronic":
 			regions2 = append(regions2, region)
-		case "UTR3", "UTR5":
-			regions3 = append(regions3, region)
-		case "intronic":
-			regions4 = append(regions4, region)
 		}
 	}
 	if len(regions1) > 0 {
@@ -53,12 +53,6 @@ func (this GeneAnno) Region() string {
 	}
 	if len(regions2) > 0 {
 		return strings.Join(regions2, ",")
-	}
-	if len(regions3) > 0 {
-		return strings.Join(regions3, ",")
-	}
-	if len(regions4) > 0 {
-		return strings.Join(regions4, ",")
 	}
 	return "."
 }
@@ -81,94 +75,9 @@ func (this GeneAnno) Text() string {
 	return fmt.Sprintf("%s\t%s\t%s\t%s\t%s\t%s", this.Snv, this.Gene, this.GeneID, this.Event(), this.Region(), this.Detail())
 }
 
-type TransAnnoRow struct {
-	Snv    string
-	Gene   string
-	GeneID string
-	Region string
-	Event  string
-	Detail string
-}
-
-func (this TransAnnoRow) PK() string {
-	return fmt.Sprintf("%s\t%s", this.Snv, this.Gene)
-}
-
-type TransAnnoScanner struct {
-	pkg.IOScanner
-	FieldNames []string
-	DBname     string
-}
-
-func NewTransAnnoScanner(reader io.ReadCloser, dbname string) TransAnnoScanner {
-	scanner := pkg.NewIOScanner(reader)
-	scanner.Scan()
-	return TransAnnoScanner{IOScanner: scanner, FieldNames: strings.Split(scanner.Text(), "\t"), DBname: dbname}
-}
-
-func (this TransAnnoScanner) Row() (TransAnnoRow, error) {
-	row := make(map[string]string)
-	fields := strings.Split(this.Text(), "\t")
-	for i, fieldName := range this.FieldNames {
-		row[fieldName] = fields[i]
-	}
-	return TransAnnoRow{
-		Snv:    fmt.Sprintf("%s\t%s\t%s\t%s\t%s", row["Chr"], row["Start"], row["End"], row["Ref"], row["Alt"]),
-		Gene:   row[this.DBname+".Gene"],
-		GeneID: row[this.DBname+".GeneID"],
-		Event:  row[this.DBname+".Event"],
-		Region: row[this.DBname+".Region"],
-		Detail: row[this.DBname+".Detail"],
-	}, nil
-}
-
-func AggsTransAnno(transAnnoOutput, dbname, outfile string) error {
-	reader, err := pkg.NewIOReader(transAnnoOutput)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	scanner := NewTransAnnoScanner(reader, dbname)
-	geneAnnos := make(map[string]GeneAnno)
-	for scanner.Scan() {
-		row, err := scanner.Row()
-		if err != nil {
-			return err
-		}
-		geneAnno, ok := geneAnnos[row.PK()]
-		if !ok {
-			geneAnno = GeneAnno{
-				Snv:    row.Snv,
-				Gene:   row.Gene,
-				GeneID: row.GeneID,
-			}
-		}
-		geneAnno.AddInfo(row.Event, row.Region, row.Detail)
-		geneAnnos[row.PK()] = geneAnno
-	}
-	geneAnnoTexts := make([]string, len(geneAnnos))
-	i := 0
-	for _, snvGeneAnno := range geneAnnos {
-		geneAnnoTexts[i] = snvGeneAnno.Text()
-		i++
-	}
-	sort.Strings(geneAnnoTexts)
-	writer, err := os.Create(outfile)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	fmt.Fprintf(writer, "%s\n", strings.Join(scanner.FieldNames, "\t"))
-	for _, text := range geneAnnoTexts {
-		fmt.Fprintf(writer, "%s\n", text)
-	}
-	return nil
-}
-
 type AggsParam struct {
-	AnnoGBOutput string `validate:"required,pathexists"`
-	DBname       string `validate:"required"`
-	Output       string `validate:"required"`
+	Input  string `validate:"required,pathexists"`
+	Output string `validate:"required"`
 }
 
 func (this AggsParam) Valid() error {
@@ -178,11 +87,60 @@ func (this AggsParam) Valid() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	outdir := path.Dir(this.Output)
+	return os.MkdirAll(outdir, 0666)
+}
+
+func (this AggsParam) ReadTransAnno() (map[string]GeneAnno, string, error) {
+	var header string
+	geneAnnos := make(map[string]GeneAnno)
+	reader, err := pkg.NewIOReader(this.Input)
+	if err != nil {
+		return geneAnnos, header, err
+	}
+	defer reader.Close()
+	scanner := pkg.NewIOScanner(reader)
+	scanner.Scan()
+	header = scanner.Text()
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), "\t")
+		snv := strings.Join(row[0:5], "\t")
+		gene, entrezId, event, region, detail := row[5], row[6], row[7], row[8], row[9]
+		pk := fmt.Sprintf("%s\t%s", snv, gene)
+		geneAnno, ok := geneAnnos[pk]
+		if !ok {
+			geneAnno = GeneAnno{Snv: snv, Gene: gene, GeneID: entrezId}
+		}
+		geneAnno.AddEvent(event)
+		geneAnno.AddRegion(region)
+		geneAnno.AddDetail(detail)
+		geneAnnos[pk] = geneAnno
+	}
+	return geneAnnos, header, nil
 }
 
 func (this AggsParam) Run() error {
-	return AggsTransAnno(this.AnnoGBOutput, this.DBname, this.Output)
+	geneAnnos, header, err := this.ReadTransAnno()
+	if err != nil {
+		return nil
+	}
+	geneAnnoTexts := make([]string, len(geneAnnos))
+	i := 0
+	for _, geneAnno := range geneAnnos {
+		geneAnnoTexts[i] = geneAnno.Text()
+		i++
+	}
+	sort.Strings(geneAnnoTexts)
+	writer, err := pkg.NewIOWriter(this.Output)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	fmt.Fprintf(writer, "%s\n", header)
+	for _, text := range geneAnnoTexts {
+		fmt.Fprintf(writer, "%s\n", text)
+	}
+	return nil
 }
 
 func NewAggsCmd() *cobra.Command {
@@ -191,8 +149,7 @@ func NewAggsCmd() *cobra.Command {
 		Short: "Aggregate Snv GeneBased Annotation",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param AggsParam
-			param.AnnoGBOutput, _ = cmd.Flags().GetString("gbanno")
-			param.DBname, _ = cmd.Flags().GetString("dbname")
+			param.Input, _ = cmd.Flags().GetString("gbanno")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -205,8 +162,7 @@ func NewAggsCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("gbanno", "g", "", "Annotate Result File of GeneBased")
-	cmd.Flags().StringP("dbname", "n", "", "DB Name of GeneBased")
+	cmd.Flags().StringP("gbanno", "i", "", "Input Annotate Result File of GeneBased")
 	cmd.Flags().StringP("output", "o", "", "Output Aggregated Annotation File")
 	return cmd
 }

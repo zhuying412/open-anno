@@ -29,4 +29,4 @@ var AAMap = map[byte]string{
 	'*': "Ter",
 }
 
-var ATGCs = map[byte]byte{'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+var ATGCs = map[byte]byte{'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}

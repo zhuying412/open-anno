@@ -29,18 +29,17 @@ func RevComp(sequence string) string {
 func Translate(sequence string, mt bool) string {
 	var buffer bytes.Buffer
 	length := len(sequence)
-	for i := 0; i < length; i += 3 {
-		j := i + 3
-		if j > length {
-			j = length
-		}
-		var aa byte
+	for i := 0; i+3 <= length; i += 3 {
+		na := sequence[i : i+3]
+		table := NAtoAATable
 		if mt {
-			aa = MitoNAtoAATable[sequence[i:j]]
-		} else {
-			aa = NAtoAATable[sequence[i:j]]
+			table = MitoNAtoAATable
 		}
-		buffer.WriteByte(aa)
+		if aa, ok := table[na]; ok {
+			buffer.WriteByte(aa)
+		} else {
+			buffer.WriteByte('X')
+		}
 	}
 	return buffer.String()
 }

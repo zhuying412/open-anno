@@ -1,125 +1,22 @@
 package tools
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"open-anno/pkg"
+	"os"
+	"path"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
 
-type AnnoResult struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-}
-
-type AnnoResultScanner struct {
-	pkg.IOScanner
-	FieldNames []string
-}
-
-func (this AnnoResultScanner) Header() string {
-	return strings.Join(this.FieldNames, "\t")
-}
-
-func (this AnnoResultScanner) FillDot() string {
-	var buffer bytes.Buffer
-	for i := range this.FieldNames {
-		if i == 0 {
-			buffer.WriteString(".")
-		} else {
-			buffer.WriteString("\t.")
-		}
-	}
-	return buffer.String()
-}
-
-func NewAnnoResultScanner(reader io.ReadCloser) AnnoResultScanner {
-	scanner := pkg.NewIOScanner(reader)
-	scanner.Scan()
-	fieldNames := strings.Split(scanner.Text(), "\t")[5:]
-	return AnnoResultScanner{IOScanner: scanner, FieldNames: fieldNames}
-}
-
-type AnnoResultScanners []AnnoResultScanner
-
-func (this AnnoResultScanners) Header() string {
-	fieldNames := make([]string, 0)
-	for _, scanner := range this {
-		fieldNames = append(fieldNames, scanner.FieldNames...)
-	}
-	return strings.Join(fieldNames, "\t")
-}
-
-func (this AnnoResultScanners) Results() []map[string]string {
-	results := make([]map[string]string, len(this))
-	for i, scanner := range this {
-		result := make(map[string]string)
-		for scanner.Scan() {
-			row := scanner.Row()
-			result[row.ID] = row.Text
-		}
-		results[i] = result
-	}
-	return results
-}
-
-func (this AnnoResultScanner) Row() AnnoResult {
-	fields := strings.Split(this.Text(), "\t")
-	return AnnoResult{
-		ID:   strings.Join(fields[0:5], ":"),
-		Text: strings.Join(fields[5:], "\t"),
-	}
-}
-
-func MergeAnnoResult(outfile, annoInput, annoGBOutput string, annoOuputs ...string) error {
-	writer, err := pkg.NewIOWriter(outfile)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	scanners := make(AnnoResultScanners, len(annoOuputs)+1)
-	for i, annoOutput := range append(annoOuputs, annoInput) {
-		reader, err := pkg.NewIOReader(annoOutput)
-		if err != nil {
-			return err
-		}
-		defer reader.Close()
-		scanner := NewAnnoResultScanner(reader)
-		scanners[i] = scanner
-	}
-	results := scanners.Results()
-	reader, err := pkg.NewIOReader(annoGBOutput)
-	if err != nil {
-		return err
-	}
-	defer reader.Close()
-	scanner := NewAnnoResultScanner(reader)
-	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s\t%s\n", scanner.Header(), scanners.Header())
-	for scanner.Scan() {
-		row := scanner.Row()
-		fmt.Fprint(writer, scanner.Text())
-		for i, result := range results {
-			if text, ok := result[row.ID]; ok {
-				fmt.Fprintf(writer, "\t%s", text)
-			} else {
-				fmt.Fprintf(writer, "\t%s", scanners[i].FillDot())
-			}
-		}
-		fmt.Fprint(writer, "\n")
-	}
-	return nil
-}
-
 type MergeParam struct {
-	AnnoInput    string   `validate:"required,pathexists"`
-	AnnoGBOutput string   `validate:"required,pathexists"`
-	AnnoOutputs  []string `validate:"required,pathsexists"`
-	Output       string   `validate:"required"`
+	AnnoInput      string   `validate:"required,pathexists"`
+	GeneAnnoOutput string   `validate:"required,pathexists"`
+	DBAnnoOutputs  []string `validate:"required,pathsexists"`
+	Output         string   `validate:"required"`
 }
 
 func (this MergeParam) Valid() error {
@@ -130,11 +27,94 @@ func (this MergeParam) Valid() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	outdir := path.Dir(this.Output)
+	return os.MkdirAll(outdir, 0666)
+}
+
+func (this MergeParam) ReadAnnoInput() (map[string]string, error) {
+	variants := make(map[string]string)
+	reader, err := pkg.NewIOReader(this.AnnoInput)
+	if err != nil {
+		return variants, err
+	}
+	defer reader.Close()
+	scanner := pkg.NewIOScanner(reader)
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), "\t")
+		variant := strings.Join(row[0:5], "\t")
+		variants[variant] = row[5]
+	}
+	return variants, nil
+}
+
+func (this MergeParam) ReadDBAnnos() ([]map[string]string, []string, error) {
+	results := make([]map[string]string, len(this.DBAnnoOutputs))
+	headers := make([]string, len(this.DBAnnoOutputs))
+	for i, dbannoFile := range this.DBAnnoOutputs {
+		reader, err := pkg.NewIOReader(dbannoFile)
+		if err != nil {
+			reader.Close()
+			return results, headers, err
+		}
+		scanner := pkg.NewIOScanner(reader)
+		scanner.Scan()
+		headers[i] = strings.Join(strings.Split(scanner.Text(), "\t")[5:], "\t")
+		result := make(map[string]string)
+		for scanner.Scan() {
+			row := strings.Split(scanner.Text(), "\t")
+			variant := strings.Join(row[0:5], "\t")
+			text := strings.Join(row[5:], "\t")
+			result[variant] = text
+		}
+		results[i] = result
+		reader.Close()
+	}
+	return results, headers, nil
 }
 
 func (this MergeParam) Run() error {
-	return MergeAnnoResult(this.Output, this.AnnoInput, this.AnnoGBOutput, this.AnnoOutputs...)
+	variants, err := this.ReadAnnoInput()
+	results, headers, err := this.ReadDBAnnos()
+	if err != nil {
+		return err
+	}
+
+	writer, err := pkg.NewIOWriter(this.Output)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	reader, err := pkg.NewIOReader(this.GeneAnnoOutput)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	scanner := pkg.NewIOScanner(reader)
+	scanner.Scan()
+	fmt.Fprintf(writer,
+		"Chr\tStart\tEnd\tRef\tAlt\t%s\t%s\tOtherinfo\n",
+		strings.Join(strings.Split(scanner.Text(), "\t")[5:], "\t"),
+		strings.Join(headers, "\t"))
+	for scanner.Scan() {
+		row := strings.Split(scanner.Text(), "\t")
+		variant := strings.Join(row[0:5], "\t")
+		fmt.Fprint(writer, scanner.Text())
+		for i, result := range results {
+			if text, ok := result[variant]; ok {
+				fmt.Fprintf(writer, "\t%s", text)
+			} else {
+				dots := pkg.NewArr(len(strings.Split(headers[i], "\t")), ".")
+				fmt.Fprintf(writer, "\t%s", strings.Join(dots, "\t"))
+			}
+		}
+		if info, ok := variants[variant]; ok {
+			fmt.Fprintf(writer, "\t%s", info)
+		} else {
+			fmt.Fprint(writer, "\t.")
+		}
+		fmt.Fprint(writer, "\n")
+	}
+	return nil
 }
 
 func NewMergeCmd() *cobra.Command {
@@ -144,8 +124,8 @@ func NewMergeCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			var param MergeParam
 			param.AnnoInput, _ = cmd.Flags().GetString("input")
-			param.AnnoGBOutput, _ = cmd.Flags().GetString("gbanno")
-			param.AnnoOutputs, _ = cmd.Flags().GetStringArray("annos")
+			param.GeneAnnoOutput, _ = cmd.Flags().GetString("geneanno")
+			param.DBAnnoOutputs, _ = cmd.Flags().GetStringArray("dbannos")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -158,9 +138,9 @@ func NewMergeCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("input", "i", "", "Annotated Variants Input File")
-	cmd.Flags().StringP("gbanno", "g", "", "Annotate Result File of GeneBased")
-	cmd.Flags().StringArrayP("annos", "d", []string{}, "FilterBased or RegionBased Annotation Files")
+	cmd.Flags().StringP("input", "i", "", "Input Annotated Variants Input File")
+	cmd.Flags().StringP("geneanno", "g", "", "Input Annotate Result File of GeneBased")
+	cmd.Flags().StringArrayP("dbannos", "d", []string{}, "Input FilterBased or RegionBased Annotation Files")
 	cmd.Flags().StringP("output", "o", "", "Output Merged Annotation File")
 	return cmd
 }
