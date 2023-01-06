@@ -11,6 +11,22 @@ type Transcript struct {
 	Regions Regions `json:"regions"`
 }
 
+// HasUTR3 存在UTR3区域
+func (this Transcript) HasUTR3() bool {
+	if this.Strand == "+" {
+		return this.CdsEnd < this.TxEnd
+	}
+	return this.CdsStart > this.TxStart
+}
+
+// HasUTR5 存在UTR5区域
+func (this Transcript) HasUTR5() bool {
+	if this.Strand == "+" {
+		return this.CdsStart > this.TxStart
+	}
+	return this.CdsEnd < this.TxEnd
+}
+
 // CdsCount Regions中CDS元件数量
 func (this Transcript) CdsCount() int {
 	return this.Regions.CdsCount()

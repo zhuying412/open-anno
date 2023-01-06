@@ -92,9 +92,9 @@ func (this MergeParam) Run() error {
 	scanner := pkg.NewIOScanner(reader)
 	scanner.Scan()
 	fmt.Fprintf(writer,
-		"Chr\tStart\tEnd\tRef\tAlt\t%s\t%s\tOtherinfo\n",
-		strings.Join(strings.Split(scanner.Text(), "\t")[5:], "\t"),
-		strings.Join(headers, "\t"))
+		"Chr\tStart\tEnd\tRef\tAlt\t%s\tOtherinfo\n",
+		strings.Join(append(strings.Split(scanner.Text(), "\t")[5:], headers...), "\t"),
+	)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), "\t")
 		variant := strings.Join(row[0:5], "\t")

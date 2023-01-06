@@ -57,12 +57,11 @@ func (this IdxDBParam) Run() error {
 			return err
 		}
 		curbin := db.CurBin(chrom, start, this.BinSize)
-		end := offset + length
 		if _, ok := idxMap[curbin]; !ok {
 			indexes = append(indexes, curbin)
 			idxMap[curbin] = &db.FilterVarIdx{Bin: curbin, Start: offset}
 		}
-		idxMap[curbin].End = end
+		idxMap[curbin].End = offset + length
 		offset += length
 	}
 	writer, err := pkg.NewIOWriter(this.OutIdx())

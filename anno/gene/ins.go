@@ -104,11 +104,32 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 			protein := pkg.Translate(cdna, trans.Chrom == "MT")
 			nprotein := pkg.Translate(ncdna, trans.Chrom == "MT")
 			start := pkg.DifferenceSimple(cdna, ncdna)
+			if start-1 == len(cdna) {
+
+			}
 			alt := ncdna[start-1 : start+len(snv.Alt)-1]
 			unit := pkg.DupUnit(alt)
 			if start == 1 {
 				// 在CDNA第一个碱基前插入，不影响起始密码子
 				transAnno.NAChange = fmt.Sprintf("c.-1_1ins%s", alt)
+				if trans.HasUTR5() {
+					transAnno.Region = "UTR5"
+					transAnno.Region2 = "UTR5"
+				} else {
+					transAnno.Region = "UpStream"
+					transAnno.Region2 = "UpStream"
+				}
+
+			} else if start-1 == len(cdna) {
+				// 在CDNA最后碱基后插入，不影响整条蛋白序列
+				transAnno.NAChange = fmt.Sprintf("c.%d_%d+1ins%s", len(cdna), len(cdna), alt)
+				if trans.HasUTR3() {
+					transAnno.Region = "UTR3"
+					transAnno.Region2 = "UTR3"
+				} else {
+					transAnno.Region = "DownStream"
+					transAnno.Region2 = "DownStream"
+				}
 			} else {
 				if start > len(unit) && unit == cdna[start-len(unit)-1:start-1] {
 					// 比较重复单元和其之前的碱基

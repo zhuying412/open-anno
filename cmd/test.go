@@ -7,6 +7,7 @@ import (
 	"log"
 	"open-anno/anno/db"
 	"open-anno/pkg"
+	"os"
 	"strconv"
 	"strings"
 
@@ -57,9 +58,17 @@ func IndexDatabse(infile string, bin int) error {
 	return nil
 }
 
-func RunTest() {
-	data := make(map[string]map[string]string)
-	data["a"]["b"] = "1"
+func Seek(infile string) {
+	file, _ := os.Open(infile)
+	file.Seek(617, io.SeekStart)
+	buffer := make([]byte, 327)
+	file.Read(buffer)
+	fmt.Println(buffer)
+	fmt.Println(string(buffer))
+}
+
+func RunTest(infile string) {
+	Seek(infile)
 }
 
 func NewTestCmd() *cobra.Command {
@@ -74,7 +83,7 @@ func NewTestCmd() *cobra.Command {
 					log.Fatal(err)
 				}
 			} else {
-				RunTest()
+				RunTest(input)
 			}
 		},
 	}
