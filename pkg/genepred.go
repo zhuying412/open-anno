@@ -3,12 +3,8 @@ package pkg
 import (
 	"errors"
 	"fmt"
-	"log"
-	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/brentp/faidx"
 )
 
 // GenePred GenePred文件解析结果（如refGene等）
@@ -134,28 +130,4 @@ func ReadGenePred(gpeFile string) (GenePreds, error) {
 		gpes[gpe.PK()] = gpe
 	}
 	return gpes, err
-}
-
-// CreateMRNA 创建mRNA文件
-func CreateMRNA(gpes GenePreds, fai *faidx.Faidx, mrnaFile string) error {
-	writer, err := NewIOWriter(mrnaFile)
-	if err != err {
-		return err
-	}
-	defer writer.Close()
-	for _, gpe := range gpes {
-		sequence, err := fai.Get(gpe.Chrom, gpe.TxStart-1, gpe.TxEnd)
-		if err != nil {
-			return err
-		}
-		sequence = strings.ToUpper(sequence)
-		fmt.Fprintf(writer, ">%s\n%s\n", gpe.PK(), sequence)
-	}
-	command := exec.Command("samtools", "faidx", mrnaFile)
-	err = command.Run()
-	if err != nil {
-		log.Print(err)
-		log.Printf("Now you need run the command: 'samtools faidx %s'", mrnaFile)
-	}
-	return nil
 }

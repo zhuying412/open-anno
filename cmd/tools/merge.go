@@ -13,10 +13,11 @@ import (
 )
 
 type MergeParam struct {
-	AnnoInput      string   `validate:"required,pathexists"`
-	GeneAnnoOutput string   `validate:"required,pathexists"`
-	DBAnnoOutputs  []string `validate:"required,pathsexists"`
-	Output         string   `validate:"required"`
+	AnnoInput    string   `validate:"required,pathexists"`
+	GeneBased    string   `validate:"required,pathexists"`
+	FilterBaseds []string `validate:"pathsexists"`
+	RegionBaseds []string `validate:"pathsexists"`
+	Output       string   `validate:"required"`
 }
 
 func (this MergeParam) Valid() error {
@@ -48,9 +49,10 @@ func (this MergeParam) ReadAnnoInput() (map[string]string, error) {
 }
 
 func (this MergeParam) ReadDBAnnos() ([]map[string]string, []string, error) {
-	results := make([]map[string]string, len(this.DBAnnoOutputs))
-	headers := make([]string, len(this.DBAnnoOutputs))
-	for i, dbannoFile := range this.DBAnnoOutputs {
+	annoOutputs := append(this.FilterBaseds, this.RegionBaseds...)
+	results := make([]map[string]string, len(annoOutputs))
+	headers := make([]string, len(annoOutputs))
+	for i, dbannoFile := range annoOutputs {
 		reader, err := pkg.NewIOReader(dbannoFile)
 		if err != nil {
 			reader.Close()
@@ -84,7 +86,7 @@ func (this MergeParam) Run() error {
 		return err
 	}
 	defer writer.Close()
-	reader, err := pkg.NewIOReader(this.GeneAnnoOutput)
+	reader, err := pkg.NewIOReader(this.GeneBased)
 	if err != nil {
 		return err
 	}
@@ -124,8 +126,9 @@ func NewMergeCmd() *cobra.Command {
 		Run: func(cmd *cobra.Command, args []string) {
 			var param MergeParam
 			param.AnnoInput, _ = cmd.Flags().GetString("input")
-			param.GeneAnnoOutput, _ = cmd.Flags().GetString("geneanno")
-			param.DBAnnoOutputs, _ = cmd.Flags().GetStringArray("dbannos")
+			param.GeneBased, _ = cmd.Flags().GetString("geneanno")
+			param.FilterBaseds, _ = cmd.Flags().GetStringArray("filterbaseds")
+			param.RegionBaseds, _ = cmd.Flags().GetStringArray("regionbaseds")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -139,8 +142,9 @@ func NewMergeCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("input", "i", "", "Input Annotated Variants Input File")
-	cmd.Flags().StringP("geneanno", "g", "", "Input Annotate Result File of GeneBased")
-	cmd.Flags().StringArrayP("dbannos", "d", []string{}, "Input FilterBased or RegionBased Annotation Files")
+	cmd.Flags().StringP("genebased", "g", "", "Input Annotate Result File of GeneBased")
+	cmd.Flags().StringArrayP("filterbaseds", "f", []string{}, "Input FilterBased Annotation Files")
+	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input FilterBased Annotation Files")
 	cmd.Flags().StringP("output", "o", "", "Output Merged Annotation File")
 	return cmd
 }

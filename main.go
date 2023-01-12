@@ -26,7 +26,6 @@ func NewPreCmd() *cobra.Command {
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewPreGenePredCmd())
-	cmd.AddCommand(pre.NewPreMRNACmd())
 	cmd.AddCommand(pre.NewIdxDBCmd())
 	cmd.AddCommand(pre.NewGeneCmd())
 	cmd.AddCommand(pre.NewPreClinvarCmd())
@@ -41,6 +40,12 @@ func NewAnnoCmd() *cobra.Command {
 	}
 	annoGB.AddCommand(anno.NewAnnoGBSnvCmd())
 	annoGB.AddCommand(anno.NewAnnoGBCnvCmd())
+	annoBatch := &cobra.Command{
+		Use:   "batch",
+		Short: "Annotate Batch",
+	}
+	annoBatch.AddCommand(anno.NewAnnoBatchSnvCmd())
+	annoBatch.AddCommand(anno.NewAnnoBatchCnvCmd())
 	cmd := &cobra.Command{
 		Use:   "anno",
 		Short: "Annotate variants",
@@ -48,6 +53,7 @@ func NewAnnoCmd() *cobra.Command {
 	cmd.AddCommand(annoGB)
 	cmd.AddCommand(anno.NewAnnoFBCmd())
 	cmd.AddCommand(anno.NewAnnoRBCmd())
+	cmd.AddCommand(annoBatch)
 	return cmd
 }
 

@@ -115,8 +115,7 @@ func AnnoSnvs(
 	dbName string,
 	gpes pkg.GenePreds,
 	allTransIndexes pkg.TransIndexes,
-	mrna *faidx.Faidx,
-	genome map[string]int,
+	genome *faidx.Faidx,
 	geneSymbolToID map[string]map[string]string,
 	aashort bool) error {
 	AA_SHORT = aashort
@@ -133,46 +132,44 @@ func AnnoSnvs(
 	)
 	// 开始注释
 	for chrom, snvs := range snvMap {
-		if _, ok := genome[chrom]; ok {
-			log.Printf("Start run annotate %s %s ...", dbName, chrom)
-			if err != nil {
-				return err
-			}
-			transcripts, err := pkg.NewTranscriptsWithSeq(gpes, chrom, geneSymbolToID, mrna)
-			if err != nil {
-				return err
-			}
-			transIndexes := allTransIndexes.FilterChrom(chrom)
-			sort.Sort(snvs)
-			sort.Sort(transIndexes)
-			for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
-				if snvs[i].End < transIndexes[j].Start {
-					i++
-				} else if snvs[i].Start > transIndexes[j].End {
-					j++
-				} else {
-					chrom, start, end, ref, alt := snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt
-					transAnnos := AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
-					for _, transAnno := range transAnnos {
-						gene, geneId, event, region, detail := transAnno.Gene, transAnno.GeneID, transAnno.Event, transAnno.Region, transAnno.Detail()
-						if geneId == "" {
-							geneId = "."
-						}
-						if event == "" {
-							event = "."
-						}
-						if region == "" {
-							region = "."
-						}
-						if detail == "" {
-							detail = "."
-						}
-						fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-							chrom, start, end, ref, alt, gene, geneId, event, region, detail,
-						)
+		log.Printf("Start run annotate %s %s ...", dbName, chrom)
+		if err != nil {
+			return err
+		}
+		transcripts, err := pkg.NewTranscriptsWithSeq(gpes, chrom, geneSymbolToID, genome)
+		if err != nil {
+			return err
+		}
+		transIndexes := allTransIndexes.FilterChrom(chrom)
+		sort.Sort(snvs)
+		sort.Sort(transIndexes)
+		for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
+			if snvs[i].End < transIndexes[j].Start {
+				i++
+			} else if snvs[i].Start > transIndexes[j].End {
+				j++
+			} else {
+				chrom, start, end, ref, alt := snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt
+				transAnnos := AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
+				for _, transAnno := range transAnnos {
+					gene, geneId, event, region, detail := transAnno.Gene, transAnno.GeneID, transAnno.Event, transAnno.Region, transAnno.Detail()
+					if geneId == "" {
+						geneId = "."
 					}
-					i++
+					if event == "" {
+						event = "."
+					}
+					if region == "" {
+						region = "."
+					}
+					if detail == "" {
+						detail = "."
+					}
+					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+						chrom, start, end, ref, alt, gene, geneId, event, region, detail,
+					)
 				}
+				i++
 			}
 		}
 	}

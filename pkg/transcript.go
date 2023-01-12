@@ -65,9 +65,9 @@ func (this *Transcript) SetRegions() error {
 }
 
 // SetRegions 设置初始化Regions信息, 并设置每个Regions的Sequence
-func (this *Transcript) SetRegionsWithSeq(mrna *faidx.Faidx) error {
+func (this *Transcript) SetRegionsWithSeq(genome *faidx.Faidx) error {
 	var err error
-	this.Regions, err = NewRegionsWithSeq(*this, mrna)
+	this.Regions, err = NewRegionsWithSeq(*this, genome)
 	if err != nil {
 		return err
 	}
@@ -95,13 +95,13 @@ func NewTranscripts(gpes GenePreds, chrom string, geneSymbolToID map[string]map[
 }
 
 // NewTranscriptsWithSeq 获取指定染色体的Transcripts信息，并设置Sequence
-func NewTranscriptsWithSeq(gpes GenePreds, chrom string, geneSymbolToID map[string]map[string]string, mrna *faidx.Faidx) (Transcripts, error) {
+func NewTranscriptsWithSeq(gpes GenePreds, chrom string, geneSymbolToID map[string]map[string]string, genome *faidx.Faidx) (Transcripts, error) {
 	transcripts := make(Transcripts)
 	for sn, gpe := range gpes {
 		if gpe.Chrom == chrom {
 			trans := Transcript{GenePred: gpe}
 			trans.SetGeneID(geneSymbolToID)
-			err := trans.SetRegionsWithSeq(mrna)
+			err := trans.SetRegionsWithSeq(genome)
 			if err != nil {
 				return transcripts, err
 			}

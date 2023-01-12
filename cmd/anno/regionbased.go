@@ -57,6 +57,6 @@ func NewAnnoRBCmd() *cobra.Command {
 	cmd.Flags().StringP("input", "i", "", "AnnoInput File")
 	cmd.Flags().StringP("database", "d", "", "Input Database File")
 	cmd.Flags().StringP("output", "o", "", "AnnoOutput File")
-	cmd.Flags().StringP("overlap", "l", "", "Parameter Overlap")
+	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Overlap")
 	return cmd
 }

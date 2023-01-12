@@ -12,16 +12,14 @@ import (
 )
 
 type AnnoFBParam struct {
-	Input    string `validate:"required,pathexists"`
-	Database string `validate:"required,pathexists"`
-	Output   string `validate:"required"`
+	Input         string `validate:"required,pathexists"`
+	Database      string `validate:"required,pathexists"`
+	DatabaseIndex string `validate:"required,pathexists"`
+	Output        string `validate:"required"`
 }
 
-func (this AnnoFBParam) DBIdx() string {
-	return this.Database + ".idx"
-}
-
-func (this AnnoFBParam) Valid() error {
+func (this *AnnoFBParam) Valid() error {
+	this.DatabaseIndex = this.Database + ".idx"
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
 	err := validate.Struct(this)
@@ -33,7 +31,7 @@ func (this AnnoFBParam) Valid() error {
 }
 
 func (this AnnoFBParam) Run() error {
-	return db.AnnoFilterBased(this.Input, this.Database, this.DBIdx(), this.Output)
+	return db.AnnoFilterBased(this.Input, this.Database, this.DatabaseIndex, this.Output)
 }
 
 func NewAnnoFBCmd() *cobra.Command {

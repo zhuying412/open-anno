@@ -35,9 +35,9 @@ func (this TransIndexes) FilterChrom(chrom string) TransIndexes {
 	return indexes
 }
 
-func CreateTransIndexes(gpes GenePreds, genome map[string]int, step int, idxFile string) error {
+func CreateTransIndexes(gpes GenePreds, chromLen map[string]int, step int, idxFile string) error {
 	transIndexes := make(TransIndexes, 0)
-	for chrom, length := range genome {
+	for chrom, length := range chromLen {
 		for start := 1; start <= length; start += step {
 			end := start + step - 1
 			if end > length {

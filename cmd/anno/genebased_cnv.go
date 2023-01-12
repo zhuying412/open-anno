@@ -13,19 +13,16 @@ import (
 )
 
 type AnnoGBCnvParam struct {
-	Input    string `validate:"required,pathexists"`
-	GenePred string `validate:"required,pathexists"`
-	RefDict  string `validate:"required,pathexists"`
-	Gene     string `validate:"required,pathexists"`
-	Output   string `validate:"required"`
-	DBName   string `validate:"required"`
+	Input         string `validate:"required,pathexists"`
+	GenePred      string `validate:"required,pathexists"`
+	GenePredIndex string `validate:"required,pathexists"`
+	Gene          string `validate:"required,pathexists"`
+	Output        string `validate:"required"`
+	DBName        string `validate:"required"`
 }
 
-func (this AnnoGBCnvParam) TransIndex() string {
-	return this.GenePred + ".idx"
-}
-
-func (this AnnoGBCnvParam) Valid() error {
+func (this *AnnoGBCnvParam) Valid() error {
+	this.GenePredIndex = this.GenePred + ".idx"
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
 	err := validate.Struct(this)
@@ -49,9 +46,9 @@ func (this AnnoGBCnvParam) Run() error {
 	if err != nil {
 		return err
 	}
-	// 读取Transcript Index输入文件
-	log.Printf("Read TransIndex: %s ...", this.TransIndex())
-	transIndexes, err := pkg.ReadTransIndexes(this.TransIndex())
+	// 读取GenePred Index输入文件
+	log.Printf("Read GenePred Index: %s ...", this.GenePredIndex)
+	transIndexes, err := pkg.ReadTransIndexes(this.GenePredIndex)
 	if err != nil {
 		return err
 	}
@@ -72,7 +69,6 @@ func NewAnnoGBCnvCmd() *cobra.Command {
 			var param AnnoGBCnvParam
 			param.Input, _ = cmd.Flags().GetString("input")
 			param.GenePred, _ = cmd.Flags().GetString("genepred")
-			param.RefDict, _ = cmd.Flags().GetString("refdict")
 			param.Gene, _ = cmd.Flags().GetString("gene")
 			param.DBName, _ = cmd.Flags().GetString("dbname")
 			param.Output, _ = cmd.Flags().GetString("output")
@@ -88,10 +84,9 @@ func NewAnnoGBCnvCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("input", "i", "", "AnnoInput File")
-	cmd.Flags().StringP("genepred", "p", "", "Input GenePred File")
-	cmd.Flags().StringP("refdict", "r", "", "Input Reference Dict File")
+	cmd.Flags().StringP("genepred", "d", "", "Input GenePred File")
 	cmd.Flags().StringP("gene", "g", "", "Input Gene Symbol To ID File")
-	cmd.Flags().StringP("dbname", "d", "", "Parameter Database Name")
+	cmd.Flags().StringP("dbname", "n", "", "Parameter Database Name")
 	cmd.Flags().StringP("output", "o", "", "AnnoOutput File")
 	return cmd
 }

@@ -126,8 +126,7 @@ func (this AggsParam) Run() error {
 	}
 	geneAnnoTexts := make([]string, len(geneAnnos))
 	i := 0
-	for pk, geneAnno := range geneAnnos {
-		fmt.Println(pk)
+	for _, geneAnno := range geneAnnos {
 		geneAnnoTexts[i] = geneAnno.Text()
 		i++
 	}

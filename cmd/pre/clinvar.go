@@ -3,7 +3,6 @@ package pre
 import (
 	"fmt"
 	"log"
-	"open-anno/anno"
 	"open-anno/pkg"
 	"os"
 	"path"
@@ -15,9 +14,8 @@ import (
 )
 
 type PreClinvarParam struct {
-	Input   string `validate:"required,pathexists"`
-	RefDict string `validate:"required,pathexists"`
-	Output  string `validate:"required"`
+	Input  string `validate:"required,pathexists"`
+	Output string `validate:"required"`
 }
 
 func (this PreClinvarParam) Valid() error {
@@ -32,12 +30,6 @@ func (this PreClinvarParam) Valid() error {
 }
 
 func (this PreClinvarParam) Run() error {
-	// 读取RefDict
-	log.Printf("Read RefDict: %s ...", this.RefDict)
-	genome, err := anno.ReadGenomeDict(this.RefDict)
-	if err != err {
-		return err
-	}
 	reader, err := pkg.NewIOReader(this.Input)
 	if err != nil {
 		return err
@@ -62,9 +54,6 @@ func (this PreClinvarParam) Run() error {
 		for _, alt := range row.Alt() {
 			chrom, start, end, ref, alt := pkg.VCFtoAV(row.Chrom(), int(row.Pos), row.Ref(), alt)
 			chrom = "chr" + chrom
-			if _, ok := genome[chrom]; !ok {
-				continue
-			}
 			clnrevstat, err := row.Info().Get("CLNREVSTAT")
 			if err != nil {
 				clnrevstat = "."
