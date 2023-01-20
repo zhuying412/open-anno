@@ -108,7 +108,6 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 
 			}
 			alt := ncdna[start-1 : start+len(snv.Alt)-1]
-			unit := pkg.DupUnit(alt)
 			if start == 1 {
 				// 在CDNA第一个碱基前插入，不影响起始密码子
 				transAnno.NAChange = fmt.Sprintf("c.-1_1ins%s", alt)
@@ -131,6 +130,7 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 					transAnno.Region2 = "DownStream"
 				}
 			} else {
+				unit := pkg.DupUnit(alt)
 				if start > len(unit) && unit == cdna[start-len(unit)-1:start-1] {
 					// 比较重复单元和其之前的碱基
 					transAnno.NAChange = fmt.Sprintf("c.%ddup%s", start-1, unit)
@@ -143,14 +143,30 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 				if len(snv.Alt)%3 == 0 {
 					transAnno.Event = "ins_inframe"
 					if len(aa1) == 0 {
-						transAnno.AAChange = fmt.Sprintf(
-							"p.%s%d_%s%dins%s",
-							pkg.AAName(protein[start-2], AA_SHORT),
-							start-1,
-							pkg.AAName(protein[start-1], AA_SHORT),
-							start,
-							pkg.AAName(aa2, AA_SHORT),
-						)
+						unit = pkg.DupUnit(aa2)
+						if start > len(unit) && unit == cdna[start-len(unit)-1:start-1] {
+							// 比较重复单元和其之前的碱基
+							if len(unit) == 1 {
+								transAnno.NAChange = fmt.Sprintf("c.%s%ddup", unit, start-1)
+							} else {
+								transAnno.NAChange = fmt.Sprintf(
+									"c.%s%d_%s%ddup",
+									pkg.AAName(protein[start-len(unit)-1], AA_SHORT),
+									start-len(unit),
+									pkg.AAName(protein[start-2], AA_SHORT),
+									start-1,
+								)
+							}
+						} else {
+							transAnno.AAChange = fmt.Sprintf(
+								"p.%s%d_%s%dins%s",
+								pkg.AAName(protein[start-2], AA_SHORT),
+								start-1,
+								pkg.AAName(protein[start-1], AA_SHORT),
+								start,
+								pkg.AAName(aa2, AA_SHORT),
+							)
+						}
 					} else if len(aa1) == 1 {
 						transAnno.AAChange = fmt.Sprintf("p.%s%ddelins%s", pkg.AAName(aa1, AA_SHORT), start-1, pkg.AAName(aa2, AA_SHORT))
 					} else {
@@ -165,15 +181,19 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 				} else {
 					if start < len(protein) {
 						transAnno.Event = "ins_frameshift"
-						var fs string
-						fsi := strings.IndexByte(nprotein[start-1:], '*')
-						if fsi == -1 {
-							fs = "?"
+						if aa2[0] == '*' {
+							transAnno.AAChange = fmt.Sprintf("p.%s%dfs", pkg.AAName(aa1[0], AA_SHORT), start)
+						} else {
+							var fs string
+							fsi := strings.IndexByte(nprotein[start-1:], '*')
+							if fsi == -1 {
+								fs = "?"
+							}
+							if fsi != 0 {
+								fs = fmt.Sprintf("%d", fsi+1)
+							}
+							transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 						}
-						if fsi != 0 {
-							fs = fmt.Sprintf("%d", fsi+1)
-						}
-						transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 					}
 				}
 			}

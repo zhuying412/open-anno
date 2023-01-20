@@ -71,15 +71,20 @@ func setSubAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 	} else {
 		if start < len(protein) {
 			transAnno.Event = "sub_frameshift"
-			var fs string
-			fsi := strings.IndexByte(nprotein[start-1:], '*')
-			if fsi == -1 {
-				fs = "?"
+			if aa2[0] == '*' {
+				transAnno.AAChange = fmt.Sprintf("p.%s%dfs", pkg.AAName(aa1[0], AA_SHORT), start)
+			} else {
+				var fs string
+				fsi := strings.IndexByte(nprotein[start-1:], '*')
+				if fsi == -1 {
+					fs = "?"
+				}
+				if fsi != 0 {
+					fs = fmt.Sprintf("%d", fsi+1)
+				}
+
+				transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 			}
-			if fsi != 0 {
-				fs = fmt.Sprintf("%d", fsi+1)
-			}
-			transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 		}
 	}
 	if protein[0] != nprotein[0] && protein[0] == 'M' {
