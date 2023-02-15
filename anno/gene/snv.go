@@ -132,6 +132,9 @@ func AnnoSnvs(
 	)
 	// 开始注释
 	for chrom, snvs := range snvMap {
+		// if chrom != "chr10" {
+		// 	continue
+		// }
 		log.Printf("Start run annotate %s %s ...", dbName, chrom)
 		if err != nil {
 			return err
@@ -149,6 +152,7 @@ func AnnoSnvs(
 			} else if snvs[i].Start > transIndexes[j].End {
 				j++
 			} else {
+				// fmt.Println(snvs[i])
 				chrom, start, end, ref, alt := snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt
 				transAnnos := AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
 				for _, transAnno := range transAnnos {

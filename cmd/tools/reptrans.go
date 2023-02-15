@@ -16,14 +16,17 @@ type RepTransParam struct {
 	RefseqCurated string `validate:"required,pathexists"`
 	RefseqHGMD    string `validate:"required,pathexists"`
 	RefseqSelect  string `validate:"required,pathexists"`
-	RefseqLink    string `validate:"required,pathexists"`
+	ClinvarHGVS   string `validate:"required,pathexists"`
 	Output        string `validate:"required"`
 }
 
 func (this RepTransParam) Valid() error {
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
-	validate.Struct(this)
+	err := validate.Struct(this)
+	if err != nil {
+		return err
+	}
 	outdir := path.Dir(this.Output)
 	return os.MkdirAll(outdir, 0666)
 }
@@ -51,9 +54,9 @@ func (this RepTransParam) ReadGenePred(gpeFile string, withVer bool) (map[string
 	return data, nil
 }
 
-func (this RepTransParam) ReadRefseqLink(withVer bool) (map[string]bool, error) {
-	data := make(map[string]bool)
-	reader, err := pkg.NewIOReader(this.RefseqLink)
+func (this RepTransParam) ReadClinvarHGVS() (map[string][]string, error) {
+	data := make(map[string][]string)
+	reader, err := pkg.NewIOReader(this.ClinvarHGVS)
 	if err != nil {
 		return data, err
 	}
@@ -61,14 +64,59 @@ func (this RepTransParam) ReadRefseqLink(withVer bool) (map[string]bool, error) 
 	scanner := pkg.NewIOScanner(reader)
 	for scanner.Scan() {
 		row := strings.Split(scanner.Text(), "\t")
-		name := row[0]
-		if !withVer {
-			name = strings.Split(name, ".")[0]
+		if !strings.HasPrefix(row[0], "#") &&
+			row[0] != "-" && (row[5] == "GRCh38" || row[5] == "na") &&
+			(strings.HasPrefix(row[6], "NM_") || strings.HasPrefix(row[6], "NR_")) &&
+			row[10] == "Yes" && row[11] != "No" {
+			gene := row[0]
+			trans := strings.Split(row[6], ".")[0]
+			if _, ok := data[gene]; !ok {
+				data[gene] = make([]string, 0)
+			}
+			if pkg.FindArr(data[gene], trans) == -1 {
+				data[gene] = append(data[gene], trans)
+			}
 		}
-		data[name] = true
 	}
 	return data, nil
 }
+
+// func (this RepTransParam) ReadClinvarHGVS() (map[string]string, error) {
+// 	data := make(map[string]string)
+// 	reader, err := pkg.NewIOReader(this.ClinvarHGVS)
+// 	if err != nil {
+// 		return data, err
+// 	}
+// 	defer reader.Close()
+// 	tmpData := make(map[string]map[string]int)
+// 	scanner := pkg.NewIOScanner(reader)
+// 	for scanner.Scan() {
+// 		row := strings.Split(scanner.Text(), "\t")
+// 		if !strings.HasPrefix(row[0], "#") && row[0] != "-" && (row[5] == "GRCh38" || row[5] == "na") && (strings.HasPrefix(row[6], "NM_") || strings.HasPrefix(row[6], "NR_")) && row[10] == "Yes" {
+// 			gene := row[0]
+// 			trans := strings.Split(row[6], ".")[0]
+// 			if _, ok := tmpData[gene]; !ok {
+// 				tmpData[gene] = make(map[string]int)
+// 			}
+// 			if _, ok := tmpData[gene][trans]; !ok {
+// 				tmpData[gene][trans] = 0
+// 			}
+// 			tmpData[gene][trans]++
+// 		}
+// 	}
+// 	for gene, transcripts := range tmpData {
+// 		maxCount := 0
+// 		maxCountTrans := ""
+// 		for trans, count := range transcripts {
+// 			if maxCount < count {
+// 				maxCount = count
+// 				maxCountTrans = trans
+// 			}
+// 		}
+// 		data[gene] = maxCountTrans
+// 	}
+// 	return data, nil
+// }
 
 func (this RepTransParam) Run() error {
 	curatedData, err := this.ReadGenePred(this.RefseqCurated, true)
@@ -83,44 +131,78 @@ func (this RepTransParam) Run() error {
 	if err != nil {
 		return err
 	}
-	linkData, err := this.ReadRefseqLink(false)
+	clinvarData, err := this.ReadClinvarHGVS()
 	if err != nil {
 		return err
 	}
-	data := make(map[string]map[string][]string)
-	for chrom, subCuratedData1 := range curatedData {
-		data[chrom] = make(map[string][]string)
-		for gene, subCuratedData2 := range subCuratedData1 {
-			data[chrom][gene] = make([]string, 0)
-			for trans := range subCuratedData2 {
-				name := strings.Split(trans, ".")[0]
-				if _, ok := hgmdData[chrom][gene][name]; ok {
-					data[chrom][gene] = append(data[chrom][gene], trans)
+	data := make(map[string]map[string]string)
+	maxLenData := make(map[string]map[string]string)
+	for chrom, genes := range curatedData {
+		data[chrom] = make(map[string]string)
+		maxLenData[chrom] = make(map[string]string)
+		for gene, transcripts := range genes {
+			data[chrom][gene] = "."
+			maxLen := 0
+			maxLenTrans := ""
+			for trans, length := range transcripts {
+				if maxLen < length {
+					maxLen = length
+					maxLenTrans = trans
+				}
+			}
+			maxLenData[chrom][gene] = maxLenTrans
+		}
+	}
+
+	for chrom, genes := range curatedData {
+		for gene, transcripts := range genes {
+			if data[chrom][gene] == "." {
+				for trans := range transcripts {
+					name := strings.Split(trans, ".")[0]
+					if _, ok := hgmdData[chrom][gene][name]; ok {
+						data[chrom][gene] = trans + "\tHGMD"
+						break
+					}
 				}
 			}
 		}
 	}
-	for chrom, subCuratedData1 := range curatedData {
-		for gene, subCuratedData2 := range subCuratedData1 {
-			for trans := range subCuratedData2 {
-				if len(data[chrom][gene]) == 0 {
+	for chrom, genes := range curatedData {
+		for gene, transcripts := range genes {
+			if data[chrom][gene] == "." {
+				for trans := range transcripts {
 					name := strings.Split(trans, ".")[0]
 					if _, ok := selectData[chrom][gene][name]; ok {
-						data[chrom][gene] = append(data[chrom][gene], trans)
+						data[chrom][gene] = trans + "\tSelect"
+						break
 					}
 				}
 			}
 		}
 	}
-	for chrom, subCuratedData1 := range curatedData {
-		for gene, subCuratedData2 := range subCuratedData1 {
-			for trans := range subCuratedData2 {
-				if len(data[chrom][gene]) == 0 {
-					name := strings.Split(trans, ".")[0]
-					if _, ok := linkData[name]; ok {
-						data[chrom][gene] = append(data[chrom][gene], trans)
+	for chrom, genes := range curatedData {
+		for gene, transcripts := range genes {
+			if data[chrom][gene] == "." {
+				for trans := range transcripts {
+					if transArr, ok := clinvarData[gene]; ok {
+						name := strings.Split(trans, ".")[0]
+						if pkg.FindArr(transArr, name) != -1 {
+							data[chrom][gene] = trans + "\tClinVar"
+							break
+						}
 					}
+					// if trans == clinvarData[gene] {
+					// 	data[chrom][gene] = trans + "\tClinVar"
+					// 	break
+					// }
 				}
+			}
+		}
+	}
+	for chrom, genes := range curatedData {
+		for gene := range genes {
+			if data[chrom][gene] == "." {
+				data[chrom][gene] = maxLenData[chrom][gene] + "\tMaxLength"
 			}
 		}
 	}
@@ -129,16 +211,9 @@ func (this RepTransParam) Run() error {
 		return err
 	}
 	defer writer.Close()
-	for chrom, subData := range data {
-		if len(chrom) > 5 {
-			continue
-		}
-		for gene, trans := range subData {
-			info := "."
-			if len(trans) > 0 {
-				info = strings.Join(trans, ",")
-			}
-			fmt.Fprintf(writer, "%s\t%s\t%s\n", chrom, gene, info)
+	for chrom, genes := range data {
+		for gene, trans := range genes {
+			fmt.Fprintf(writer, "%s\t%s\t%s\n", chrom, gene, trans)
 		}
 	}
 	return nil
@@ -153,7 +228,7 @@ func NewRepTransCmd() *cobra.Command {
 			param.RefseqCurated, _ = cmd.Flags().GetString("curated")
 			param.RefseqHGMD, _ = cmd.Flags().GetString("hgmd")
 			param.RefseqSelect, _ = cmd.Flags().GetString("select")
-			param.RefseqLink, _ = cmd.Flags().GetString("link")
+			param.ClinvarHGVS, _ = cmd.Flags().GetString("clinvar")
 			param.Output, _ = cmd.Flags().GetString("output")
 			err := param.Valid()
 			if err != nil {
@@ -166,10 +241,10 @@ func NewRepTransCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("curated", "c", "", "Input Refseq Curated File")
-	cmd.Flags().StringP("hgmd", "g", "", "Input Refseq HGMD File")
-	cmd.Flags().StringP("select", "s", "", "Input Refseq Select File")
-	cmd.Flags().StringP("link", "l", "", "Input Refseq Link File")
-	cmd.Flags().StringP("output", "o", "", "Output Merged Annotation File")
+	cmd.Flags().StringP("curated", "c", "", "Input Refseq Curated File from UCSC, name: ncbiRefSeqCurated.txt.gz")
+	cmd.Flags().StringP("hgmd", "g", "", "Input Refseq HGMD File  from UCSC, name: ncbiRefSeqHgmd.txt.gz")
+	cmd.Flags().StringP("select", "s", "", "Input Refseq Select File from UCSC, name: ncbiRefSeqSelect.txt.gz")
+	cmd.Flags().StringP("clinvar", "l", "", "Input ClinVar HGVS File from NCBI, name: hgvs4variation.txt.gz")
+	cmd.Flags().StringP("output", "o", "", "Output Representative Transcript File")
 	return cmd
 }

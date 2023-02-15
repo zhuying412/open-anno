@@ -12,6 +12,7 @@
     "Baseds",
     "binsize",
     "cdna",
+    "cdss",
     "cend",
     "Chrom",
     "Clinvar",
@@ -29,6 +30,7 @@
     "dbvar",
     "dbvars",
     "ddel",
+    "ddelext",
     "ddelins",
     "entrez",
     "exonic",
@@ -45,6 +47,7 @@
     "Gnomad",
     "gpes",
     "HGMD",
+    "hgvs",
     "Indexm",
     "infile",
     "inframe",
@@ -75,6 +78,8 @@
     "Splcing",
     "splic",
     "startloss",
+    "stoploss",
+    "UCSC",
     "vcfgo",
     "VCMP"
 ]

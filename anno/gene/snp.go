@@ -89,7 +89,12 @@ func AnnoSnp(snv anno.Variant, trans pkg.Transcript) TransAnno {
 					transAnno.Event = "missense"
 				}
 			}
-			transAnno.AAChange = fmt.Sprintf("p.%s%d%s", pkg.AAName(aa1, AA_SHORT), pstart, pkg.AAName(aa2, AA_SHORT))
+			if aa1 == '*' {
+				transAnno.AAChange = fmt.Sprintf("p.%s%d%sext*?", pkg.AAName(aa1, AA_SHORT), pstart, pkg.AAName(aa2, AA_SHORT))
+			} else {
+				transAnno.AAChange = fmt.Sprintf("p.%s%d%s", pkg.AAName(aa1, AA_SHORT), pstart, pkg.AAName(aa2, AA_SHORT))
+			}
+
 		}
 	}
 	return transAnno

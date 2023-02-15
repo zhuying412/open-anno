@@ -182,7 +182,7 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 					if start < len(protein) {
 						transAnno.Event = "ins_frameshift"
 						if aa2[0] == '*' {
-							transAnno.AAChange = fmt.Sprintf("p.%s%dfs", pkg.AAName(aa1[0], AA_SHORT), start)
+							transAnno.AAChange = fmt.Sprintf("p.%s%d*", pkg.AAName(aa1[0], AA_SHORT), start)
 						} else {
 							var fs string
 							fsi := strings.IndexByte(nprotein[start-1:], '*')
@@ -195,6 +195,12 @@ func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
 							transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 						}
 					}
+				}
+				if protein[0] == 'M' && nprotein[0] != 'M' {
+					transAnno.Event += "_startloss"
+				}
+				if protein[len(protein)-1] == '*' && strings.IndexByte(nprotein, '*') == -1 {
+					transAnno.Event += "_stoploss"
 				}
 			}
 		}

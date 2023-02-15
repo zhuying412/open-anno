@@ -83,6 +83,11 @@ func setDelAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 					end1,
 				)
 			}
+			if aa1[len(aa1)] == '*' {
+				transAnno.AAChange += "ext*?"
+				transAnno.Event += "_stoploss"
+			}
+
 		} else {
 			if len(aa1) == 1 {
 				transAnno.AAChange = fmt.Sprintf("p.%s%ddelins%s", pkg.AAName(aa1, AA_SHORT), start, pkg.AAName(aa2, AA_SHORT))
@@ -99,26 +104,33 @@ func setDelAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 	} else {
 		if start < len(protein) {
 			transAnno.Event = "del_frameshift"
-			if aa2[0] == '*' {
+			if len(aa2) == 0 {
 				transAnno.AAChange = fmt.Sprintf("p.%s%dfs", pkg.AAName(aa1[0], AA_SHORT), start)
 			} else {
-				var fs string
-				fsi := strings.IndexByte(nprotein[start-1:], '*')
-				if fsi == -1 {
-					fs = "?"
+				if aa2[0] == '*' {
+					transAnno.AAChange = fmt.Sprintf("p.%s%d*", pkg.AAName(aa1[0], AA_SHORT), start)
+				} else {
+					var fs string
+					fsi := strings.IndexByte(nprotein[start-1:], '*')
+					if fsi == -1 {
+						fs = "?"
+					}
+					if fsi != 0 {
+						fs = fmt.Sprintf("%d", fsi+1)
+					}
+					transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 				}
-				if fsi != 0 {
-					fs = fmt.Sprintf("%d", fsi+1)
-				}
-				transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 			}
 		}
 	}
-	if protein[0] != nprotein[0] && protein[0] == 'M' {
+	if protein[0] == 'M' && nprotein[0] != 'M' {
 		transAnno.Event += "_startloss"
 	}
 	if strings.Contains(transAnno.Region, "splic") {
 		transAnno.Event += "_splicing"
+	}
+	if protein[len(protein)-1] == '*' && strings.IndexByte(nprotein, '*') == -1 {
+		transAnno.Event += "_stoploss"
 	}
 	return transAnno
 }

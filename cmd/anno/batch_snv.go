@@ -170,6 +170,10 @@ func (this AnnoBatchSnvParam) Run() error {
 	if err != nil {
 		return err
 	}
+	err = mergeParam.Run()
+	if err != nil {
+		return err
+	}
 	if this.Clean {
 		outfiles := []string{gbOutfile}
 		outfiles = append(outfiles, fbOutfiles...)
@@ -182,7 +186,7 @@ func (this AnnoBatchSnvParam) Run() error {
 		}
 
 	}
-	return mergeParam.Run()
+	return nil
 }
 
 func NewAnnoBatchSnvCmd() *cobra.Command {

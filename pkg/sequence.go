@@ -96,7 +96,7 @@ func Substitute2(sequence string, start int, end int, alt string) string {
 // DupUnit Dup的单位元件：如 ATGATGATG->ATG
 func DupUnit(sequence string) string {
 	var unit string
-	for i := 0; i <= len(sequence); i++ {
+	for i := 0; i < len(sequence); i++ {
 		unit = sequence[0 : i+1]
 		match, _ := regexp.MatchString(fmt.Sprintf(`^(%s)+$`, unit), sequence)
 		if match {
