@@ -2,12 +2,12 @@ package gene
 
 import (
 	"fmt"
-	"open-anno/anno"
+	"open-anno/anno/variant"
 	"open-anno/pkg"
 	"strings"
 )
 
-func getDelCLen(trans pkg.Transcript, snv anno.Variant) (int, int, pkg.Region, pkg.Region, bool) {
+func getDelCLen(trans pkg.Transcript, snv variant.AnnoVariant) (int, int, pkg.Region, pkg.Region, bool) {
 	var cStart, cEnd int
 	var region1, region2 pkg.Region
 	var hasCDS, hasIntron bool
@@ -135,7 +135,7 @@ func setDelAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 	return transAnno
 }
 
-func AnnoDel(snv anno.Variant, trans pkg.Transcript) TransAnno {
+func AnnoDel(snv variant.AnnoVariant, trans pkg.Transcript) TransAnno {
 	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)

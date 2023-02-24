@@ -3,9 +3,10 @@ package gene
 import (
 	"fmt"
 	"log"
-	"open-anno/anno"
+	"open-anno/anno/variant"
 	"open-anno/pkg"
 	"sort"
+	"strings"
 
 	"github.com/brentp/faidx"
 )
@@ -81,7 +82,7 @@ func NewTransAnno(trans pkg.Transcript, regions ...pkg.Region) TransAnno {
 	return transAnno
 }
 
-func AnnoSnv(snv anno.Variant, transNames []string, transcripts pkg.Transcripts) []TransAnno {
+func AnnoSnv(snv variant.AnnoVariant, transNames []string, transcripts pkg.Transcripts) []TransAnno {
 	// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
 	var transAnnos []TransAnno
 	for _, transName := range transNames {
@@ -93,11 +94,11 @@ func AnnoSnv(snv anno.Variant, transNames []string, transcripts pkg.Transcripts)
 				transAnno.Region = "ncRNA"
 				transAnnos = append(transAnnos, transAnno)
 			} else {
-				if snv.Type() == anno.VType_SNP {
+				if snv.Type() == variant.VType_SNP {
 					transAnno = AnnoSnp(snv, trans)
-				} else if snv.Type() == anno.VType_INS {
+				} else if snv.Type() == variant.VType_INS {
 					transAnno = AnnoIns(snv, trans)
-				} else if snv.Type() == anno.VType_DEL {
+				} else if snv.Type() == variant.VType_DEL {
 					transAnno = AnnoDel(snv, trans)
 				} else {
 					transAnno = AnnoSub(snv, trans)
@@ -109,36 +110,77 @@ func AnnoSnv(snv anno.Variant, transNames []string, transcripts pkg.Transcripts)
 	return transAnnos
 }
 
+type GeneAnno struct {
+	Gene    string
+	GeneID  string
+	Regions []string
+	Events  []string
+	Details []string
+}
+
+func (this *GeneAnno) AddEvent(event string) {
+	if event != "" && event != "." && pkg.FindArr(this.Events, event) < 0 {
+		this.Events = append(this.Events, event)
+	}
+}
+func (this *GeneAnno) AddRegion(region string) {
+	if region != "" && region != "." && pkg.FindArr(this.Regions, region) < 0 {
+		this.Regions = append(this.Regions, region)
+	}
+}
+func (this *GeneAnno) AddDetail(detail string) {
+	if detail != "" && detail != "." && pkg.FindArr(this.Details, detail) < 0 {
+		this.Details = append(this.Details, detail)
+	}
+}
+
+func (this GeneAnno) Region() string {
+	var regions1, regions2 []string
+	for _, region := range this.Regions {
+		switch region {
+		case "exonic", "splicing", "exonic_splicing", "transcript":
+			regions1 = append(regions1, region)
+		case "ncRNA", "UTR3", "UTR5", "intronic":
+			regions2 = append(regions2, region)
+		}
+	}
+	if len(regions1) > 0 {
+		return strings.Join(regions1, ",")
+	}
+	if len(regions2) > 0 {
+		return strings.Join(regions2, ",")
+	}
+	return "."
+}
+
+func (this GeneAnno) Event() string {
+	if len(this.Events) > 0 {
+		return strings.Join(this.Events, ",")
+	}
+	return "."
+}
+
+func (this GeneAnno) Detail() string {
+	if len(this.Details) > 0 {
+		return strings.Join(this.Details, ",")
+	}
+	return "."
+}
+
 func AnnoSnvs(
-	snvMap map[string]anno.Variants,
-	annoOutputFile string,
-	dbName string,
+	snvMap *map[string]variant.SNVs,
 	gpes pkg.GenePreds,
 	allTransIndexes pkg.TransIndexes,
 	genome *faidx.Faidx,
 	geneSymbolToID map[string]map[string]string,
 	aashort bool) error {
 	AA_SHORT = aashort
-	// 打开输出文件
-	writer, err := pkg.NewIOWriter(annoOutputFile)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	// 写入Header
-	fmt.Fprintf(writer,
-		"Chr\tStart\tEnd\tRef\tAlt\t%s.Gene\t%s.GeneID\t%s.Event\t%s.Region\t%s.Detail\n",
-		dbName, dbName, dbName, dbName, dbName,
-	)
 	// 开始注释
-	for chrom, snvs := range snvMap {
+	for chrom, snvs := range *snvMap {
 		// if chrom != "chr10" {
 		// 	continue
 		// }
-		log.Printf("Start run annotate %s %s ...", dbName, chrom)
-		if err != nil {
-			return err
-		}
+		log.Printf("Start run annotate GenePred %s ...", chrom)
 		transcripts, err := pkg.NewTranscriptsWithSeq(gpes, chrom, geneSymbolToID, genome)
 		if err != nil {
 			return err
@@ -147,35 +189,39 @@ func AnnoSnvs(
 		sort.Sort(snvs)
 		sort.Sort(transIndexes)
 		for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
-			if snvs[i].End < transIndexes[j].Start {
+			if snvs[i].AnnoVariant.End < transIndexes[j].Start {
 				i++
-			} else if snvs[i].Start > transIndexes[j].End {
+			} else if snvs[i].AnnoVariant.Start > transIndexes[j].End {
 				j++
 			} else {
-				// fmt.Println(snvs[i])
-				chrom, start, end, ref, alt := snvs[i].Chrom, snvs[i].Start, snvs[i].End, snvs[i].Ref, snvs[i].Alt
-				transAnnos := AnnoSnv(snvs[i], transIndexes[j].Transcripts, transcripts)
+				transAnnos := AnnoSnv(snvs[i].AnnoVariant, transIndexes[j].Transcripts, transcripts)
+				geneAnnos := make(map[string]GeneAnno)
 				for _, transAnno := range transAnnos {
-					gene, geneId, event, region, detail := transAnno.Gene, transAnno.GeneID, transAnno.Event, transAnno.Region, transAnno.Detail()
-					if geneId == "" {
-						geneId = "."
+					geneAnno, ok := geneAnnos[transAnno.Gene]
+					if !ok {
+						geneAnno = GeneAnno{Gene: transAnno.Gene, GeneID: transAnno.GeneID}
 					}
-					if event == "" {
-						event = "."
-					}
-					if region == "" {
-						region = "."
-					}
-					if detail == "" {
-						detail = "."
-					}
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-						chrom, start, end, ref, alt, gene, geneId, event, region, detail,
-					)
+					geneAnno.AddEvent(transAnno.Event)
+					geneAnno.AddRegion(transAnno.Region)
+					geneAnno.AddDetail(transAnno.Detail())
+					geneAnnos[transAnno.Gene] = geneAnno
 				}
+				var genes, geneIds, events, regions, details []string
+				for _, geneAnno := range geneAnnos {
+					genes = append(genes, geneAnno.Gene)
+					geneIds = append(geneIds, geneAnno.GeneID)
+					events = append(events, geneAnno.Event())
+					regions = append(regions, geneAnno.Region())
+					details = append(details, geneAnno.Detail())
+				}
+				snvs[i].Info().Set("GENE", strings.Join(genes, "|"))
+				snvs[i].Info().Set("GENE_ID", strings.Join(geneIds, "|"))
+				snvs[i].Info().Set("EVENT", strings.Join(events, "|"))
+				snvs[i].Info().Set("DETAIL", strings.Join(details, "|"))
 				i++
 			}
 		}
+		(*snvMap)[chrom] = snvs
 	}
-	return err
+	return nil
 }

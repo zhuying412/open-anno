@@ -2,12 +2,12 @@ package gene
 
 import (
 	"fmt"
-	"open-anno/anno"
+	"open-anno/anno/variant"
 	"open-anno/pkg"
 	"strings"
 )
 
-func findInsRegion(regions pkg.Regions, strand string, snv anno.Variant) (pkg.Region, int) {
+func findInsRegion(regions pkg.Regions, strand string, snv variant.AnnoVariant) (pkg.Region, int) {
 	var cLen int
 	for _, region := range regions {
 
@@ -22,7 +22,7 @@ func findInsRegion(regions pkg.Regions, strand string, snv anno.Variant) (pkg.Re
 	return pkg.Region{}, cLen
 }
 
-func AnnoIns(snv anno.Variant, trans pkg.Transcript) TransAnno {
+func AnnoIns(snv variant.AnnoVariant, trans pkg.Transcript) TransAnno {
 	region, cLen := findInsRegion(trans.Regions, trans.Strand, snv)
 	transAnno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {

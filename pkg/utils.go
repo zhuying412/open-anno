@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/go-playground/validator/v10"
@@ -76,4 +77,9 @@ func CheckPathsExists(fl validator.FieldLevel) bool {
 		}
 	}
 	return true
+}
+
+// CurBin 计算Bin游标
+func CurBin[T int | int64](chrom string, start T, size int) string {
+	return fmt.Sprintf("%s\t%d", chrom, start-(start%T(size)))
 }

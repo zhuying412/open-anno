@@ -2,7 +2,7 @@ package gene
 
 import (
 	"fmt"
-	"open-anno/anno"
+	"open-anno/anno/variant"
 	"open-anno/pkg"
 	"strings"
 )
@@ -96,7 +96,7 @@ func setSubAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 	return transAnno
 }
 
-func AnnoSub(snv anno.Variant, trans pkg.Transcript) TransAnno {
+func AnnoSub(snv variant.AnnoVariant, trans pkg.Transcript) TransAnno {
 	cStart, cEnd, region1, region2, isExonSplicing := getDelCLen(trans, snv)
 	cLen := trans.CLen()
 	l := trans.CdsStart - pkg.Max(trans.TxStart, snv.Start)

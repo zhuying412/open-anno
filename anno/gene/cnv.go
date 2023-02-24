@@ -3,7 +3,7 @@ package gene
 import (
 	"fmt"
 	"log"
-	"open-anno/anno"
+	"open-anno/anno/variant"
 	"open-anno/pkg"
 	"sort"
 	"strings"
@@ -35,7 +35,7 @@ func NewCnvTransAnno(trans pkg.Transcript) CnvTransAnno {
 	return transAnno
 }
 
-func AnnoCnv(cnv anno.Variant, trans pkg.Transcript) CnvTransAnno {
+func AnnoCnv(cnv variant.AnnoVariant, trans pkg.Transcript) CnvTransAnno {
 	var cdss, utr3s, utr5s pkg.Regions
 	var cdsCount int
 	regions := trans.Regions
@@ -97,7 +97,7 @@ func AnnoCnv(cnv anno.Variant, trans pkg.Transcript) CnvTransAnno {
 }
 
 func AnnoCnvs(
-	cnvMap map[string]anno.Variants,
+	cnvMap map[string]variant.CNVs,
 	gpes pkg.GenePreds,
 	allTransIndexes pkg.TransIndexes,
 	geneSymbolToID map[string]map[string]string,
