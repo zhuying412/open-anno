@@ -56,7 +56,7 @@ func (this IdxDBParam) Run() error {
 		if err != nil {
 			return err
 		}
-		curbin := db.CurBin(chrom, start, this.BinSize)
+		curbin := pkg.CurBin(chrom, start, this.BinSize)
 		if _, ok := idxMap[curbin]; !ok {
 			indexes = append(indexes, curbin)
 			idxMap[curbin] = &db.FilterVarIdx{Bin: curbin, Start: offset}

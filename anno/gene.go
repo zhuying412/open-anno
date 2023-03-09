@@ -26,3 +26,18 @@ func ReadGene(infile string) (map[string]map[string]string, error) {
 	}
 	return gene, nil
 }
+
+type AnnoInfo struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+type AnnoInfos map[string][]AnnoInfo
+
+func (this *AnnoInfos) Add(pk, key, val string) {
+	if items, ok := (*this)[pk]; ok {
+		(*this)[pk] = append(items, AnnoInfo{Key: key, Value: val})
+	} else {
+		(*this)[pk] = []AnnoInfo{{Key: key, Value: val}}
+	}
+}

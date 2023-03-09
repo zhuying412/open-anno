@@ -3,7 +3,7 @@ package gene
 import (
 	"fmt"
 	"log"
-	"open-anno/anno/variant"
+	"open-anno/anno"
 	"open-anno/pkg"
 	"sort"
 	"strings"
@@ -35,7 +35,7 @@ func NewCnvTransAnno(trans pkg.Transcript) CnvTransAnno {
 	return transAnno
 }
 
-func AnnoCnv(cnv variant.AnnoVariant, trans pkg.Transcript) CnvTransAnno {
+func AnnoCnv(cnv anno.AnnoVariant, trans pkg.Transcript) CnvTransAnno {
 	var cdss, utr3s, utr5s pkg.Regions
 	var cdsCount int
 	regions := trans.Regions
@@ -97,32 +97,26 @@ func AnnoCnv(cnv variant.AnnoVariant, trans pkg.Transcript) CnvTransAnno {
 }
 
 func AnnoCnvs(
-	cnvMap map[string]variant.CNVs,
+	variants anno.Variants,
 	gpes pkg.GenePreds,
 	allTransIndexes pkg.TransIndexes,
-	geneSymbolToID map[string]map[string]string,
-	annoOutput, dbname string) error {
-	// 打开输出文件
-	writer, err := pkg.NewIOWriter(annoOutput)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	fmt.Fprintf(writer, "Chr\tStart\tEnd\tRef\tAlt\t%s.Region\n", dbname)
-	for chrom, cnvs := range cnvMap {
+	geneSymbolToID map[string]map[string]string) (anno.AnnoInfos, error) {
+	annoInfos := make(anno.AnnoInfos)
+	for chrom, cnvs := range variants.AggregateByChrom() {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
 		transcripts, err := pkg.NewTranscripts(gpes, chrom, geneSymbolToID)
 		if err != nil {
-			return err
+			return annoInfos, err
 		}
 		transIndexes := allTransIndexes.FilterChrom(chrom)
 		sort.Sort(cnvs)
 		sort.Sort(transIndexes)
 		for _, cnv := range cnvs {
+			annoVariant := cnv.AnnoVariant()
 			transNames := make(map[string]bool)
 			transAnnos := make([]CnvTransAnno, 0)
 			for _, index := range transIndexes {
-				if cnv.Start <= index.End && cnv.End >= index.Start {
+				if annoVariant.Start <= index.End && annoVariant.End >= index.Start {
 					for _, transName := range index.Transcripts {
 						trans := transcripts[transName]
 						if _, ok := transNames[transName]; ok || trans.IsUnk() {
@@ -130,8 +124,8 @@ func AnnoCnvs(
 						}
 						transNames[transName] = true
 						if !trans.IsUnk() {
-							if cnv.Start <= trans.TxEnd && cnv.End >= trans.TxStart {
-								transAnno := AnnoCnv(cnv, trans)
+							if annoVariant.Start <= trans.TxEnd && annoVariant.End >= trans.TxStart {
+								transAnno := AnnoCnv(annoVariant, trans)
 								transAnnos = append(transAnnos, transAnno)
 							}
 						}
@@ -147,10 +141,8 @@ func AnnoCnvs(
 			if len(annoTexts) == 0 {
 				annoTexts = []string{"."}
 			}
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\n",
-				cnv.Chrom, cnv.Start, cnv.End, cnv.Ref, cnv.Alt, strings.Join(annoTexts, ","),
-			)
+			annoInfos[annoVariant.PK()] = []anno.AnnoInfo{{Key: "REGION", Value: strings.Join(annoTexts, ",")}}
 		}
 	}
-	return err
+	return annoInfos, nil
 }

@@ -1,27 +1,13 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
-	"open-anno/pkg"
 
-	"github.com/brentp/vcfgo"
 	"github.com/spf13/cobra"
 )
 
 func RunTest(infile string) {
-	reader, err := pkg.NewIOReader(infile)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	vcfReader, err := vcfgo.NewReader(reader, false)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	// fmt.Println(vcfReader.AddInfoToHeader())
-	for variant := vcfReader.Read(); variant != nil; {
-		fmt.Println(variant.)
-	}
+	return
 }
 
 func NewTestCmd() *cobra.Command {
