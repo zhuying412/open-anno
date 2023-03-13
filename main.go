@@ -48,8 +48,6 @@ func NewToolsCmd() *cobra.Command {
 		Use:   "tools",
 		Short: "Tools",
 	}
-	cmd.AddCommand(tools.NewAggsCmd())
-	cmd.AddCommand(tools.NewMergeCmd())
 	cmd.AddCommand(tools.NewRepTransCmd())
 	cmd.AddCommand(tools.NewExonBedCmd())
 	return cmd
