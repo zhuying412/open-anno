@@ -203,9 +203,11 @@ func (this AnnoSnvParam) Run() error {
 	for _, snv := range snvs {
 		vcfVariant := snv.(anno.SNV).Variant
 		for _, annoInfo := range annoInfos[snv.AnnoVariant().PK()] {
-			err = vcfVariant.Info().Set(annoInfo.Key, annoInfo.Value)
-			if err != nil {
-				return err
+			if annoInfo.Value != "" && annoInfo.Value != "." {
+				err = vcfVariant.Info().Set(annoInfo.Key, annoInfo.Value)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		vcfWriter.WriteVariant(&vcfVariant)
