@@ -10,7 +10,7 @@ import (
 
 func NewIOReader(infile string) (io.ReadCloser, error) {
 	fi, err := os.Open(infile)
-	if strings.HasSuffix(strings.ToLower(infile), ".gz") && err == nil {
+	if (strings.HasSuffix(strings.ToLower(infile), ".gz") || strings.HasSuffix(strings.ToLower(infile), ".bgz")) && err == nil {
 		return gzip.NewReader(fi)
 	}
 	return fi, err

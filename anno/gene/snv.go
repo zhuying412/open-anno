@@ -116,9 +116,9 @@ func AnnoSnvs(
 	allTransIndexes pkg.TransIndexes,
 	genome *faidx.Faidx,
 	geneSymbolToID map[string]map[string]string,
-	aashort bool) (anno.AnnoInfos, error) {
+	aashort bool) (map[string]map[string]any, error) {
 	AA_SHORT = aashort
-	annoInfos := make(anno.AnnoInfos)
+	annoInfos := make(map[string]map[string]any)
 	// 开始注释
 	for chrom, snvs := range variants.AggregateByChrom() {
 		// if chrom != "chr10" {
@@ -187,11 +187,11 @@ func AnnoSnvs(
 				}
 				pk := annoVariant.PK()
 				for key, val := range annoData {
-					if items, ok := annoInfos[pk]; ok {
-						annoInfos[pk] = append(items, anno.AnnoInfo{Key: strings.ToUpper(key), Value: strings.Join(val, ",")})
-					} else {
-						annoInfos[pk] = []anno.AnnoInfo{{Key: strings.ToUpper(key), Value: strings.Join(val, ",")}}
+					_, ok := annoInfos[pk]
+					if !ok {
+						annoInfos[pk] = make(map[string]any)
 					}
+					annoInfos[pk][strings.ToUpper(key)] = strings.Join(val, ",")
 				}
 				i++
 			}

@@ -3,6 +3,7 @@ package pre
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"open-anno/pkg"
 	"os"
@@ -30,73 +31,98 @@ func (this PreGnomadParam) Valid() error {
 	return os.MkdirAll(outdir, 0666)
 }
 
-func (this PreGnomadParam) KeyGenerator(dbname string) []string {
+func (this PreGnomadParam) Inputs() ([]string, error) {
+	vcfs := make([]string, 0)
+	fileinfos, err := ioutil.ReadDir(this.Input)
+	if err != nil {
+		return vcfs, err
+	}
+	for _, file := range fileinfos {
+		if file.IsDir() != true && strings.HasSuffix(file.Name(), "vcf.bgz") {
+			vcfs = append(vcfs, path.Join(this.Input, file.Name()))
+		}
+	}
+	return vcfs, nil
+}
+
+func (this PreGnomadParam) HeaderInfoIDs() []string {
 	populations := []string{"", "oth", "ami", "sas", "fin", "eas", "amr", "afr", "asj", "nfe"}
 	prefixes := []string{"AC", "AN", "AF", "nhomalt"}
-	keys := make([]string, 0)
-	for _, population := range populations {
-		for _, prefix := range prefixes {
+	keys := make([]string, len(populations)*len(prefixes))
+	for i, population := range populations {
+		for j, prefix := range prefixes {
 			key := prefix
 			if population != "" {
 				key += "_" + population
 			}
-			if dbname != "" {
-				key = dbname + "_" + key
-			}
-			keys = append(keys, key)
+			keys[len(prefixes)*i+j] = key
 		}
 	}
 	return keys
-
 }
 
-func (this PreGnomadParam) ProcessVCF(vcf string, keys []string, writer io.WriteCloser) error {
-	reader, err := pkg.NewIOReader(this.Input)
+func (this PreGnomadParam) NewVcfWriter(writer io.WriteCloser, vcf string, infoKeys []string, dbname string) (*vcfgo.Writer, error) {
+	reader, err := pkg.NewIOReader(vcf)
 	if err != nil {
-		return err
+		return &vcfgo.Writer{}, err
 	}
 	defer reader.Close()
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return err
+		return &vcfgo.Writer{}, err
 	}
 	defer vcfReader.Close()
-	for {
-		row := vcfReader.Read()
-		if row == nil {
-			break
-		}
-		for _, alt := range row.Alt() {
-			chrom, start, end, ref, alt := pkg.VCFtoAV(row.Chrom(), int(row.Pos), row.Ref(), alt)
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t", chrom, start, end, ref, alt)
-			values := make([]interface{}, 0)
-			for i, key := range keys {
-				val, err := row.Info().Get(key)
-				if err != nil {
-					return err
-				}
-				values[i] = val
+	vcfHeader := *vcfReader.Header
+	vcfHeaderInfos := make(map[string]*vcfgo.Info)
+	for key, info := range vcfHeader.Infos {
+		if pkg.FindArr(infoKeys, key) != -1 {
+			id := dbname + "_" + key
+			vcfHeaderInfos[id] = &vcfgo.Info{
+				Id:          info.Id,
+				Description: info.Description,
+				Type:        info.Type,
+				Number:      info.Number,
 			}
-			fmt.Fprintf(writer, "%s\n", "")
 		}
 	}
-	return nil
+	vcfHeader.Infos = vcfHeaderInfos
+	return vcfgo.NewWriter(writer, &vcfHeader)
 }
 
 func (this PreGnomadParam) Run() error {
-	infoKeys := this.KeyGenerator("")
-	mapKeys := this.KeyGenerator("gnomAD")
+	dbname := "gnomAD"
+	vcfs, err := this.Inputs()
+	if err != nil {
+		return err
+	}
+	infoKeys := this.HeaderInfoIDs()
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
-	fmt.Fprintf(writer, "#Chr\tStart\tEnd\tRef\tAlt\t%s\n", strings.Join(mapKeys, "\t"))
-	vcfs := make([]string, 0)
+	vcfWriter, err := this.NewVcfWriter(writer, vcfs[0], infoKeys, dbname)
+	if err != nil {
+		return err
+	}
 	for _, vcf := range vcfs {
-		err := this.ProcessVCF(vcf, infoKeys, writer)
+		fmt.Println(vcf)
+		reader, err := pkg.NewIOReader(vcf)
 		if err != nil {
 			return err
+		}
+		// defer reader.Close()
+		vcfReader, err := vcfgo.NewReader(reader, false)
+		if err != nil {
+			return err
+		}
+		for row := vcfReader.Read(); row != nil; row = vcfReader.Read() {
+			for _, key := range row.Info().Keys() {
+				if pkg.FindArr(infoKeys, key) == -1 {
+					row.Info().Delete(key)
+				}
+			}
+			vcfWriter.WriteVariant(row)
 		}
 	}
 	return nil
@@ -121,7 +147,7 @@ func NewPreGnomadCmd() *cobra.Command {
 			}
 		},
 	}
-	cmd.Flags().StringP("input", "i", "", "Input 1000Genomes VCF File")
+	cmd.Flags().StringP("input", "i", "", "Input gnomAD VCF Directory")
 	cmd.Flags().StringP("output", "o", "", "Output File")
 	return cmd
 }

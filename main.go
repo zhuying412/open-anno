@@ -26,10 +26,10 @@ func NewPreCmd() *cobra.Command {
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewPreGenePredCmd())
-	cmd.AddCommand(pre.NewIdxDBCmd())
 	cmd.AddCommand(pre.NewGeneCmd())
 	cmd.AddCommand(pre.NewPreClinvarCmd())
 	cmd.AddCommand(pre.NewPre1000GenomesCmd())
+	cmd.AddCommand(pre.NewPreGnomadCmd())
 	return cmd
 }
 

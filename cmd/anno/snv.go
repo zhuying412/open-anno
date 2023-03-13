@@ -52,7 +52,7 @@ func (this AnnoSnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this *AnnoSnvParam) RunAnnoGeneBase(snvs anno.Variants, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
+func (this *AnnoSnvParam) RunAnnoGeneBase(snvs anno.Variants, annoChan chan map[string]map[string]any, vcfHeaderInfoChan chan []vcfgo.Info, errChan chan error) {
 	// 读取GenePred输入文件
 	log.Printf("Read GenePred: %s ...", this.GenePred)
 	gpes, err := pkg.ReadGenePred(this.GenePred)
@@ -82,32 +82,32 @@ func (this *AnnoSnvParam) RunAnnoGeneBase(snvs anno.Variants, annoChan chan anno
 		return
 	}
 	annoInfos, err := gene.AnnoSnvs(snvs, gpes, transIndexes, genome, geneSymbolToID, this.AAshort)
-	vcfHeaderInfoChan <- map[string]*vcfgo.Info{
-		"GENE": {
+	vcfHeaderInfoChan <- []vcfgo.Info{
+		{
 			Id:          "GENE",
 			Description: "Gene Symbol",
 			Number:      ".",
 			Type:        "String",
 		},
-		"GENE_ID": {
+		{
 			Id:          "GENE_ID",
 			Description: "Gene Entrez ID",
 			Number:      ".",
 			Type:        "String",
 		},
-		"REGION": {
+		{
 			Id:          "REGION",
 			Description: "Region in gene, eg: exonic, intronic, UTR3, UTR5",
 			Number:      ".",
 			Type:        "String",
 		},
-		"EVENT": {
+		{
 			Id:          "EVENT",
 			Description: "Variant Event, eg: missense, nonsense, splicing",
 			Number:      ".",
 			Type:        "String",
 		},
-		"DETAIL": {
+		{
 			Id:          "DETAIL",
 			Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE",
 			Number:      ".",
@@ -117,41 +117,10 @@ func (this *AnnoSnvParam) RunAnnoGeneBase(snvs anno.Variants, annoChan chan anno
 	errChan <- err
 }
 
-func (this *AnnoSnvParam) RunAnnoFilterBase(snvs anno.Variants, database, databaseIndex string, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	reader, err := db.NewFilterVarReader(database)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer reader.Close()
-	idxs, binSize, err := db.ReadFilterVarIdx(databaseIndex)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	annoInfos, err := db.AnnoFilterBased(snvs, reader, idxs, binSize)
+func (this *AnnoSnvParam) RunAnnoFilterBase(snvs []anno.SNV, database string, annoChan chan map[string]map[string]any, vcfHeaderInfoChan chan []vcfgo.Info, errChan chan error) {
+	annoInfos, headerInfos, err := db.AnnoFilterBased(snvs, database)
 	annoChan <- annoInfos
-	vcfHeaderInfoChan <- reader.VCFHeaderInfo()
-	errChan <- err
-}
-
-func (this *AnnoSnvParam) RunAnnoRegionBase(snvs anno.Variants, database string, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	reader, err := pkg.NewIOReader(database)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer reader.Close()
-	scanner := db.NewRegionVarScanner(reader)
-	regVars, err := scanner.ReadAll()
-	if err != nil {
-		errChan <- err
-		return
-	}
-	annoInfos, err := db.AnnoRegionBased(snvs, regVars, scanner.Name, this.Overlap)
-	annoChan <- annoInfos
-	vcfHeaderInfoChan <- scanner.VCFHeaderInfo()
+	vcfHeaderInfoChan <- headerInfos
 	errChan <- err
 }
 
@@ -163,31 +132,30 @@ func (this AnnoSnvParam) Run() error {
 		return err
 	}
 	// 构造 error channel
-	errChan := make(chan error, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
-	annoInfosChan := make(chan anno.AnnoInfos, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
-	vcfHeaderInfoChan := make(chan map[string]*vcfgo.Info, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
+	errChan := make(chan error, len(this.FilterBaseds)+1)
+	annoInfosChan := make(chan map[string]map[string]any, len(this.FilterBaseds)+1)
+	vcfHeaderInfoChan := make(chan []vcfgo.Info, len(this.FilterBaseds)+1)
 	go this.RunAnnoGeneBase(snvs, annoInfosChan, vcfHeaderInfoChan, errChan)
 	// FilterBased 注释
 	for i, database := range this.FilterBaseds {
-		go this.RunAnnoFilterBase(snvs, database, this.FilterBasedIndexes[i], annoInfosChan, vcfHeaderInfoChan, errChan)
-	}
-	// RegionBased 注释
-	for _, database := range this.RegionBaseds {
-		go this.RunAnnoRegionBase(snvs, database, annoInfosChan, vcfHeaderInfoChan, errChan)
+		go this.RunAnnoFilterBase(snvs, database, annoInfosChan, vcfHeaderInfoChan, errChan)
 	}
 	// 错误处理
-	annoInfos := make(anno.AnnoInfos)
-	for i := 0; i < len(this.FilterBaseds)+len(this.RegionBaseds)+1; i++ {
+	annoInfos := make(map[string]map[string]any)
+	for i := 0; i < len(this.FilterBaseds); i++ {
 		err := <-errChan
 		if err != nil {
 			return err
 		}
 		for pk, infos := range <-annoInfosChan {
-			if items, ok := annoInfos[pk]; ok {
-				annoInfos[pk] = append(items, infos...)
-			} else {
-				annoInfos[pk] = infos
+			for key, val := range infos {
+				_, ok := annoInfos[pk]
+				if !ok {
+					annoInfos[pk] = map[string]any{}
+				}
+				annoInfos[pk][key] = val
 			}
+
 		}
 		for key, info := range <-vcfHeaderInfoChan {
 			vcfHeader.Infos[key] = info
@@ -202,8 +170,8 @@ func (this AnnoSnvParam) Run() error {
 	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
 	for _, snv := range snvs {
 		vcfVariant := snv.(anno.SNV).Variant
-		for _, annoInfo := range annoInfos[snv.AnnoVariant().PK()] {
-			err = vcfVariant.Info().Set(annoInfo.Key, annoInfo.Value)
+		for key, val := range annoInfos[snv.AnnoVariant().PK()] {
+			err = vcfVariant.Info().Set(key, val)
 			if err != nil {
 				return err
 			}
@@ -248,7 +216,6 @@ func NewAnnoSnvCmd() *cobra.Command {
 	cmd.Flags().BoolP("aashort", "a", false, "Parameter Is AA Short")
 	cmd.Flags().BoolP("exon", "e", false, "Parameter Is Exon")
 	cmd.Flags().StringArrayP("filterbaseds", "f", []string{}, "Input FilterBased Database File")
-	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input RegionBased Database File")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
 	return cmd
 }

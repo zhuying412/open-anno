@@ -34,8 +34,7 @@ func (this GenePred) IsUnk() bool {
 }
 
 // NewGenePred 从GenePred文件中读取一行并解析为GenePred对象
-func NewGenePred(line string) (GenePred, error) {
-	row := strings.Split(line, "\t")
+func NewGenePred(row []string) (GenePred, error) {
 	var gpe GenePred
 	var name, chrom, strand, txStart, txEnd, cdsStart, cdsEnd, exonCount, gene string
 	var exonStarts, exonEnds []string
@@ -108,26 +107,4 @@ func NewGenePred(line string) (GenePred, error) {
 		}
 	}
 	return gpe, err
-}
-
-// GenePreds 以PK为Key的GenePred的Map数据结构
-type GenePreds map[string]GenePred
-
-func ReadGenePred(gpeFile string) (GenePreds, error) {
-	gpes := make(GenePreds)
-	fi, err := NewIOReader(gpeFile)
-	if err != nil {
-		return gpes, err
-	}
-	defer fi.Close()
-
-	scanner := NewIOScanner(fi)
-	for scanner.Scan() {
-		gpe, err := NewGenePred(scanner.Text())
-		if err != nil {
-			return gpes, err
-		}
-		gpes[gpe.PK()] = gpe
-	}
-	return gpes, err
 }

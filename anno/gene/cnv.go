@@ -100,8 +100,8 @@ func AnnoCnvs(
 	variants anno.Variants,
 	gpes pkg.GenePreds,
 	allTransIndexes pkg.TransIndexes,
-	geneSymbolToID map[string]map[string]string) (anno.AnnoInfos, error) {
-	annoInfos := make(anno.AnnoInfos)
+	geneSymbolToID map[string]map[string]string) (map[string]map[string]any, error) {
+	annoInfos := make(map[string]map[string]any)
 	for chrom, cnvs := range variants.AggregateByChrom() {
 		log.Printf("Filter GeneBased DB by %s ...", chrom)
 		transcripts, err := pkg.NewTranscripts(gpes, chrom, geneSymbolToID)
@@ -138,10 +138,7 @@ func AnnoCnvs(
 					transAnno.Gene, transAnno.GeneID, transAnno.Transcript, transAnno.Strand, transAnno.Region, transAnno.CDS, transAnno.Position,
 				))
 			}
-			if len(annoTexts) == 0 {
-				annoTexts = []string{"."}
-			}
-			annoInfos[annoVariant.PK()] = []anno.AnnoInfo{{Key: "REGION", Value: strings.Join(annoTexts, ",")}}
+			annoInfos[annoVariant.PK()] = map[string]any{"REGION": strings.Join(annoTexts, ",")}
 		}
 	}
 	return annoInfos, nil

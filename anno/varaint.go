@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/brentp/irelate/interfaces"
 	"github.com/brentp/vcfgo"
 )
 
@@ -105,6 +106,7 @@ func (this AnnoVariant) Greater(that AnnoVariant) bool {
 }
 
 type IVariant interface {
+	interfaces.IVariant
 	AnnoVariant() AnnoVariant
 }
 
@@ -122,20 +124,6 @@ func (this Variants) AggregateByChrom() map[string]Variants {
 			variants[chrom] = append(rows, variant)
 		} else {
 			variants[chrom] = Variants{variant}
-		}
-	}
-	return variants
-}
-
-func (this Variants) AggregateByBin(binSize int) map[string]Variants {
-	variants := make(map[string]Variants)
-	for _, variant := range this {
-		chrom, start := variant.AnnoVariant().Chrom, variant.AnnoVariant().Start
-		curbin := pkg.CurBin(chrom, start, binSize)
-		if rows, ok := variants[curbin]; ok {
-			variants[curbin] = append(rows, variant)
-		} else {
-			variants[curbin] = Variants{variant}
 		}
 	}
 	return variants
