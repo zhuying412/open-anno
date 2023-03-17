@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 // RevComp 反向互补
@@ -131,51 +130,4 @@ func Difference(sequence1 string, sequence2 string) (int, int, int) {
 	}
 	return lLen + 1, len(sequence1) - rLen, len(sequence2) - rLen
 	// return lLen, rLen
-}
-
-// VCFtoAV 将VCF变异转换为Anno Variant
-func VCFtoAV(chrom string, pos int, ref string, alt string) (string, int, int, string, string) {
-	start, ref, alt := pos, strings.ToUpper(ref), strings.ToUpper(alt)
-	if len(ref) > 1 || len(alt) > 1 && ref != alt {
-		if strings.HasPrefix(ref, alt) || strings.HasSuffix(ref, alt) {
-			if strings.HasPrefix(ref, alt) {
-				start += len(alt)
-			}
-			ref = strings.Replace(ref, alt, "", 1)
-			alt = ""
-		} else if strings.HasPrefix(alt, ref) || strings.HasSuffix(alt, ref) {
-			if strings.HasPrefix(alt, ref) {
-				start += len(ref) - 1
-			} else {
-				start += len(ref) - len(alt)
-			}
-			alt = strings.Replace(alt, ref, "", 1)
-			ref = ""
-		} else {
-			refRev := Reverse(ref)
-			altRev := Reverse(alt)
-			var length int
-			length = DifferenceSimple(refRev, altRev) - 1
-			ref = ref[0 : len(ref)-length]
-			alt = alt[0 : len(alt)-length]
-			length = DifferenceSimple(ref, alt) - 1
-			ref = ref[length:]
-			alt = alt[length:]
-			start += length
-			if length > 0 && len(ref) == 0 {
-				start--
-			}
-		}
-	}
-	var end int
-	if len(ref) == 0 {
-		end = start
-		ref = "-"
-	} else {
-		end = start + len(ref) - 1
-	}
-	if len(alt) == 0 {
-		alt = "-"
-	}
-	return chrom, start, end, ref, alt
 }

@@ -2,7 +2,6 @@ package pre
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"log"
 	"open-anno/pkg"
@@ -27,8 +26,7 @@ func (this PreGnomadParam) Valid() error {
 	if err != nil {
 		return err
 	}
-	outdir := path.Dir(this.Output)
-	return os.MkdirAll(outdir, 0666)
+	return os.MkdirAll(this.Output, 0666)
 }
 
 func (this PreGnomadParam) Inputs() ([]string, error) {
@@ -46,47 +44,93 @@ func (this PreGnomadParam) Inputs() ([]string, error) {
 }
 
 func (this PreGnomadParam) HeaderInfoIDs() []string {
-	populations := []string{"", "oth", "ami", "sas", "fin", "eas", "amr", "afr", "asj", "nfe"}
 	prefixes := []string{"AC", "AN", "AF", "nhomalt"}
-	keys := make([]string, len(populations)*len(prefixes))
-	for i, population := range populations {
-		for j, prefix := range prefixes {
-			key := prefix
-			if population != "" {
-				key += "_" + population
+	populations := []string{"", "oth", "ami", "sas", "fin", "eas", "amr", "afr", "asj", "nfe"}
+	sexes := []string{"", "XY"}
+	keys := make([]string, 0)
+	for _, prefix := range prefixes {
+		for _, population := range populations {
+			for _, sex := range sexes {
+				key := prefix
+				if population != "" {
+					key += "_" + population
+				}
+				if sex != "" {
+					key += "_" + sex
+				}
+				keys = append(keys, key)
 			}
-			keys[len(prefixes)*i+j] = key
 		}
 	}
 	return keys
 }
 
-func (this PreGnomadParam) NewVcfWriter(writer io.WriteCloser, vcf string, infoKeys []string, dbname string) (*vcfgo.Writer, error) {
-	reader, err := pkg.NewIOReader(vcf)
+func (this PreGnomadParam) ProcessVCF(inVcf string, outVcf string, infoKeys []string, dbname string, errChan chan error) {
+	reader, err := pkg.NewIOReader(inVcf)
 	if err != nil {
-		return &vcfgo.Writer{}, err
+		errChan <- err
+		return
 	}
 	defer reader.Close()
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return &vcfgo.Writer{}, err
+		errChan <- err
+		return
 	}
 	defer vcfReader.Close()
-	vcfHeader := *vcfReader.Header
 	vcfHeaderInfos := make(map[string]*vcfgo.Info)
-	for key, info := range vcfHeader.Infos {
+	for key, info := range vcfReader.Header.Infos {
 		if pkg.FindArr(infoKeys, key) != -1 {
 			id := dbname + "_" + key
 			vcfHeaderInfos[id] = &vcfgo.Info{
-				Id:          info.Id,
+				Id:          id,
 				Description: info.Description,
 				Type:        info.Type,
 				Number:      info.Number,
 			}
 		}
 	}
-	vcfHeader.Infos = vcfHeaderInfos
-	return vcfgo.NewWriter(writer, &vcfHeader)
+
+	vcfHeader := &vcfgo.Header{
+		SampleNames:   vcfReader.Header.SampleNames,
+		SampleFormats: vcfReader.Header.SampleFormats,
+		Filters:       vcfReader.Header.Filters,
+		Extras:        vcfReader.Header.Extras,
+		FileFormat:    vcfReader.Header.FileFormat,
+		Contigs:       vcfReader.Header.Contigs,
+		Samples:       vcfReader.Header.Samples,
+		Pedigrees:     vcfReader.Header.Pedigrees,
+		Infos:         vcfHeaderInfos,
+	}
+	writer, err := pkg.NewIOWriter(outVcf)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
+	if err != nil {
+		errChan <- err
+		return
+	}
+	for row := vcfReader.Read(); row != nil; row = vcfReader.Read() {
+		variant := &vcfgo.Variant{
+			Chromosome: row.Chromosome,
+			Pos:        row.Pos,
+			Reference:  row.Reference,
+			Alternate:  row.Alternate,
+			Info_:      &vcfgo.InfoByte{},
+		}
+		for _, key := range infoKeys {
+			val, err := row.Info().Get(key)
+			if err != nil {
+				continue
+			}
+			variant.Info().Set(dbname+"_"+key, val)
+		}
+		vcfWriter.WriteVariant(variant)
+	}
+	errChan <- nil
+	return
 }
 
 func (this PreGnomadParam) Run() error {
@@ -96,33 +140,15 @@ func (this PreGnomadParam) Run() error {
 		return err
 	}
 	infoKeys := this.HeaderInfoIDs()
-	writer, err := pkg.NewIOWriter(this.Output)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	vcfWriter, err := this.NewVcfWriter(writer, vcfs[0], infoKeys, dbname)
-	if err != nil {
-		return err
-	}
+	errChan := make(chan error, len(vcfs))
 	for _, vcf := range vcfs {
-		fmt.Println(vcf)
-		reader, err := pkg.NewIOReader(vcf)
+		go this.ProcessVCF(vcf, path.Join(this.Output, strings.ReplaceAll(path.Base(vcf), ".bgz", "")), infoKeys, dbname, errChan)
+	}
+	for i := 0; i < len(vcfs); i++ {
+		err = <-errChan
 		if err != nil {
+			fmt.Println(vcfs[i])
 			return err
-		}
-		// defer reader.Close()
-		vcfReader, err := vcfgo.NewReader(reader, false)
-		if err != nil {
-			return err
-		}
-		for row := vcfReader.Read(); row != nil; row = vcfReader.Read() {
-			for _, key := range row.Info().Keys() {
-				if pkg.FindArr(infoKeys, key) == -1 {
-					row.Info().Delete(key)
-				}
-			}
-			vcfWriter.WriteVariant(row)
 		}
 	}
 	return nil
@@ -148,6 +174,6 @@ func NewPreGnomadCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringP("input", "i", "", "Input gnomAD VCF Directory")
-	cmd.Flags().StringP("output", "o", "", "Output File")
+	cmd.Flags().StringP("output", "o", "", "Output Directory")
 	return cmd
 }
