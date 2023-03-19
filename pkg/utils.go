@@ -55,6 +55,26 @@ func UniqArr[T string | int | float64 | uint64 | uint32](arr []T, ex T) []T {
 	return uarr
 }
 
+func SplitArr[T any](arr []T, num int) [][]T {
+	length := len(arr)
+	size := length / num
+	if len(arr)%num != 0 {
+		size++
+	}
+	var segments = make([][]T, 0)
+	var start, end int
+	for i := 1; i <= num; i++ {
+		end = i * size
+		if end > length {
+			segments = append(segments, arr[start:])
+			break
+		}
+		segments = append(segments, arr[start:end])
+		start = i * size
+	}
+	return segments
+}
+
 func NewArr[T any](size int, fill T) []T {
 	arr := make([]T, size)
 	for i := 0; i < size; i++ {

@@ -2,6 +2,7 @@ package anno
 
 import (
 	"log"
+	"open-anno/anno"
 	"open-anno/anno/db"
 	"open-anno/anno/gene"
 	"open-anno/pkg"
@@ -44,27 +45,14 @@ func (this AnnoCnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this *AnnoCnvParam) RunAnnoGeneBase(annoInfoChan chan gene.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
+func (this *AnnoCnvParam) RunAnnoGeneBase() (anno.AnnoResult, error) {
 	// 读取gene输入文件
 	log.Printf("Read Gene: %s ...", this.Gene)
 	err := pkg.InitGeneSymbolToID(this.Gene)
 	if err != nil {
-		annoInfoChan <- gene.AnnoInfos{}
-		vcfHeaderInfoChan <- map[string]*vcfgo.Info{}
-		errChan <- err
-		return
+		return anno.AnnoResult{}, err
 	}
-	annoInfos, headerInfos, err := gene.AnnoCnvs(this.Input, this.GenePred, this.Goroutine)
-	annoInfoChan <- annoInfos
-	vcfHeaderInfoChan <- headerInfos
-	errChan <- err
-}
-
-func (this *AnnoCnvParam) RunAnnoRegionBase(database string, annoInfoChan chan gene.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	annoInfos, headerInfos, err := db.AnnoRegionBased(this.Input, database, this.Overlap, this.Goroutine)
-	annoInfoChan <- annoInfos
-	vcfHeaderInfoChan <- headerInfos
-	errChan <- err
+	return gene.AnnoCnvs(this.Input, this.GenePred, this.Goroutine)
 }
 
 func (this AnnoCnvParam) Run() error {
@@ -82,39 +70,23 @@ func (this AnnoCnvParam) Run() error {
 	defer vcfReader.Close()
 	vcfHeader := vcfReader.Header
 	// 构造 error channel
-	annoSize := len(this.RegionBaseds) + 1
-	errChan := make(chan error, annoSize)
-	annoInfosChan := make(chan gene.AnnoInfos, annoSize)
-	vcfHeaderInfoChan := make(chan map[string]*vcfgo.Info, annoSize)
-	go this.RunAnnoGeneBase(annoInfosChan, vcfHeaderInfoChan, errChan)
+	var annoResults []anno.AnnoResult
+	var annoResult anno.AnnoResult
+	annoResult, err = this.RunAnnoGeneBase()
+	if err != nil {
+		return err
+	}
+	annoResults = append(annoResults, annoResult)
 	// RegionBased 注释
 	for _, database := range this.RegionBaseds {
-		go this.RunAnnoRegionBase(database, annoInfosChan, vcfHeaderInfoChan, errChan)
-	}
-	// 错误处理
-	annoInfos := make(map[string]map[string]any)
-	for i := 0; i < annoSize; i++ {
-		err := <-errChan
+		annoResult, err = db.AnnoRegionBased(this.Input, database, this.Overlap, this.Goroutine)
 		if err != nil {
 			return err
 		}
-		for pk, infos := range <-annoInfosChan {
-			for key, val := range infos {
-				_, ok := annoInfos[pk]
-				if !ok {
-					annoInfos[pk] = map[string]any{}
-				}
-				annoInfos[pk][key] = val
-			}
-
-		}
-		for key, info := range <-vcfHeaderInfoChan {
-			vcfHeader.Infos[key] = info
-		}
+		annoResults = append(annoResults, annoResult)
 	}
-	close(errChan)
-	close(annoInfosChan)
-	close(vcfHeaderInfoChan)
+	annoResult = anno.MergeAnnoResults(annoResults)
+	vcfHeader.Infos = annoResult.VcfHeaderInfo
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
 		return err
@@ -123,10 +95,12 @@ func (this AnnoCnvParam) Run() error {
 	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
 		pk := (&pkg.Variant{Variant: *variant}).PK()
-		for key, val := range annoInfos[pk] {
-			err = variant.Info().Set(key, val)
-			if err != nil {
-				return err
+		for key, val := range annoResult.AnnoInfos[pk] {
+			if val != "" && val != "." {
+				err = variant.Info().Set(key, val)
+				if err != nil {
+					return err
+				}
 			}
 		}
 		vcfWriter.WriteVariant(variant)

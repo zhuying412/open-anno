@@ -2,6 +2,7 @@ package gene
 
 import (
 	"fmt"
+	"open-anno/anno"
 	"open-anno/pkg"
 	"sort"
 	"strings"
@@ -36,138 +37,145 @@ func NewCnvTransAnno(trans pkg.Transcript) CnvTransAnno {
 	return transAnno
 }
 
-func AnnoCnv(cnv *pkg.Variant, tbx *bix.Bix, pkChan chan string, annoInfoChan chan map[string]any, errChan chan error) {
-	annoVar := cnv.AnnoVariant()
-	transAnnos := make([]CnvTransAnno, 0)
-	query, err := tbx.Query(cnv)
-	if err != nil {
-		pkChan <- ""
-		annoInfoChan <- map[string]any{}
-		errChan <- err
-		return
-	}
-	for v, e := query.Next(); e == nil; v, e = query.Next() {
-		trans, err := pkg.NewTranscript(fmt.Sprintf("%s", v))
+func annoCnvs(cnvs []*pkg.Variant, tbx *bix.Bix, annoInfosChan chan anno.AnnoInfos, errChan chan error) {
+	// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
+	annoInfos := make(anno.AnnoInfos)
+	for _, cnv := range cnvs {
+		annoVar := cnv.AnnoVariant()
+		transAnnos := make([]CnvTransAnno, 0)
+		query, err := tbx.Query(cnv)
 		if err != nil {
-			pkChan <- ""
-			annoInfoChan <- map[string]any{}
+			annoInfosChan <- anno.AnnoInfos{}
 			errChan <- err
 			return
 		}
-		if !trans.IsUnk() && annoVar.Start <= trans.TxEnd && annoVar.End >= trans.TxStart {
-			trans.SetGeneID()
-			err := trans.SetRegions()
+		for v, e := query.Next(); e == nil; v, e = query.Next() {
+			trans, err := pkg.NewTranscript(fmt.Sprintf("%s", v))
 			if err != nil {
-				pkChan <- ""
-				annoInfoChan <- map[string]any{}
+				annoInfosChan <- anno.AnnoInfos{}
 				errChan <- err
 				return
 			}
-			var cdss, utr3s, utr5s pkg.Regions
-			var cdsCount int
-			regions := trans.Regions
-			if trans.Strand == "-" {
-				sort.Sort(sort.Reverse(regions))
-			}
-			for _, region := range regions {
-				if region.Type == pkg.RType_CDS {
-					cdsCount++
+			if !trans.IsUnk() {
+				trans.SetGeneID()
+				err := trans.SetRegions()
+				if err != nil {
+					annoInfosChan <- anno.AnnoInfos{}
+					errChan <- err
+					return
 				}
-				if annoVar.Start <= region.End && annoVar.End >= region.Start {
+				var cdss, utr3s, utr5s pkg.Regions
+				var cdsCount int
+				regions := trans.Regions
+				if trans.Strand == "-" {
+					sort.Sort(sort.Reverse(regions))
+				}
+				for _, region := range regions {
 					if region.Type == pkg.RType_CDS {
-						cdss = append(cdss, region)
+						cdsCount++
 					}
-					if region.Type == pkg.RType_UTR {
-						if region.Order == 3 {
-							utr3s = append(utr3s, region)
-						} else {
-							utr5s = append(utr5s, region)
+					if annoVar.Start <= region.End && annoVar.End >= region.Start {
+						if region.Type == pkg.RType_CDS {
+							cdss = append(cdss, region)
+						}
+						if region.Type == pkg.RType_UTR {
+							if region.Order == 3 {
+								utr3s = append(utr3s, region)
+							} else {
+								utr5s = append(utr5s, region)
+							}
 						}
 					}
 				}
-			}
-			transAnno := NewCnvTransAnno(trans)
-			if len(cdss) > 0 {
-				if len(utr5s) > 0 {
-					transAnno.Region = "UTR5_CDS"
-					if len(utr3s) > 0 {
-						transAnno.Region = "CDNA"
-						if annoVar.Start <= trans.TxStart && annoVar.End >= trans.TxEnd {
-							transAnno.Region = "transcript"
+				transAnno := NewCnvTransAnno(trans)
+				if len(cdss) > 0 {
+					if len(utr5s) > 0 {
+						transAnno.Region = "UTR5_CDS"
+						if len(utr3s) > 0 {
+							transAnno.Region = "CDNA"
+							if annoVar.Start <= trans.TxStart && annoVar.End >= trans.TxEnd {
+								transAnno.Region = "transcript"
+							}
+						}
+					} else {
+						transAnno.Region = "CDS"
+						if len(utr3s) > 0 {
+							transAnno.Region = "CDS_UTR3"
 						}
 					}
-				} else {
-					transAnno.Region = "CDS"
-					if len(utr3s) > 0 {
-						transAnno.Region = "CDS_UTR3"
-					}
-				}
-				if len(cdss) == 1 {
-					transAnno.CDS = fmt.Sprintf("CDS%d/%d", cdss[0].Order, cdsCount)
-				} else {
-					transAnno.CDS = fmt.Sprintf("CDS%d_%d/%d", cdss[0].Order, cdss[len(cdss)-1].Order, cdsCount)
-				}
-			} else {
-				if len(utr5s) > 0 {
-					transAnno.Region = "UTR5"
-					if len(utr3s) > 0 {
-						transAnno.Region = "ncRNA"
+					if len(cdss) == 1 {
+						transAnno.CDS = fmt.Sprintf("CDS%d/%d", cdss[0].Order, cdsCount)
+					} else {
+						transAnno.CDS = fmt.Sprintf("CDS%d_%d/%d", cdss[0].Order, cdss[len(cdss)-1].Order, cdsCount)
 					}
 				} else {
-					transAnno.Region = "intronic"
-					if len(utr3s) > 0 {
-						transAnno.Region = "UTR3"
+					if len(utr5s) > 0 {
+						transAnno.Region = "UTR5"
+						if len(utr3s) > 0 {
+							transAnno.Region = "ncRNA"
+						}
+					} else {
+						transAnno.Region = "intronic"
+						if len(utr3s) > 0 {
+							transAnno.Region = "UTR3"
+						}
 					}
 				}
 			}
 		}
+		query.Close()
+		annoTexts := make([]string, 0)
+		for _, transAnno := range transAnnos {
+			annoTexts = append(annoTexts, fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s",
+				transAnno.Gene, transAnno.GeneID, transAnno.Transcript, transAnno.Strand, transAnno.Region, transAnno.CDS, transAnno.Position,
+			))
+		}
+		annoInfos[cnv.PK()] = map[string]any{"REGION": strings.Join(annoTexts, ",")}
 	}
-	annoTexts := make([]string, 0)
-	for _, transAnno := range transAnnos {
-		annoTexts = append(annoTexts, fmt.Sprintf("%s:%s:%s:%s:%s:%s:%s",
-			transAnno.Gene, transAnno.GeneID, transAnno.Transcript, transAnno.Strand, transAnno.Region, transAnno.CDS, transAnno.Position,
-		))
-	}
-	pkChan <- cnv.PK()
-	annoInfoChan <- map[string]any{"REGION": strings.Join(annoTexts, ",")}
+	annoInfosChan <- annoInfos
 	errChan <- nil
-	return
 }
 
-func AnnoCnvs(vcfFile string, gpeFile string, goroutines int) (AnnoInfos, map[string]*vcfgo.Info, error) {
-	annoInfos := make(AnnoInfos)
+func AnnoCnvs(vcfFile string, gpeFile string, goroutines int) (anno.AnnoResult, error) {
+	annoInfos := make(anno.AnnoInfos)
 	// 打开句柄
 	reader, err := pkg.NewIOReader(vcfFile)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer reader.Close()
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer vcfReader.Close()
 	gpeTbx, err := bix.New(gpeFile)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer gpeTbx.Close()
-	pkChan := make(chan string, goroutines)
-	annoInfoChan := make(chan map[string]any, goroutines)
+	annoInfosChan := make(chan anno.AnnoInfos, goroutines)
 	errChan := make(chan error, goroutines)
-	size := 0
+	variants := make([]*pkg.Variant, 0)
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
-		go AnnoCnv(&pkg.Variant{Variant: *variant}, gpeTbx, pkChan, annoInfoChan, errChan)
+		if len(variant.Chrom()) <= 5 {
+			variants = append(variants, &pkg.Variant{Variant: *variant})
+		}
 	}
-	for i := 0; i < size; i++ {
+	multiVariants := pkg.SplitArr(variants, goroutines)
+	for _, variants := range multiVariants {
+		go annoCnvs(variants, gpeTbx, annoInfosChan, errChan)
+	}
+	for i := 0; i < len(multiVariants); i++ {
 		err := <-errChan
 		if err != nil {
-			return AnnoInfos{}, map[string]*vcfgo.Info{}, err
+			return anno.AnnoResult{}, err
 		}
-		annoInfos[<-pkChan] = <-annoInfoChan
+		for pk, annoInfo := range <-annoInfosChan {
+			annoInfos[pk] = annoInfo
+		}
 	}
-	close(pkChan)
-	close(annoInfoChan)
+	close(annoInfosChan)
 	close(errChan)
 	vcfHeaderInfos := map[string]*vcfgo.Info{
 		"REGION": {
@@ -177,5 +185,5 @@ func AnnoCnvs(vcfFile string, gpeFile string, goroutines int) (AnnoInfos, map[st
 			Type:        "String",
 		},
 	}
-	return annoInfos, vcfHeaderInfos, nil
+	return anno.AnnoResult{AnnoInfos: annoInfos, VcfHeaderInfo: vcfHeaderInfos}, err
 }

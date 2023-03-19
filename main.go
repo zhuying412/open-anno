@@ -6,7 +6,6 @@ import (
 	"open-anno/cmd/anno"
 	"open-anno/cmd/pre"
 	"open-anno/cmd/tools"
-	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -59,17 +58,17 @@ func init() {
 	RootCmd.AddCommand(NewAnnoCmd())
 	RootCmd.AddCommand(NewToolsCmd())
 	RootCmd.AddCommand(cmd.NewTestCmd())
-	var rlim syscall.Rlimit
-	err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim)
-	if err != nil {
-		log.Fatalln("get rlimit error: " + err.Error())
-	}
-	rlim.Cur = 1000 * 1000
-	rlim.Max = 1000 * 1000
-	err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlim)
-	if err != nil {
-		log.Fatalln("set rlimit error: " + err.Error())
-	}
+	// var rlim syscall.Rlimit
+	// err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlim)
+	// if err != nil {
+	// 	log.Fatalln("get rlimit error: " + err.Error())
+	// }
+	// rlim.Cur = 1000 * 1000
+	// rlim.Max = 1000 * 1000
+	// err = syscall.Setrlimit(syscall.RLIMIT_NOFILE, &rlim)
+	// if err != nil {
+	// 	log.Fatalln("set rlimit error: " + err.Error())
+	// }
 }
 
 func main() {

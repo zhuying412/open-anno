@@ -1,9 +1,8 @@
 package db
 
 import (
-	"fmt"
 	"log"
-	"open-anno/anno/gene"
+	"open-anno/anno"
 	"open-anno/pkg"
 
 	"github.com/brentp/bix"
@@ -11,73 +10,78 @@ import (
 	"github.com/brentp/vcfgo"
 )
 
-func annoFilterBased(variant *pkg.Variant, tbx *bix.Bix, pkChan chan string, annoInfoChan chan map[string]any, errChan chan error) {
-	result := make(map[string]any)
-	query, err := tbx.Query(variant)
-	if err != nil {
-		pkChan <- ""
-		annoInfoChan <- map[string]any{}
-		errChan <- err
-		return
-	}
-	for v, e := query.Next(); e == nil; v, e = query.Next() {
-		v := v.(interfaces.IVariant)
-		if variant.Chrom() == v.Chrom() && variant.Start() == v.Start() && variant.End() == v.End() && variant.Ref() == v.Ref() && variant.Alt()[0] == v.Alt()[0] {
-			for _, key := range v.Info().Keys() {
-				val, err := v.Info().Get(key)
-				if err == nil {
-					result[key] = val
+func annoFilterBased(variants []*pkg.Variant, tbx *bix.Bix, annoInfosChan chan anno.AnnoInfos, errChan chan error) {
+	annoInfos := make(anno.AnnoInfos)
+	for _, variant := range variants {
+		query, err := tbx.Query(variant)
+		if err != nil {
+			annoInfosChan <- anno.AnnoInfos{}
+			errChan <- err
+			return
+		}
+		annoInfo := make(map[string]any)
+		for v, e := query.Next(); e == nil; v, e = query.Next() {
+			v := v.(interfaces.IVariant)
+			if variant.Chrom() == v.Chrom() && variant.Start() == v.Start() && variant.End() == v.End() && variant.Ref() == v.Ref() && variant.Alt()[0] == v.Alt()[0] {
+				for _, key := range v.Info().Keys() {
+					val, err := v.Info().Get(key)
+					if err == nil {
+						annoInfo[key] = val
+					}
 				}
 			}
 		}
+		annoInfos[variant.PK()] = annoInfo
+		query.Close()
 	}
-	pkChan <- variant.PK()
-	annoInfoChan <- result
+	annoInfosChan <- annoInfos
 	errChan <- nil
-	fmt.Println(variant)
 	return
 }
 
 // AnnoFilterBased 注释SNV FilterBased
-func AnnoFilterBased(inVcfFile, dbVcfFile string, goroutines int) (gene.AnnoInfos, map[string]*vcfgo.Info, error) {
+func AnnoFilterBased(inVcfFile, dbVcfFile string, goroutines int) (anno.AnnoResult, error) {
 	log.Printf("Annotate %s ...", dbVcfFile)
-	annoInfos := make(gene.AnnoInfos)
+	annoInfos := make(anno.AnnoInfos)
 	// 打开句柄
 	reader, err := pkg.NewIOReader(inVcfFile)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer reader.Close()
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer vcfReader.Close()
 	dbTbx, err := bix.New(dbVcfFile)
-	fmt.Println("aaaaa", err)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer dbTbx.Close()
-	pkChan := make(chan string, goroutines)
-	annoInfoChan := make(chan map[string]any, goroutines)
+	annoInfosChan := make(chan anno.AnnoInfos, goroutines)
 	errChan := make(chan error, goroutines)
-	size := 0
+	variants := make([]*pkg.Variant, 0)
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
-		size++
-		go annoFilterBased(&pkg.Variant{Variant: *variant}, dbTbx, pkChan, annoInfoChan, errChan)
-
-	}
-	for i := 0; i < size; i++ {
-		err = <-errChan
-		if err != nil {
-			return annoInfos, map[string]*vcfgo.Info{}, err
+		if len(variant.Chrom()) <= 5 {
+			variants = append(variants, &pkg.Variant{Variant: *variant})
 		}
-		annoInfos[<-pkChan] = <-annoInfoChan
 	}
-	close(pkChan)
-	close(annoInfoChan)
+	multiVariants := pkg.SplitArr(variants, goroutines)
+	for _, variants := range multiVariants {
+		go annoFilterBased(variants, dbTbx, annoInfosChan, errChan)
+	}
+	for i := 0; i < len(multiVariants); i++ {
+		err := <-errChan
+		if err != nil {
+			return anno.AnnoResult{}, err
+		}
+		for pk, annoInfo := range <-annoInfosChan {
+			annoInfos[pk] = annoInfo
+		}
+	}
+	close(annoInfosChan)
 	close(errChan)
-	headerInfos := dbTbx.VReader.Header.Infos
-	return annoInfos, headerInfos, err
+	vcfHeaderInfos := dbTbx.VReader.Header.Infos
+	return anno.AnnoResult{AnnoInfos: annoInfos, VcfHeaderInfo: vcfHeaderInfos}, err
 }

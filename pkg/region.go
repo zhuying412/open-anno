@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
-
-	"github.com/brentp/faidx"
 )
 
 const (
@@ -193,16 +191,15 @@ func NewRegions(trans Transcript) (Regions, error) {
 }
 
 // NewRegionsWithSeq 根据Transcript创建新的Regions，同时根据mRNA信息设置每个Region的Sequence
-func NewRegionsWithSeq(trans Transcript, genome *faidx.Faidx) (Regions, error) {
+func NewRegionsWithSeq(trans Transcript, seq string) (Regions, error) {
 	regions, err := NewRegions(trans)
 	if err != nil {
 		return regions, err
 	}
 	for i := 0; i < len(regions); i++ {
-		regions[i].Sequence, err = genome.Get(regions[i].Chrom, regions[i].Start-1, regions[i].End)
-		if err != nil {
-			return regions, err
-		}
+		start := regions[i].Start - trans.TxStart
+		end := regions[i].End - trans.TxStart + 1
+		regions[i].Sequence = seq[start:end]
 	}
 	return regions, nil
 }

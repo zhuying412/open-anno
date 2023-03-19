@@ -2,7 +2,7 @@ package db
 
 import (
 	"fmt"
-	"open-anno/anno/gene"
+	"open-anno/anno"
 	"open-anno/pkg"
 	"path"
 	"strings"
@@ -12,72 +12,79 @@ import (
 	"github.com/brentp/vcfgo"
 )
 
-func annoRegionBased(variant *pkg.Variant, tbx *bix.Bix, overlap float64, dbname string, pkChan chan string, annoInfoChan chan map[string]any, errChan chan error) {
-	query, err := tbx.Query(variant)
-	if err != nil {
-		pkChan <- ""
-		annoInfoChan <- map[string]any{}
-		errChan <- err
-		return
-	}
-	infos := make([]string, 0)
-	for v, e := query.Next(); e == nil; v, e = query.Next() {
-		info := strings.Split(fmt.Sprintf("%s", v), "\t")[3]
-		v := v.(interfaces.IPosition)
-		if variant.End() >= v.Start() && variant.Start() <= v.End() {
-			vlen := variant.End() - variant.Start()
-			olen := pkg.Min(variant.End(), v.End()) - pkg.Max(variant.Start(), v.Start())
-			if float64(olen)/float64(vlen) >= overlap {
-				infos = append(infos, info)
+func annoRegionBased(variants []*pkg.Variant, tbx *bix.Bix, overlap float64, dbname string, annoInfosChan chan anno.AnnoInfos, errChan chan error) {
+	annoInfos := make(anno.AnnoInfos)
+	for _, variant := range variants {
+		query, err := tbx.Query(variant)
+		if err != nil {
+			annoInfosChan <- anno.AnnoInfos{}
+			errChan <- err
+			return
+		}
+		infos := make([]string, 0)
+		for v, e := query.Next(); e == nil; v, e = query.Next() {
+			info := strings.Split(fmt.Sprintf("%s", v), "\t")[3]
+			v := v.(interfaces.IPosition)
+			if variant.End() >= v.Start() && variant.Start() <= v.End() {
+				vlen := variant.End() - variant.Start()
+				olen := pkg.Min(variant.End(), v.End()) - pkg.Max(variant.Start(), v.Start())
+				if float64(olen)/float64(vlen) >= overlap {
+					infos = append(infos, info)
+				}
 			}
 		}
+		annoInfos[variant.PK()] = map[string]any{dbname: strings.Join(infos, ",")}
+		query.Close()
 	}
-	pkChan <- variant.PK()
-	annoInfoChan <- map[string]any{dbname: strings.Join(infos, ",")}
+	annoInfosChan <- annoInfos
 	errChan <- nil
 	return
 }
 
 // AnnoRegion注释SNV FilterBased
-func AnnoRegionBased(inVcfFile, dbBedFile string, overlap float64, goroutines int) (gene.AnnoInfos, map[string]*vcfgo.Info, error) {
-	annoInfos := make(gene.AnnoInfos)
+func AnnoRegionBased(inVcfFile, dbBedFile string, overlap float64, goroutines int) (anno.AnnoResult, error) {
+	annoInfos := make(anno.AnnoInfos)
 	// 打开句柄
 	reader, err := pkg.NewIOReader(inVcfFile)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer reader.Close()
 	vcfReader, err := vcfgo.NewReader(reader, false)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer vcfReader.Close()
 	dbTbx, err := bix.New(dbBedFile)
 	if err != nil {
-		return annoInfos, map[string]*vcfgo.Info{}, err
+		return anno.AnnoResult{}, err
 	}
 	defer dbTbx.Close()
-	pkChan := make(chan string, goroutines)
-	annoInfoChan := make(chan map[string]any, goroutines)
-	errChan := make(chan error, goroutines)
-	size := 0
 	dbname := strings.Split(path.Base(dbBedFile), ".")[0]
+	annoInfosChan := make(chan anno.AnnoInfos, goroutines)
+	errChan := make(chan error, goroutines)
+	variants := make([]*pkg.Variant, 0)
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
-		size++
-		go annoRegionBased(&pkg.Variant{Variant: *variant}, dbTbx, overlap, dbname, pkChan, annoInfoChan, errChan)
-
-	}
-	for i := 0; i < size; i++ {
-		err = <-errChan
-		if err != nil {
-			return annoInfos, map[string]*vcfgo.Info{}, err
+		if len(variant.Chrom()) <= 5 {
+			variants = append(variants, &pkg.Variant{Variant: *variant})
 		}
-		annoInfos[<-pkChan] = <-annoInfoChan
 	}
-	close(pkChan)
-	close(annoInfoChan)
+	multiVariants := pkg.SplitArr(variants, goroutines)
+	for _, variants := range multiVariants {
+		go annoRegionBased(variants, dbTbx, overlap, dbname, annoInfosChan, errChan)
+	}
+	for i := 0; i < len(multiVariants); i++ {
+		err := <-errChan
+		if err != nil {
+			return anno.AnnoResult{}, err
+		}
+		for pk, annoInfo := range <-annoInfosChan {
+			annoInfos[pk] = annoInfo
+		}
+	}
+	close(annoInfosChan)
 	close(errChan)
-	headerInfos := map[string]*vcfgo.Info{
+	vcfHeaderInfos := map[string]*vcfgo.Info{
 		dbname: {
 			Id:          dbname,
 			Description: dbname,
@@ -85,5 +92,5 @@ func AnnoRegionBased(inVcfFile, dbBedFile string, overlap float64, goroutines in
 			Type:        "String",
 		},
 	}
-	return annoInfos, headerInfos, err
+	return anno.AnnoResult{AnnoInfos: annoInfos, VcfHeaderInfo: vcfHeaderInfos}, err
 }

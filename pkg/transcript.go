@@ -119,7 +119,11 @@ func (this *Transcript) SetRegions() error {
 // SetRegions 设置初始化Regions信息, 并设置每个Regions的Sequence
 func (this *Transcript) SetRegionsWithSeq(genome *faidx.Faidx) error {
 	var err error
-	this.Regions, err = NewRegionsWithSeq(*this, genome)
+	seq, err := genome.Get(this.Chrom, this.TxStart-1, this.TxEnd)
+	if err != nil {
+		return err
+	}
+	this.Regions, err = NewRegionsWithSeq(*this, seq)
 	if err != nil {
 		return err
 	}
@@ -222,6 +226,7 @@ func (this *TranscriptDB) GetOrCreate(trans Transcript) (Transcript, error) {
 func (this *TranscriptDB) GetOrCreateWithSeq(trans Transcript, genome *faidx.Faidx) (Transcript, error) {
 	pk := trans.PK()
 	if _, ok := (*this)[pk]; !ok {
+
 		trans.SetGeneID()
 		err := trans.SetRegionsWithSeq(genome)
 		if err != nil {

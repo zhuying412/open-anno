@@ -12,5 +12,3 @@ version=$(echo $version|sed 's:'$sub_version1'$:'$sub_version2':g')
 tag=registry.cn-shanghai.aliyuncs.com/kszy-biosoft/openanno:$version
 
 docker build -t $tag . && docker push $tag && echo $version >version 
-
-

@@ -15,22 +15,6 @@ const (
 	VType_SUB = "SUB"
 )
 
-type Position struct {
-	chrom string
-	start int
-	end   int
-}
-
-func (this Position) Chrom() string {
-	return this.chrom
-}
-func (this Position) Start() uint64 {
-	return uint64(this.start)
-}
-func (this Position) End() uint64 {
-	return uint64(this.end)
-}
-
 type AnnoVariant struct {
 	Chrom string `json:"chrom"`
 	Start int    `json:"start"`
