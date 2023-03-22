@@ -6,14 +6,16 @@ Record = namedtuple('Record', ['chrom', 'pos', 'ref', 'alts'])
 
 def process_vcf(in_vcf:str, ann: Annotator, distance: int, mask: int, out_vcf:str):
     reader = vcf.Reader(filename=in_vcf)
-    writer = vcf.Writer(open(out_vcf, 'w'), reader)
+    # writer = vcf.Writer(open(out_vcf, 'w'), reader)
     for row in reader:
-        if row.is_indel and row.INFO.get('SpliceAI'):
-            record = Record(chrom=row.CHROM, pos=row.POS, ref=row.REF, alts=row.ALT)
+        if row.is_indel and row.INFO.get('GENE') and not row.INFO.get('SpliceAI'):
+            record = Record(chrom=str(row.CHROM), pos=int(row.POS), ref=str(row.REF), alts=[str(alt) for alt in row.ALT])
             scores =  get_delta_scores(record=record, ann=ann, dist_var=distance, mask=mask)
             if scores:
                 row.INFO['SpliceAI'] = ','.join(scores)
-        writer.write_record(row)
+                
+            print(str(row.CHROM), str(row.POS),str(row.REF), [str(i) for i in row.ALT], )
+        # writer.write_record(row)
 
 def run_main_cmd(args):
     ann = Annotator(args.reference, args.builder.replace('hg', 'grch'))

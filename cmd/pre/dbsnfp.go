@@ -80,7 +80,10 @@ func (this PreDbnsfpParam) Run() error {
 		for _, name := range scanner.FieldNames[5:] {
 			val := row[name]
 			if val[0] != '.' {
-				variant.Info().Set(name, strings.ReplaceAll(val, ";", "|"))
+				val = strings.ReplaceAll(val, " ", "")
+				val = strings.ReplaceAll(val, ";", "|")
+				val = strings.ReplaceAll(val, ",", "_")
+				variant.Info().Set(name, val)
 			}
 		}
 		vcfWriter.WriteVariant(variant)

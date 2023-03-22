@@ -57,36 +57,43 @@ func (this AnnoSnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this *AnnoSnvParam) RunAnnoGeneBase() (anno.AnnoResult, error) {
+func (this *AnnoSnvParam) RunAnnoGeneBase(annoResultChan chan anno.AnnoResult, errChan chan error) {
 	// 读取Genome输入文件
 	log.Printf("Read Reference Fasta: %s ...", this.Genome)
 	genome, err := faidx.New(this.Genome)
 	if err != nil {
-		return anno.AnnoResult{}, err
+		annoResultChan <- anno.AnnoResult{}
+		errChan <- err
+		return
 	}
 	// 读取gene输入文件
 	log.Printf("Read Gene: %s ...", this.Gene)
 	err = pkg.InitGeneSymbolToID(this.Gene)
 	if err != nil {
-		return anno.AnnoResult{}, err
+		annoResultChan <- anno.AnnoResult{}
+		errChan <- err
+		return
 	}
 	log.Printf("Annotate %s", this.GenePred)
-	return gene.AnnoSnvs(this.Input, this.GenePred, genome, this.AAshort, this.Goroutine)
+	annoResult, err := gene.AnnoSnvs(this.Input, this.GenePred, genome, this.AAshort, this.Goroutine)
+	annoResultChan <- annoResult
+	errChan <- err
+	return
 }
 
-// func (this *AnnoSnvParam) RunAnnoFilterBase(database string, annoInfoChan chan gene.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-// 	annoInfos, headerInfos, err := db.AnnoFilterBased(this.Input, database, this.Goroutine)
-// 	annoInfoChan <- annoInfos
-// 	vcfHeaderInfoChan <- headerInfos
-// 	errChan <- err
-// }
+func (this *AnnoSnvParam) RunAnnoFilterBase(dbVcfFile string, annoResultChan chan anno.AnnoResult, errChan chan error) {
+	annoResult, err := db.AnnoFilterBased(this.Input, dbVcfFile, this.Goroutine)
+	annoResultChan <- annoResult
+	errChan <- err
+	return
+}
 
-// func (this *AnnoSnvParam) RunAnnoRegionBase(database string, annoInfoChan chan gene.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-// 	annoInfos, headerInfos, err := db.AnnoRegionBased(this.Input, database, this.Overlap, this.Goroutine)
-// 	annoInfoChan <- annoInfos
-// 	vcfHeaderInfoChan <- headerInfos
-// 	errChan <- err
-// }
+func (this *AnnoSnvParam) RunAnnoRegionBase(dbBefFile string, annoResultChan chan anno.AnnoResult, errChan chan error) {
+	annoResult, err := db.AnnoRegionBased(this.Input, dbBefFile, this.Overlap, this.Goroutine)
+	annoResultChan <- annoResult
+	errChan <- err
+	return
+}
 
 func (this AnnoSnvParam) Run() error {
 	// 读取变异输入文件
@@ -103,30 +110,27 @@ func (this AnnoSnvParam) Run() error {
 	defer vcfReader.Close()
 	vcfHeader := vcfReader.Header
 	// 构造 error channel
-	var annoResults []anno.AnnoResult
-	var annoResult anno.AnnoResult
-	annoResult, err = this.RunAnnoGeneBase()
-	if err != nil {
-		return err
-	}
-	annoResults = append(annoResults, annoResult)
+	annoSize := len(this.FilterBaseds) + len(this.RegionBaseds) + 1
+	annoResultChan := make(chan anno.AnnoResult, annoSize)
+	errChan := make(chan error, annoSize)
+	go this.RunAnnoGeneBase(annoResultChan, errChan)
 	// FilterBased 注释
-	for _, database := range this.FilterBaseds {
-		annoResult, err = db.AnnoFilterBased(this.Input, database, this.Goroutine)
-		if err != nil {
-			return err
-		}
-		annoResults = append(annoResults, annoResult)
+	for _, dbVcfFile := range this.FilterBaseds {
+		go this.RunAnnoFilterBase(dbVcfFile, annoResultChan, errChan)
 	}
 	// RegionBased 注释
-	for _, database := range this.RegionBaseds {
-		annoResult, err = db.AnnoRegionBased(this.Input, database, this.Overlap, this.Goroutine)
+	for _, dbBedFile := range this.RegionBaseds {
+		go this.RunAnnoRegionBase(dbBedFile, annoResultChan, errChan)
+	}
+	annoResults := make([]anno.AnnoResult, annoSize)
+	for i := 0; i < annoSize; i++ {
+		err = <-errChan
 		if err != nil {
 			return err
 		}
-		annoResults = append(annoResults, annoResult)
+		annoResults[i] = <-annoResultChan
 	}
-	annoResult = anno.MergeAnnoResults(annoResults)
+	annoResult := anno.MergeAnnoResults(annoResults)
 	vcfHeader.Infos = annoResult.VcfHeaderInfo
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
