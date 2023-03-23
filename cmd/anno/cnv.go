@@ -1,7 +1,6 @@
 package anno
 
 import (
-	"fmt"
 	"log"
 	"open-anno/anno"
 	"open-anno/anno/db"
@@ -9,26 +8,29 @@ import (
 	"open-anno/pkg"
 	"os"
 	"path"
-	"strings"
 
+	"github.com/brentp/vcfgo"
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
 )
 
 type AnnoCnvParam struct {
-	Input         string   `validate:"required,pathexists"`
-	GenePred      string   `validate:"required,pathexists"`
-	GenePredIndex string   `validate:"required,pathexists"`
-	Gene          string   `validate:"required,pathexists"`
-	Output        string   `validate:"required"`
-	GBName        string   `validate:"required"`
-	RegionBaseds  []string `validate:"pathsexists"`
-	Overlap       float64  `validate:"required"`
-	Clean         bool
+	Input              string   `validate:"required,pathexists"`
+	GenePred           string   `validate:"required,pathexists"`
+	GenePredIndex      string   `validate:"required,pathexists"`
+	Gene               string   `validate:"required,pathexists"`
+	Output             string   `validate:"required"`
+	RegionBaseds       []string `validate:"pathsexists"`
+	RegionBasedIndexes []string `validate:"pathsexists"`
+	Overlap            float64  `validate:"required"`
+	Goroutine          int      `validate:"required"`
 }
 
 func (this *AnnoCnvParam) Valid() error {
-	this.GenePredIndex = this.GenePred + ".idx"
+	this.GenePredIndex = this.GenePred + ".tbi"
+	for _, db := range this.RegionBaseds {
+		this.RegionBasedIndexes = append(this.RegionBasedIndexes, db+".tbi")
+	}
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
 	validate.RegisterValidation("pathsexists", pkg.CheckPathsExists)
@@ -43,98 +45,65 @@ func (this AnnoCnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this *AnnoCnvParam) RunAnnoGeneBase(cnvs anno.Variants, annoChan chan anno.AnnoInfos, headerChan chan string, errChan chan error) {
-	// 读取GenePred输入文件
-	log.Printf("Read GenePred: %s ...", this.GenePred)
-	gpes, err := pkg.ReadGenePred(this.GenePred)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	// 读取GenePred Index输入文件
-	log.Printf("Read GenePred Index: %s ...", this.GenePredIndex)
-	transIndexes, err := pkg.ReadTransIndexes(this.GenePredIndex)
-	if err != nil {
-		errChan <- err
-		return
-	}
+func (this *AnnoCnvParam) RunAnnoGeneBase() (anno.AnnoResult, error) {
 	// 读取gene输入文件
 	log.Printf("Read Gene: %s ...", this.Gene)
-	geneSymbolToID, err := anno.ReadGene(this.Gene)
+	err := pkg.InitGeneSymbolToID(this.Gene)
 	if err != nil {
-		errChan <- err
-		return
+		return anno.AnnoResult{}, err
 	}
-	annoInfos, err := gene.AnnoCnvs(cnvs, gpes, transIndexes, geneSymbolToID)
-	annoChan <- annoInfos
-	headerChan <- "Region"
-	errChan <- err
-}
-
-func (this *AnnoCnvParam) RunAnnoRegionBase(cnvs anno.Variants, database string, annoChan chan anno.AnnoInfos, headerChan chan string, errChan chan error) {
-	reader, err := pkg.NewIOReader(database)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer reader.Close()
-	scanner := db.NewRegionVarScanner(reader)
-	regVars, err := scanner.ReadAll()
-	if err != nil {
-		errChan <- err
-		return
-	}
-	annoInfos, err := db.AnnoRegionBased(cnvs, regVars, scanner.Name, this.Overlap)
-	annoChan <- annoInfos
-	headerChan <- scanner.Name
-	errChan <- err
+	return gene.AnnoCnvs(this.Input, this.GenePred, this.Goroutine)
 }
 
 func (this AnnoCnvParam) Run() error {
 	// 读取变异输入文件
 	log.Printf("Read AnnoInput: %s ...", this.Input)
-	cnvs, err := anno.ReadBED(this.Input)
+	reader, err := pkg.NewIOReader(this.Input)
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
+	vcfReader, err := vcfgo.NewReader(reader, false)
+	if err != nil {
+		return err
+	}
+	defer vcfReader.Close()
+	vcfHeader := vcfReader.Header
 	// 构造 error channel
-	annoChan := make(chan anno.AnnoInfos, len(this.RegionBaseds)+1)
-	errChan := make(chan error, len(this.RegionBaseds)+1)
-	headerChan := make(chan string, len(this.RegionBaseds)+1)
-	// GeneBased 注释
-	go this.RunAnnoGeneBase(cnvs, annoChan, headerChan, errChan)
+	var annoResults []anno.AnnoResult
+	var annoResult anno.AnnoResult
+	annoResult, err = this.RunAnnoGeneBase()
+	if err != nil {
+		return err
+	}
+	annoResults = append(annoResults, annoResult)
 	// RegionBased 注释
 	for _, database := range this.RegionBaseds {
-		go this.RunAnnoRegionBase(cnvs, database, annoChan, headerChan, errChan)
-	}
-	// 错误处理
-	annoInfos := make(anno.AnnoInfos)
-	for i := 0; i < len(this.RegionBaseds)+1; i++ {
-		err := <-errChan
+		annoResult, err = db.AnnoRegionBased(this.Input, database, this.Overlap, this.Goroutine)
 		if err != nil {
 			return err
 		}
-		for pk, infos := range <-annoChan {
-			if items, ok := annoInfos[pk]; ok {
-				annoInfos[pk] = append(items, infos...)
-			} else {
-				annoInfos[pk] = infos
-			}
-		}
+		annoResults = append(annoResults, annoResult)
 	}
+	annoResult = anno.MergeAnnoResults(annoResults)
+	vcfHeader.Infos = annoResult.VcfHeaderInfo
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
-	fmt.Fprint(writer, "Chrom\tStart\tRef\tAlt\tAnnotation\n")
-	for _, cnv := range cnvs {
-		annoVar := cnv.AnnoVariant()
-		annoTexts := make([]string, 0)
-		for _, annoInfo := range annoInfos[annoVar.PK()] {
-			annoTexts = append(annoTexts, fmt.Sprintf("%s=%s", annoInfo.Key, annoInfo.Value))
+	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
+	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
+		pk := (&pkg.Variant{Variant: *variant}).PK()
+		for key, val := range annoResult.AnnoInfos[pk] {
+			if val != "" && val != "." {
+				err = variant.Info().Set(key, val)
+				if err != nil {
+					return err
+				}
+			}
 		}
-		fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s%s\n", annoVar.Chrom, annoVar.Start, annoVar.End, annoVar.Ref, annoVar.Alt, strings.Join(annoTexts, ";"))
+		vcfWriter.WriteVariant(variant)
 	}
 	return nil
 }
@@ -148,11 +117,10 @@ func NewAnnoCnvCmd() *cobra.Command {
 			param.Input, _ = cmd.Flags().GetString("input")
 			param.GenePred, _ = cmd.Flags().GetString("genepred")
 			param.Gene, _ = cmd.Flags().GetString("gene")
-			param.GBName, _ = cmd.Flags().GetString("gbname")
 			param.Output, _ = cmd.Flags().GetString("output")
 			param.RegionBaseds, _ = cmd.Flags().GetStringArray("regionbaseds")
 			param.Overlap, _ = cmd.Flags().GetFloat64("overlap")
-			param.Clean, _ = cmd.Flags().GetBool("clean")
+			param.Goroutine, _ = cmd.Flags().GetInt("goroutine")
 			err := param.Valid()
 			if err != nil {
 				cmd.Help()
@@ -171,6 +139,6 @@ func NewAnnoCnvCmd() *cobra.Command {
 	cmd.Flags().StringP("output", "o", "", "AnnoOutput File")
 	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input RegionBased Database File")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
-	cmd.Flags().BoolP("clean", "c", false, "Clean Temporary File")
+	cmd.Flags().IntP("goroutine", "c", 10000, "Parameter Goroutine Numbers")
 	return cmd
 }

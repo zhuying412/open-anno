@@ -2,13 +2,14 @@ package gene
 
 import (
 	"fmt"
-	"log"
 	"open-anno/anno"
 	"open-anno/pkg"
 	"sort"
 	"strings"
 
+	"github.com/brentp/bix"
 	"github.com/brentp/faidx"
+	"github.com/brentp/vcfgo"
 )
 
 var AA_SHORT = false
@@ -82,120 +83,177 @@ func NewTransAnno(trans pkg.Transcript, regions ...pkg.Region) TransAnno {
 	return transAnno
 }
 
-func AnnoSnv(snv anno.AnnoVariant, transNames []string, transcripts pkg.Transcripts) []TransAnno {
+func annoSnvs(snvs []*pkg.Variant, tbx *bix.Bix, genome *faidx.Faidx, annoInfosChan chan anno.AnnoInfos, errChan chan error) {
 	// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
-	var transAnnos []TransAnno
-	for _, transName := range transNames {
-		trans := transcripts[transName]
-		if trans.TxStart <= snv.End && trans.TxEnd >= snv.Start {
-			var transAnno TransAnno
-			if trans.IsUnk() {
-				transAnno = NewTransAnno(trans)
-				transAnno.Region = "ncRNA"
-				transAnnos = append(transAnnos, transAnno)
-			} else {
-				if snv.Type() == anno.VType_SNP {
-					transAnno = AnnoSnp(snv, trans)
-				} else if snv.Type() == anno.VType_INS {
-					transAnno = AnnoIns(snv, trans)
-				} else if snv.Type() == anno.VType_DEL {
-					transAnno = AnnoDel(snv, trans)
-				} else {
-					transAnno = AnnoSub(snv, trans)
+	annoInfos := make(anno.AnnoInfos)
+	for _, snv := range snvs {
+		// var esAnnos, nesAnnos, unkAnnos [TransAnno // exonic_or_splicing, non_exonic_and_non_splicing, ncRNA
+		annoVar := snv.AnnoVariant()
+		query, err := tbx.Query(snv)
+		if err != nil {
+			annoInfosChan <- anno.AnnoInfos{}
+			errChan <- err
+			return
+		}
+		geneAnnos := make(map[string]map[string][]string)
+		for v, e := query.Next(); e == nil; v, e = query.Next() {
+			trans, err := pkg.NewTranscript(fmt.Sprintf("%s", v))
+			if err != nil {
+				annoInfosChan <- anno.AnnoInfos{}
+				errChan <- err
+				return
+			}
+			if trans.TxStart <= annoVar.End && trans.TxEnd >= annoVar.Start {
+				trans.SetGeneID()
+				err = trans.SetRegionsWithSeq(genome)
+				if err != nil {
+					annoInfosChan <- anno.AnnoInfos{}
+					errChan <- err
+					return
 				}
-				transAnnos = append(transAnnos, transAnno)
+				var transAnno TransAnno
+				if trans.IsUnk() {
+					transAnno = NewTransAnno(trans)
+					transAnno.Region = "ncRNA"
+				} else {
+					if snv.Type() == pkg.VType_SNP {
+						transAnno = AnnoSnp(annoVar, trans)
+					} else if snv.Type() == pkg.VType_INS {
+						transAnno = AnnoIns(annoVar, trans)
+					} else if snv.Type() == pkg.VType_DEL {
+						transAnno = AnnoDel(annoVar, trans)
+					} else {
+						transAnno = AnnoSub(annoVar, trans)
+					}
+				}
+				geneAnno, ok := geneAnnos[transAnno.Gene]
+				if !ok {
+					geneAnno = map[string][]string{"gene": {transAnno.Gene}, "gene_id": {transAnno.GeneID}, "region": {}, "event": {}, "detail": {}}
+				}
+				region, event, detail := transAnno.Region, transAnno.Event, transAnno.Detail()
+				if region != "" && region != "." && pkg.FindArr(geneAnno["region"], region) < 0 {
+					geneAnno["region"] = append(geneAnno["region"], region)
+				}
+				if event != "" && event != "." && pkg.FindArr(geneAnno["event"], event) < 0 {
+					geneAnno["event"] = append(geneAnno["event"], event)
+				}
+				if detail != "" && detail != "." && pkg.FindArr(geneAnno["detail"], detail) < 0 {
+					geneAnno["detail"] = append(geneAnno["detail"], detail)
+				}
+				geneAnnos[transAnno.Gene] = geneAnno
 			}
 		}
+		query.Close()
+		annoData := make(map[string][]string)
+		for _, geneAnno := range geneAnnos {
+			for key, val := range geneAnno {
+				value := "."
+				if key == "region" {
+					var regions1, regions2 []string
+					for _, region := range val {
+						switch region {
+						case "exonic", "splicing", "exonic_splicing", "transcript":
+							regions1 = append(regions1, region)
+						case "ncRNA", "UTR3", "UTR5", "intronic":
+							regions2 = append(regions2, region)
+						}
+					}
+					if len(regions1) > 0 {
+						value = strings.Join(regions1, "|")
+					} else {
+						if len(regions2) > 0 {
+							value = strings.Join(regions2, "|")
+						}
+					}
+				} else {
+					value = strings.Join(val, "|")
+				}
+				annoData[key] = append(annoData[key], value)
+			}
+		}
+		annoInfo := make(map[string]any)
+		for key, val := range annoData {
+			annoInfo[strings.ToUpper(key)] = strings.Join(val, ",")
+		}
+		annoInfos[snv.PK()] = annoInfo
 	}
-	return transAnnos
+	annoInfosChan <- annoInfos
+	errChan <- nil
+	return
 }
 
-func AnnoSnvs(
-	variants anno.Variants,
-	gpes pkg.GenePreds,
-	allTransIndexes pkg.TransIndexes,
-	genome *faidx.Faidx,
-	geneSymbolToID map[string]map[string]string,
-	aashort bool) (anno.AnnoInfos, error) {
+func AnnoSnvs(vcfFile string, gpeFile string, genome *faidx.Faidx, aashort bool, goroutines int) (anno.AnnoResult, error) {
 	AA_SHORT = aashort
 	annoInfos := make(anno.AnnoInfos)
-	// 开始注释
-	for chrom, snvs := range variants.AggregateByChrom() {
-		// if chrom != "chr10" {
-		// 	continue
-		// }
-		log.Printf("Start run annotate GenePred %s ...", chrom)
-		transcripts, err := pkg.NewTranscriptsWithSeq(gpes, chrom, geneSymbolToID, genome)
-		if err != nil {
-			return annoInfos, err
-		}
-		transIndexes := allTransIndexes.FilterChrom(chrom)
-		sort.Sort(snvs)
-		sort.Sort(transIndexes)
-		for i, j := 0, 0; i < len(snvs) && j < len(transIndexes); {
-			annoVariant := snvs[i].AnnoVariant()
-			if annoVariant.End < transIndexes[j].Start {
-				i++
-			} else if annoVariant.Start > transIndexes[j].End {
-				j++
-			} else {
-				transAnnos := AnnoSnv(annoVariant, transIndexes[j].Transcripts, transcripts)
-				geneAnnos := make(map[string]map[string][]string)
-				for _, transAnno := range transAnnos {
-					geneAnno, ok := geneAnnos[transAnno.Gene]
-					if !ok {
-						geneAnno = map[string][]string{"gene": {transAnno.Gene}, "gene_id": {transAnno.GeneID}, "region": {}, "event": {}, "detail": {}}
-					}
-					region, event, detail := transAnno.Region, transAnno.Event, transAnno.Detail()
-					if region != "" && region != "." && pkg.FindArr(geneAnno["region"], region) < 0 {
-						geneAnno["region"] = append(geneAnno["region"], region)
-					}
-					if event != "" && event != "." && pkg.FindArr(geneAnno["event"], event) < 0 {
-						geneAnno["event"] = append(geneAnno["event"], event)
-					}
-					if detail != "" && detail != "." && pkg.FindArr(geneAnno["detail"], detail) < 0 {
-						geneAnno["detail"] = append(geneAnno["detail"], detail)
-					}
-					geneAnnos[transAnno.Gene] = geneAnno
-				}
-				annoData := make(map[string][]string)
-				for _, geneAnno := range geneAnnos {
-					for key, val := range geneAnno {
-						value := "."
-						if key == "region" {
-							var regions1, regions2 []string
-							for _, region := range val {
-								switch region {
-								case "exonic", "splicing", "exonic_splicing", "transcript":
-									regions1 = append(regions1, region)
-								case "ncRNA", "UTR3", "UTR5", "intronic":
-									regions2 = append(regions2, region)
-								}
-							}
-							if len(regions1) > 0 {
-								value = strings.Join(regions1, "|")
-							} else {
-								if len(regions2) > 0 {
-									value = strings.Join(regions2, "|")
-								}
-							}
-						} else {
-							value = strings.Join(val, "|")
-						}
-						annoData[key] = append(annoData[key], value)
-					}
-				}
-				pk := annoVariant.PK()
-				for key, val := range annoData {
-					if items, ok := annoInfos[pk]; ok {
-						annoInfos[pk] = append(items, anno.AnnoInfo{Key: strings.ToUpper(key), Value: strings.Join(val, ",")})
-					} else {
-						annoInfos[pk] = []anno.AnnoInfo{{Key: strings.ToUpper(key), Value: strings.Join(val, ",")}}
-					}
-				}
-				i++
-			}
+	// 打开句柄
+	reader, err := pkg.NewIOReader(vcfFile)
+	if err != nil {
+		return anno.AnnoResult{}, err
+	}
+	defer reader.Close()
+	vcfReader, err := vcfgo.NewReader(reader, false)
+	if err != nil {
+		return anno.AnnoResult{}, err
+	}
+	defer vcfReader.Close()
+	gpeTbx, err := bix.New(gpeFile)
+	if err != nil {
+		return anno.AnnoResult{}, err
+	}
+	defer gpeTbx.Close()
+	annoInfosChan := make(chan anno.AnnoInfos, goroutines)
+	errChan := make(chan error, goroutines)
+	variants := make([]*pkg.Variant, 0)
+	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
+		if len(variant.Chrom()) <= 5 {
+			variants = append(variants, &pkg.Variant{Variant: *variant})
 		}
 	}
-	return annoInfos, nil
+	multiVariants := pkg.SplitArr(variants, goroutines)
+	for _, variants := range multiVariants {
+		go annoSnvs(variants, gpeTbx, genome, annoInfosChan, errChan)
+	}
+	for i := 0; i < len(multiVariants); i++ {
+		err := <-errChan
+		if err != nil {
+			return anno.AnnoResult{}, err
+		}
+		for pk, annoInfo := range <-annoInfosChan {
+			annoInfos[pk] = annoInfo
+		}
+	}
+	close(annoInfosChan)
+	close(errChan)
+	vcfHeaderInfos := map[string]*vcfgo.Info{
+		"GENE": {
+			Id:          "GENE",
+			Description: "Gene Symbol",
+			Number:      ".",
+			Type:        "String",
+		},
+		"GENE_ID": {
+			Id:          "GENE_ID",
+			Description: "Gene Entrez ID",
+			Number:      ".",
+			Type:        "String",
+		},
+		"REGION": {
+			Id:          "REGION",
+			Description: "Region in gene, eg: exonic, intronic, UTR3, UTR5",
+			Number:      ".",
+			Type:        "String",
+		},
+		"EVENT": {
+			Id:          "EVENT",
+			Description: "Variant Event, eg: missense, nonsense, splicing",
+			Number:      ".",
+			Type:        "String",
+		},
+		"DETAIL": {
+			Id:          "DETAIL",
+			Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE",
+			Number:      ".",
+		},
+	}
+	return anno.AnnoResult{AnnoInfos: annoInfos, VcfHeaderInfo: vcfHeaderInfos}, err
 }

@@ -2,11 +2,10 @@ package gene
 
 import (
 	"fmt"
-	"open-anno/anno"
 	"open-anno/pkg"
 )
 
-func findSnpRegion(regions pkg.Regions, snv anno.AnnoVariant) (pkg.Region, int) {
+func findSnpRegion(regions pkg.Regions, snv pkg.AnnoVariant) (pkg.Region, int) {
 	var cLen int
 	for _, region := range regions {
 		if region.Start <= snv.Start && snv.End <= region.End {
@@ -19,7 +18,7 @@ func findSnpRegion(regions pkg.Regions, snv anno.AnnoVariant) (pkg.Region, int) 
 	return pkg.Region{}, cLen
 }
 
-func AnnoSnp(snv anno.AnnoVariant, trans pkg.Transcript) TransAnno {
+func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	region, cLen := findSnpRegion(trans.Regions, snv)
 	transAnno := NewTransAnno(trans, region)
 	if region.End < trans.CdsStart {

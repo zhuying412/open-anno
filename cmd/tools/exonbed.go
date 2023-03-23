@@ -56,20 +56,28 @@ func (this ExonBedParam) Run() error {
 		return err
 	}
 	defer writer.Close()
-	gpes, err := pkg.ReadGenePred(this.GenePred)
-	for _, gpe := range gpes {
-		key := fmt.Sprintf("%s:%s:%s", gpe.Chrom, gpe.Gene, gpe.Name)
-		if _, ok := repTransData[key]; ok {
+	reader, err := pkg.NewIOReader(this.GenePred)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	scanner := pkg.NewIOScanner(reader)
+	for scanner.Scan() {
+		trans, err := pkg.NewTranscript(scanner.Text())
+		if err != nil {
+			return err
+		}
+		if _, ok := repTransData[trans.PK()]; ok {
 			if this.CDS {
 				cdss := make([][]int, 0)
-				for i := 0; i < gpe.ExonCount; i++ {
-					start, end := gpe.ExonStarts[i], gpe.ExonEnds[i]
-					if gpe.CdsStart <= end && start <= gpe.CdsEnd {
-						if start < gpe.CdsStart && gpe.CdsStart < end {
-							start = gpe.CdsStart
+				for i := 0; i < trans.ExonCount; i++ {
+					start, end := trans.ExonStarts[i], trans.ExonEnds[i]
+					if trans.CdsStart <= end && start <= trans.CdsEnd {
+						if start < trans.CdsStart && trans.CdsStart < end {
+							start = trans.CdsStart
 						}
-						if start < gpe.CdsEnd && gpe.CdsEnd < end {
-							end = gpe.CdsEnd
+						if start < trans.CdsEnd && trans.CdsEnd < end {
+							end = trans.CdsEnd
 						}
 						cdss = append(cdss, []int{start, end})
 					}
@@ -77,18 +85,18 @@ func (this ExonBedParam) Run() error {
 				cdsCount := len(cdss)
 				for i := 0; i < cdsCount; i++ {
 					cds := fmt.Sprintf("CDS%d", i+1)
-					if gpe.Strand == "-" {
+					if trans.Strand == "-" {
 						cds = fmt.Sprintf("CDS%d", cdsCount-i)
 					}
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s:%s:%s\n", gpe.Chrom, cdss[i][0]-1, cdss[i][1], gpe.Gene, gpe.Name, cds)
+					fmt.Fprintf(writer, "%s\t%d\t%d\t%s:%s:%s\n", trans.Chrom, cdss[i][0]-1, cdss[i][1], trans.Gene, trans.Name, cds)
 				}
 			} else {
-				for i := 0; i < gpe.ExonCount; i++ {
+				for i := 0; i < trans.ExonCount; i++ {
 					exon := fmt.Sprintf("Exon%d", i+1)
-					if gpe.Strand == "-" {
-						exon = fmt.Sprintf("Exon%d", gpe.ExonCount-i)
+					if trans.Strand == "-" {
+						exon = fmt.Sprintf("Exon%d", trans.ExonCount-i)
 					}
-					fmt.Fprintf(writer, "%s\t%d\t%d\t%s:%s:%s\n", gpe.Chrom, gpe.ExonStarts[i]-1, gpe.ExonEnds[i], gpe.Gene, gpe.Name, exon)
+					fmt.Fprintf(writer, "%s\t%d\t%d\t%s:%s:%s\n", trans.Chrom, trans.ExonStarts[i]-1, trans.ExonEnds[i], trans.Gene, trans.Name, exon)
 				}
 			}
 		}

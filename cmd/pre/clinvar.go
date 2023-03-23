@@ -1,12 +1,11 @@
 package pre
 
 import (
-	"fmt"
+	"io"
 	"log"
 	"open-anno/pkg"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/brentp/vcfgo"
 	"github.com/go-playground/validator/v10"
@@ -29,7 +28,39 @@ func (this PreClinvarParam) Valid() error {
 	return os.MkdirAll(outdir, 0666)
 }
 
+func (this PreClinvarParam) HeaderInfoIDs() []string {
+	return []string{"CLNREVSTAT", "CLNSIG", "CLNSIGCONF", "CLNDN"}
+}
+
+func (this PreClinvarParam) NewVcfWriter(writer io.WriteCloser, vcf string, infoKeys []string) (*vcfgo.Writer, error) {
+	reader, err := pkg.NewIOReader(vcf)
+	if err != nil {
+		return &vcfgo.Writer{}, err
+	}
+	defer reader.Close()
+	vcfReader, err := vcfgo.NewReader(reader, false)
+	if err != nil {
+		return &vcfgo.Writer{}, err
+	}
+	defer vcfReader.Close()
+	vcfHeader := *vcfReader.Header
+	vcfHeaderInfos := make(map[string]*vcfgo.Info)
+	for key, info := range vcfHeader.Infos {
+		if pkg.FindArr(infoKeys, key) != -1 {
+			vcfHeaderInfos[info.Id] = &vcfgo.Info{
+				Id:          info.Id,
+				Description: info.Description,
+				Type:        info.Type,
+				Number:      info.Number,
+			}
+		}
+	}
+	vcfHeader.Infos = vcfHeaderInfos
+	return vcfgo.NewWriter(writer, &vcfHeader)
+}
+
 func (this PreClinvarParam) Run() error {
+	infoKeys := this.HeaderInfoIDs()
 	reader, err := pkg.NewIOReader(this.Input)
 	if err != nil {
 		return err
@@ -45,43 +76,18 @@ func (this PreClinvarParam) Run() error {
 		return err
 	}
 	defer writer.Close()
-	fmt.Fprint(writer, "#Chr\tStart\tEnd\tRef\tAlt\tCLNREVSTAT\tCLNSIG\tCLNSIGCONF\tCLNDN\n")
-	for {
-		row := vcfReader.Read()
-		if row == nil {
-			break
+	vcfWriter, err := this.NewVcfWriter(writer, this.Input, infoKeys)
+	if err != nil {
+		return err
+	}
+	for row := vcfReader.Read(); row != nil; row = vcfReader.Read() {
+		row.Chromosome = "chr" + row.Chromosome
+		for _, key := range row.Info().Keys() {
+			if pkg.FindArr(infoKeys, key) == -1 {
+				row.Info().Delete(key)
+			}
 		}
-		for _, alt := range row.Alt() {
-			chrom, start, end, ref, alt := pkg.VCFtoAV(row.Chrom(), int(row.Pos), row.Ref(), alt)
-			chrom = "chr" + chrom
-			clnrevstat, err := row.Info().Get("CLNREVSTAT")
-			if err != nil {
-				clnrevstat = "."
-			} else {
-				if clnrevstats, ok := clnrevstat.([]string); ok {
-					clnrevstat = strings.Join(clnrevstats, ",")
-				}
-			}
-			clnsig, err := row.Info().Get("CLNSIG")
-			if err != nil {
-				clnsig = "."
-			}
-			clnsigconf, err := row.Info().Get("CLNSIGCONF")
-			if err != nil {
-				clnsigconf = "."
-			} else {
-				clnsigconf = strings.ReplaceAll(clnsigconf.(string), "|", ",")
-			}
-			clndn, err := row.Info().Get("CLNDN")
-			if err != nil {
-				clndn = "."
-			} else {
-				if clndns, ok := clndn.([]string); ok {
-					clndn = strings.Join(clndns, ",")
-				}
-			}
-			fmt.Fprintf(writer, "%s\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n", chrom, start, end, ref, alt, clnrevstat, clnsig, clnsigconf, clndn)
-		}
+		vcfWriter.WriteVariant(row)
 	}
 	return err
 }

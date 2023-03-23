@@ -33,13 +33,19 @@ func (this RepTransParam) Valid() error {
 
 func (this RepTransParam) ReadGenePred(gpeFile string, withVer bool) (map[string]map[string]map[string]int, error) {
 	data := make(map[string]map[string]map[string]int)
-	gpes, err := pkg.ReadGenePred(gpeFile)
+	reader, err := pkg.NewIOReader(gpeFile)
 	if err != nil {
 		return data, err
 	}
-	for _, gpe := range gpes {
-		length := gpe.TxEnd - gpe.TxStart + 1
-		chrom, gene, name := gpe.Chrom, gpe.Gene, gpe.Name
+	defer reader.Close()
+	scanner := pkg.NewIOScanner(reader)
+	for scanner.Scan() {
+		trans, err := pkg.NewTranscript(scanner.Text())
+		if err != nil {
+			return data, err
+		}
+		length := trans.TxEnd - trans.TxStart + 1
+		chrom, gene, name := trans.Chrom, trans.Gene, trans.Name
 		if !withVer {
 			name = strings.Split(name, ".")[0]
 		}

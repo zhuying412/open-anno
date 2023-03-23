@@ -28,14 +28,19 @@ type AnnoSnvParam struct {
 	FilterBaseds       []string `validate:"pathsexists"`
 	FilterBasedIndexes []string `validate:"pathsexists"`
 	RegionBaseds       []string `validate:"pathsexists"`
+	RegionBasedIndexes []string `validate:"pathsexists"`
 	Overlap            float64  `validate:"required"`
+	Goroutine          int      `validate:"required"`
 }
 
 func (this *AnnoSnvParam) Valid() error {
-	this.GenePredIndex = this.GenePred + ".idx"
+	this.GenePredIndex = this.GenePred + ".tbi"
 	this.GenomeIndex = this.Genome + ".fai"
 	for _, db := range this.FilterBaseds {
-		this.FilterBasedIndexes = append(this.FilterBasedIndexes, db+".idx")
+		this.FilterBasedIndexes = append(this.FilterBasedIndexes, db+".tbi")
+	}
+	for _, db := range this.RegionBaseds {
+		this.RegionBasedIndexes = append(this.RegionBasedIndexes, db+".tbi")
 	}
 	pkg.IS_EXON_REGION = this.Exon
 	validate := validator.New()
@@ -52,165 +57,98 @@ func (this AnnoSnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this *AnnoSnvParam) RunAnnoGeneBase(snvs anno.Variants, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	// 读取GenePred输入文件
-	log.Printf("Read GenePred: %s ...", this.GenePred)
-	gpes, err := pkg.ReadGenePred(this.GenePred)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	// 读取Transcript Index输入文件
-	log.Printf("Read GenePred Index: %s ...", this.GenePredIndex)
-	transIndexes, err := pkg.ReadTransIndexes(this.GenePredIndex)
-	if err != nil {
-		errChan <- err
-		return
-	}
+func (this *AnnoSnvParam) RunAnnoGeneBase(annoResultChan chan anno.AnnoResult, errChan chan error) {
 	// 读取Genome输入文件
 	log.Printf("Read Reference Fasta: %s ...", this.Genome)
 	genome, err := faidx.New(this.Genome)
 	if err != nil {
+		annoResultChan <- anno.AnnoResult{}
 		errChan <- err
 		return
 	}
 	// 读取gene输入文件
 	log.Printf("Read Gene: %s ...", this.Gene)
-	geneSymbolToID, err := anno.ReadGene(this.Gene)
+	err = pkg.InitGeneSymbolToID(this.Gene)
 	if err != nil {
+		annoResultChan <- anno.AnnoResult{}
 		errChan <- err
 		return
 	}
-	annoInfos, err := gene.AnnoSnvs(snvs, gpes, transIndexes, genome, geneSymbolToID, this.AAshort)
-	vcfHeaderInfoChan <- map[string]*vcfgo.Info{
-		"GENE": {
-			Id:          "GENE",
-			Description: "Gene Symbol",
-			Number:      ".",
-			Type:        "String",
-		},
-		"GENE_ID": {
-			Id:          "GENE_ID",
-			Description: "Gene Entrez ID",
-			Number:      ".",
-			Type:        "String",
-		},
-		"REGION": {
-			Id:          "REGION",
-			Description: "Region in gene, eg: exonic, intronic, UTR3, UTR5",
-			Number:      ".",
-			Type:        "String",
-		},
-		"EVENT": {
-			Id:          "EVENT",
-			Description: "Variant Event, eg: missense, nonsense, splicing",
-			Number:      ".",
-			Type:        "String",
-		},
-		"DETAIL": {
-			Id:          "DETAIL",
-			Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE",
-			Number:      ".",
-		},
-	}
-	annoChan <- annoInfos
+	log.Printf("Annotate %s", this.GenePred)
+	annoResult, err := gene.AnnoSnvs(this.Input, this.GenePred, genome, this.AAshort, this.Goroutine)
+	annoResultChan <- annoResult
 	errChan <- err
+	return
 }
 
-func (this *AnnoSnvParam) RunAnnoFilterBase(snvs anno.Variants, database, databaseIndex string, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	reader, err := db.NewFilterVarReader(database)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer reader.Close()
-	idxs, binSize, err := db.ReadFilterVarIdx(databaseIndex)
-	if err != nil {
-		errChan <- err
-		return
-	}
-
-	annoInfos, err := db.AnnoFilterBased(snvs, reader, idxs, binSize)
-	annoChan <- annoInfos
-	vcfHeaderInfoChan <- reader.VCFHeaderInfo()
+func (this *AnnoSnvParam) RunAnnoFilterBase(dbVcfFile string, annoResultChan chan anno.AnnoResult, errChan chan error) {
+	annoResult, err := db.AnnoFilterBased(this.Input, dbVcfFile, this.Goroutine)
+	annoResultChan <- annoResult
 	errChan <- err
+	return
 }
 
-func (this *AnnoSnvParam) RunAnnoRegionBase(snvs anno.Variants, database string, annoChan chan anno.AnnoInfos, vcfHeaderInfoChan chan map[string]*vcfgo.Info, errChan chan error) {
-	reader, err := pkg.NewIOReader(database)
-	if err != nil {
-		errChan <- err
-		return
-	}
-	defer reader.Close()
-	scanner := db.NewRegionVarScanner(reader)
-	regVars, err := scanner.ReadAll()
-	if err != nil {
-		errChan <- err
-		return
-	}
-	annoInfos, err := db.AnnoRegionBased(snvs, regVars, scanner.Name, this.Overlap)
-	annoChan <- annoInfos
-	vcfHeaderInfoChan <- scanner.VCFHeaderInfo()
+func (this *AnnoSnvParam) RunAnnoRegionBase(dbBefFile string, annoResultChan chan anno.AnnoResult, errChan chan error) {
+	annoResult, err := db.AnnoRegionBased(this.Input, dbBefFile, this.Overlap, this.Goroutine)
+	annoResultChan <- annoResult
 	errChan <- err
+	return
 }
 
 func (this AnnoSnvParam) Run() error {
 	// 读取变异输入文件
 	log.Printf("Read AnnoInput: %s ...", this.Input)
-	snvs, vcfHeader, err := anno.ReadVCF(this.Input)
+	reader, err := pkg.NewIOReader(this.Input)
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
+	vcfReader, err := vcfgo.NewReader(reader, false)
+	if err != nil {
+		return err
+	}
+	defer vcfReader.Close()
+	vcfHeader := vcfReader.Header
 	// 构造 error channel
-	errChan := make(chan error, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
-	annoInfosChan := make(chan anno.AnnoInfos, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
-	vcfHeaderInfoChan := make(chan map[string]*vcfgo.Info, len(this.FilterBaseds)+len(this.RegionBaseds)+1)
-	go this.RunAnnoGeneBase(snvs, annoInfosChan, vcfHeaderInfoChan, errChan)
+	annoSize := len(this.FilterBaseds) + len(this.RegionBaseds) + 1
+	annoResultChan := make(chan anno.AnnoResult, annoSize)
+	errChan := make(chan error, annoSize)
+	go this.RunAnnoGeneBase(annoResultChan, errChan)
 	// FilterBased 注释
-	for i, database := range this.FilterBaseds {
-		go this.RunAnnoFilterBase(snvs, database, this.FilterBasedIndexes[i], annoInfosChan, vcfHeaderInfoChan, errChan)
+	for _, dbVcfFile := range this.FilterBaseds {
+		go this.RunAnnoFilterBase(dbVcfFile, annoResultChan, errChan)
 	}
 	// RegionBased 注释
-	for _, database := range this.RegionBaseds {
-		go this.RunAnnoRegionBase(snvs, database, annoInfosChan, vcfHeaderInfoChan, errChan)
+	for _, dbBedFile := range this.RegionBaseds {
+		go this.RunAnnoRegionBase(dbBedFile, annoResultChan, errChan)
 	}
-	// 错误处理
-	annoInfos := make(anno.AnnoInfos)
-	for i := 0; i < len(this.FilterBaseds)+len(this.RegionBaseds)+1; i++ {
-		err := <-errChan
+	annoResults := make([]anno.AnnoResult, annoSize)
+	for i := 0; i < annoSize; i++ {
+		err = <-errChan
 		if err != nil {
 			return err
 		}
-		for pk, infos := range <-annoInfosChan {
-			if items, ok := annoInfos[pk]; ok {
-				annoInfos[pk] = append(items, infos...)
-			} else {
-				annoInfos[pk] = infos
-			}
-		}
-		for key, info := range <-vcfHeaderInfoChan {
-			vcfHeader.Infos[key] = info
-		}
+		annoResults[i] = <-annoResultChan
 	}
+	annoResult := anno.MergeAnnoResults(annoResults)
+	vcfHeader.Infos = annoResult.VcfHeaderInfo
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
 		return err
 	}
 	defer writer.Close()
-
 	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
-	for _, snv := range snvs {
-		vcfVariant := snv.(anno.SNV).Variant
-		for _, annoInfo := range annoInfos[snv.AnnoVariant().PK()] {
-			if annoInfo.Value != "" && annoInfo.Value != "." {
-				err = vcfVariant.Info().Set(annoInfo.Key, annoInfo.Value)
+	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
+		pk := (&pkg.Variant{Variant: *variant}).PK()
+		for key, val := range annoResult.AnnoInfos[pk] {
+			if val != "" && val != "." {
+				err = variant.Info().Set(key, val)
 				if err != nil {
 					return err
 				}
 			}
 		}
-		vcfWriter.WriteVariant(&vcfVariant)
+		vcfWriter.WriteVariant(variant)
 	}
 	return nil
 }
@@ -231,6 +169,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 			param.FilterBaseds, _ = cmd.Flags().GetStringArray("filterbaseds")
 			param.RegionBaseds, _ = cmd.Flags().GetStringArray("regionbaseds")
 			param.Overlap, _ = cmd.Flags().GetFloat64("overlap")
+			param.Goroutine, _ = cmd.Flags().GetInt("goroutine")
 			err := param.Valid()
 			if err != nil {
 				cmd.Help()
@@ -250,7 +189,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 	cmd.Flags().BoolP("aashort", "a", false, "Parameter Is AA Short")
 	cmd.Flags().BoolP("exon", "e", false, "Parameter Is Exon")
 	cmd.Flags().StringArrayP("filterbaseds", "f", []string{}, "Input FilterBased Database File")
-	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input RegionBased Database File")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
+	cmd.Flags().IntP("goroutine", "c", 4, "Parameter Goroutine Numbers")
 	return cmd
 }
