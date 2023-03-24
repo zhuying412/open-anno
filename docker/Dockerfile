@@ -1,5 +1,4 @@
-from docker.io/tensorflow/tensorflow:2.11.0
-RUN pip install pyvcf spliceai -i https://pypi.douban.com/simple/ --trusted-host pypi.douban.com
+from docker.io/staphb/bcftools:1.16
+RUN apt update -y && apt install -y tabix
 COPY openanno /usr/local/bin/openanno
-COPY spliceai.py /usr/local/bin/spliceai.py
-RUN chmod a+x /usr/local/bin/openanno /usr/local/bin/spliceai.py
+RUN chmod a+x /usr/local/bin/openanno
