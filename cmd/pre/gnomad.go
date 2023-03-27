@@ -1,7 +1,6 @@
 package pre
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"open-anno/pkg"
@@ -147,7 +146,6 @@ func (this PreGnomadParam) Run() error {
 	for i := 0; i < len(vcfs); i++ {
 		err = <-errChan
 		if err != nil {
-			fmt.Println(vcfs[i])
 			return err
 		}
 	}

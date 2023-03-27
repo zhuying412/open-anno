@@ -45,7 +45,7 @@ func setSubAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 		if len(aa2) == 0 {
 			if len(aa1) == 1 {
 				transAnno.AAChange = fmt.Sprintf("p.%s%ddel", pkg.AAName(aa1, AA_SHORT), start)
-			} else {
+			} else if len(aa1) > 1 {
 				transAnno.AAChange = fmt.Sprintf(
 					"p.%s%d_%s%ddel",
 					pkg.AAName(aa1[0], AA_SHORT),

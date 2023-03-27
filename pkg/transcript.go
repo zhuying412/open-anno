@@ -101,6 +101,7 @@ func (this Transcript) DNA() string {
 
 // SetGeneID 根据geneSymbolToID的Map信息设置转录本的GeneID
 func (this *Transcript) SetGeneID() {
+	this.GeneID = "."
 	if entrezId, ok := GeneSymbolToID[this.Chrom][this.Gene]; ok {
 		this.GeneID = entrezId
 	}
@@ -205,34 +206,4 @@ func NewTranscript(line string) (Transcript, error) {
 		}
 	}
 	return trans, err
-}
-
-// TranscriptDB 以PK为Key的Transcript的Map数据结构
-type TranscriptDB map[string]Transcript
-
-func (this *TranscriptDB) GetOrCreate(trans Transcript) (Transcript, error) {
-	pk := trans.PK()
-	if _, ok := (*this)[pk]; !ok {
-		trans.SetGeneID()
-		err := trans.SetRegions()
-		if err != nil {
-			return trans, err
-		}
-		(*this)[pk] = trans
-	}
-	return (*this)[pk], nil
-}
-
-func (this *TranscriptDB) GetOrCreateWithSeq(trans Transcript, genome *faidx.Faidx) (Transcript, error) {
-	pk := trans.PK()
-	if _, ok := (*this)[pk]; !ok {
-
-		trans.SetGeneID()
-		err := trans.SetRegionsWithSeq(genome)
-		if err != nil {
-			return trans, err
-		}
-		(*this)[pk] = trans
-	}
-	return (*this)[pk], nil
 }

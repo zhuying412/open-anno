@@ -29,6 +29,7 @@ func NewPreCmd() *cobra.Command {
 	cmd.AddCommand(pre.NewPreClinvarCmd())
 	cmd.AddCommand(pre.NewPreGnomadCmd())
 	cmd.AddCommand(pre.NewPreDbnsfpCmd())
+	cmd.AddCommand(pre.NewPrePathogenicCmd())
 	return cmd
 }
 

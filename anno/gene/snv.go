@@ -253,6 +253,7 @@ func AnnoSnvs(vcfFile string, gpeFile string, genome *faidx.Faidx, aashort bool,
 			Id:          "DETAIL",
 			Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE",
 			Number:      ".",
+			Type:        "String",
 		},
 	}
 	return anno.AnnoResult{AnnoInfos: annoInfos, VcfHeaderInfo: vcfHeaderInfos}, err
