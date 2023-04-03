@@ -8,6 +8,7 @@ import (
 	"open-anno/pkg"
 	"os"
 	"path"
+	"sort"
 
 	"github.com/brentp/faidx"
 	"github.com/brentp/vcfgo"
@@ -138,10 +139,12 @@ func (this AnnoSnvParam) Run() error {
 	}
 	defer writer.Close()
 	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
+	whiteList := []string{"GENE", "GENE_ID", "EVENT", "REGION", "DETAIL"}
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
 		pk := (&pkg.Variant{Variant: *variant}).PK()
 		for key, val := range annoResult.AnnoInfos[pk] {
-			if val != "" && val != "." {
+			idx := sort.SearchStrings(whiteList, key)
+			if (idx < len(whiteList) && whiteList[idx] == key) || (val != "" && val != ".") {
 				err = variant.Info().Set(key, val)
 				if err != nil {
 					return err

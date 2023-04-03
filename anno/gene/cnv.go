@@ -130,7 +130,7 @@ func annoCnvs(cnvs []*pkg.Variant, tbx *bix.Bix, annoInfosChan chan anno.AnnoInf
 				transAnno.Gene, transAnno.GeneID, transAnno.Transcript, transAnno.Strand, transAnno.Region, transAnno.CDS, transAnno.Position,
 			))
 		}
-		annoInfos[cnv.PK()] = map[string]any{"REGION": strings.Join(annoTexts, ",")}
+		annoInfos[cnv.PK()] = map[string]any{"DETAIl": strings.Join(annoTexts, ",")}
 	}
 	annoInfosChan <- annoInfos
 	errChan <- nil
@@ -178,9 +178,9 @@ func AnnoCnvs(vcfFile string, gpeFile string, goroutines int) (anno.AnnoResult, 
 	close(annoInfosChan)
 	close(errChan)
 	vcfHeaderInfos := map[string]*vcfgo.Info{
-		"REGION": {
-			Id:          "REGION",
-			Description: "Gene Region",
+		"DETAIL": {
+			Id:          "DETAIL",
+			Description: "Gene Detail",
 			Number:      ".",
 			Type:        "String",
 		},

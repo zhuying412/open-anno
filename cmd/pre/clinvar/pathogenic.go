@@ -1,4 +1,4 @@
-package pre
+package clinvar
 
 import (
 	"fmt"
@@ -176,12 +176,22 @@ func (this PrePathogenicParam) Run() error {
 	for row := vcfReader.Read(); row != nil; row = vcfReader.Read() {
 		row.Chromosome = "chr" + row.Chromosome
 		snv := &pkg.Variant{Variant: *row}
-		if snv.Type() == pkg.VType_SNP {
-			if annoInfos, ok := annoResult.AnnoInfos[snv.PK()]; ok && len(annoInfos) > 0 {
-				genes := strings.Split(annoInfos["GENE"].(string), ",")
-				geneIds := strings.Split(annoInfos["GENE_ID"].(string), ",")
-				geneDetails := strings.Split(annoInfos["DETAIL"].(string), ",")
-				for i, gene := range genes {
+		igeneinfo, err := row.Info().Get("GENEINFO")
+		if err != nil {
+			continue
+		}
+		geneinfos := strings.Split(strings.Join(pkg.Interface2Array[string](igeneinfo), "|"), "|")
+		clnGeneIds := make([]string, len(geneinfos))
+		for i, geneinfo := range geneinfos {
+			clnGeneIds[i] = strings.Split(geneinfo, ":")[1]
+		}
+		if annoInfos, ok := annoResult.AnnoInfos[snv.PK()]; ok && len(annoInfos) > 0 {
+			genes := strings.Split(annoInfos["GENE"].(string), ",")
+			geneIds := strings.Split(annoInfos["GENE_ID"].(string), ",")
+			geneDetails := strings.Split(annoInfos["DETAIL"].(string), ",")
+			for i, gene := range genes {
+				geneId := geneIds[i]
+				if pkg.FindArr(clnGeneIds, geneId) != -1 {
 					for _, detail := range strings.Split(geneDetails[i], "|") {
 						info := strings.Split(detail, ":")
 						if len(info) >= 5 {
@@ -189,7 +199,7 @@ func (this PrePathogenicParam) Run() error {
 							re := regexp.MustCompile(`p\.([A-Z\*])(\d+)([A-Z\*])`)
 							match := re.FindStringSubmatch(info[4])
 							fmt.Println(info[4], match)
-							fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", row.Chromosome, row.Pos, row.Ref(), row.Alt()[0], gene, geneIds[i], trans, match[1], match[2], match[3])
+							fmt.Fprintf(writer, "%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", row.Chromosome, row.Pos, row.Ref(), row.Alt()[0], gene, geneIds[i], trans, match[2], match[1], match[3])
 						}
 					}
 				}

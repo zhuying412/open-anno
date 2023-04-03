@@ -147,7 +147,7 @@ func annoSnvs(snvs []*pkg.Variant, tbx *bix.Bix, genome *faidx.Faidx, annoInfosC
 		annoData := make(map[string][]string)
 		for _, geneAnno := range geneAnnos {
 			for key, val := range geneAnno {
-				value := "."
+				var value string
 				if key == "region" {
 					var regions1, regions2 []string
 					for _, region := range val {
@@ -167,6 +167,9 @@ func annoSnvs(snvs []*pkg.Variant, tbx *bix.Bix, genome *faidx.Faidx, annoInfosC
 					}
 				} else {
 					value = strings.Join(val, "|")
+				}
+				if value == "" {
+					value = "."
 				}
 				annoData[key] = append(annoData[key], value)
 			}

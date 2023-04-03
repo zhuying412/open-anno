@@ -1,4 +1,4 @@
-package pre
+package clinvar
 
 import (
 	"io"
@@ -94,7 +94,7 @@ func (this PreClinvarParam) Run() error {
 
 func NewPreClinvarCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "clinvar",
+		Use:   "db",
 		Short: "Prepare Clinvar Base on NCBI Clinvar VCF",
 		Run: func(cmd *cobra.Command, args []string) {
 			var param PreClinvarParam

@@ -45,6 +45,13 @@ func FindArr[T string | int | float64 | uint64 | uint32](arr []T, k T) int {
 	return -1
 }
 
+func Interface2Array[T string | int | float64 | uint64 | uint32](src any) []T {
+	if dst, ok := src.(T); ok {
+		return []T{dst}
+	}
+	return src.([]T)
+}
+
 func UniqArr[T string | int | float64 | uint64 | uint32](arr []T, ex T) []T {
 	uarr := make([]T, 0)
 	for _, v := range arr {
