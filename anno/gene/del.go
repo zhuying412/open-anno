@@ -122,7 +122,7 @@ func setDelAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 			}
 		}
 	}
-	if protein[0] == 'M' && nprotein[0] != 'M' {
+	if protein[0] == 'M' && len(nprotein) > 0 && nprotein[0] != 'M' {
 		transAnno.Event += "_startloss"
 	}
 	if strings.Contains(transAnno.Region, "splic") {

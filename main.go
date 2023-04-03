@@ -5,6 +5,7 @@ import (
 	"open-anno/cmd"
 	"open-anno/cmd/anno"
 	"open-anno/cmd/pre"
+	"open-anno/cmd/pre/clinvar"
 	"open-anno/cmd/tools"
 
 	"github.com/spf13/cobra"
@@ -26,10 +27,17 @@ func NewPreCmd() *cobra.Command {
 		Short: "Prepare database",
 	}
 	cmd.AddCommand(pre.NewGeneCmd())
-	cmd.AddCommand(pre.NewPreClinvarCmd())
+
 	cmd.AddCommand(pre.NewPreGnomadCmd())
 	cmd.AddCommand(pre.NewPreDbnsfpCmd())
-	cmd.AddCommand(pre.NewPrePathogenicCmd())
+	cln := &cobra.Command{
+		Use:   "clinvar",
+		Short: "Prepare ClinVar Database",
+	}
+	cln.AddCommand(clinvar.NewPreClinvarCmd())
+	cln.AddCommand(clinvar.NewPrePathogenicCmd())
+	cln.AddCommand(clinvar.NewPreClinvarGeneCmd())
+	cmd.AddCommand(cln)
 	return cmd
 }
 
