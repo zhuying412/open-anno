@@ -33,7 +33,7 @@ func annoRegionBased(variants []*pkg.Variant, tbx *bix.Bix, overlap float64, dbn
 				}
 			}
 		}
-		annoInfos[variant.PK()] = map[string]any{dbname: strings.Join(infos, ",")}
+		annoInfos[variant.PK()] = map[string]any{dbname: strings.Join(infos, "|")}
 		query.Close()
 	}
 	annoInfosChan <- annoInfos

@@ -98,7 +98,7 @@ func (this PrePathogenicParam) FilterPathogenic(filteredFile string) error {
 			if strings.Contains(revstat, "practice_guideline") {
 				star = 4
 			} else if strings.Contains(revstat, "reviewed_by_expert_panel") {
-				star = 2
+				star = 3
 			} else if strings.Contains(revstat, "criteria_provided") {
 				if strings.Contains(revstat, "multiple_submitters") {
 					star = 2

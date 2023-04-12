@@ -192,6 +192,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 	cmd.Flags().BoolP("aashort", "a", false, "Parameter Is AA Short")
 	cmd.Flags().BoolP("exon", "e", false, "Parameter Is Exon")
 	cmd.Flags().StringArrayP("filterbaseds", "f", []string{}, "Input FilterBased Database File")
+	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input RegionBased Database File")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
 	cmd.Flags().IntP("goroutine", "c", 4, "Parameter Goroutine Numbers")
 	return cmd
