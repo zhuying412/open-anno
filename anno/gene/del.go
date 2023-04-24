@@ -304,9 +304,17 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				}
 				if trans.Strand == "+" {
 					if dist1 <= dist2 {
-						transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", cStart, dist1s, cStart, dist1e, snv.Ref)
+						if dist1s == dist1e {
+							transAnno.NAChange = fmt.Sprintf("c.%d+%ddel%s", cStart, dist1s, snv.Ref)
+						} else {
+							transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", cStart, dist1s, cStart, dist1e, snv.Ref)
+						}
 					} else {
-						transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", cStart+1, dist2s, cStart+1, dist2e, snv.Ref)
+						if dist2s == dist2e {
+							transAnno.NAChange = fmt.Sprintf("c.%d-%ddel%s", cStart+1, dist2s, snv.Ref)
+						} else {
+							transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", cStart+1, dist2s, cStart+1, dist2e, snv.Ref)
+						}
 					}
 				} else {
 					if dist1 <= dist2 {

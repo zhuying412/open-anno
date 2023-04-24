@@ -9,6 +9,7 @@ require (
 	github.com/brentp/vcfgo v0.0.0-20221128230736-759c0d32541e
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/spf13/cobra v1.4.0
+	github.com/syndtr/goleveldb v1.0.0
 )
 
 require (
@@ -16,6 +17,7 @@ require (
 	github.com/edsrzf/mmap-go v1.1.0 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

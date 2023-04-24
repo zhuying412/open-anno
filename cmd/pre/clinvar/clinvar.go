@@ -61,11 +61,12 @@ func (this PreClinvarParam) Run() error {
 			}
 		} else {
 			row := strings.Split(text, "\t")
+			row[0] = "chr" + row[0]
 			infos := make([]string, 0)
 			for _, item := range strings.Split(row[7], ";") {
 				info := strings.Split(item, "=")
 				if pkg.FindArr(infoKeys, info[0]) != -1 {
-					info[1] = "ClinVar_" + regexp.MustCompile(`[^\w\(\)]+`).ReplaceAllString(info[1], "|")
+					info[1] = regexp.MustCompile(`[^\w\(\)]+`).ReplaceAllString(info[1], "|")
 					infos = append(infos, fmt.Sprintf("ClinVar_%s=%s", info[0], info[1]))
 				}
 			}
