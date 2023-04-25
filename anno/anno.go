@@ -27,12 +27,12 @@ func AnnoSnv(snv *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix
 	annoInfo := AnnoInfo{PK: snv.PK(), Error: nil, Data: make(map[string]any)}
 	var anno map[string]any
 	var err error
-	// anno, err = gene.AnnoSnv(snv, gpeTbx, genome)
-	// if err != nil {
-	// 	annoInfo.Error = err
-	// 	return annoInfo
-	// }
-	// annoInfo.AddAnno(anno)
+	anno, err = gene.AnnoSnv(snv, gpeTbx, genome)
+	if err != nil {
+		annoInfo.Error = err
+		return annoInfo
+	}
+	annoInfo.AddAnno(anno)
 	for _, tbx := range fbTbxs {
 		anno, err = db.AnnoFilterBased(snv, tbx)
 		if err != nil {
