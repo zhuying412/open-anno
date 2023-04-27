@@ -17,7 +17,6 @@ import (
 	"github.com/brentp/vcfgo"
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type PrePathogenicParam struct {
@@ -113,7 +112,7 @@ func (this PrePathogenicParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, genome 
 	resChan := make(chan anno.AnnoInfo, len(snvs))
 	for i := 0; i <= 80; i++ {
 		wg.Add(1)
-		go anno.AnnoSnvWorker(snvChan, gpeTbx, []*bix.Bix{}, []*bix.Bix{}, []string{}, []*leveldb.DB{}, genome, 0.7, resChan, &wg)
+		go anno.AnnoSnvWorker(snvChan, gpeTbx, []*bix.Bix{}, []*bix.Bix{}, []string{}, genome, 0.7, resChan, &wg)
 	}
 	go func() {
 		wg.Wait()

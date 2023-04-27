@@ -39,6 +39,7 @@
     "exonic",
     "faidx",
     "FASTA",
+    "filterbased",
     "filterbaseds",
     "frameshift",
     "gbanno",
@@ -85,9 +86,10 @@
     "startloss",
     "stoploss",
     "subsnvs",
+    "Tabix",
     "Tbxs",
     "UCSC",
     "vcfgo",
     "VCMP"
-  ]
+]
 }

@@ -30,13 +30,13 @@ func NewPreCmd() *cobra.Command {
 
 	cmd.AddCommand(pre.NewPreGnomadCmd())
 	cmd.AddCommand(pre.NewPreDbnsfpCmd())
-	cmd.AddCommand(pre.NewPreLeveldbCmd())
+	cmd.AddCommand(pre.NewSplitVCFCmd())
 	cln := &cobra.Command{
 		Use:   "clinvar",
 		Short: "Prepare ClinVar Database",
 	}
 	cln.AddCommand(clinvar.NewPreClinvarCmd())
-	// cln.AddCommand(clinvar.NewPrePathogenicCmd())
+	cln.AddCommand(clinvar.NewPrePathogenicCmd())
 	cln.AddCommand(clinvar.NewPreClinvarGeneCmd())
 	cmd.AddCommand(cln)
 	return cmd

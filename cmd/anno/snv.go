@@ -1,9 +1,9 @@
 package anno
 
 import (
+	"fmt"
 	"log"
 	"open-anno/anno"
-	"open-anno/anno/db"
 	"open-anno/pkg"
 	"os"
 	"path"
@@ -16,27 +16,25 @@ import (
 	"github.com/brentp/vcfgo"
 	"github.com/go-playground/validator/v10"
 	"github.com/spf13/cobra"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 type AnnoSnvParam struct {
-	Input               string `validate:"required,pathexists"`
-	GenePred            string `validate:"required,pathexists"`
-	GenePredIndex       string `validate:"required,pathexists"`
-	Genome              string `validate:"required,pathexists"`
-	GenomeIndex         string `validate:"required,pathexists"`
-	Gene                string `validate:"required,pathexists"`
-	Output              string `validate:"required"`
-	AAshort             bool
-	Exon                bool
-	FilterBaseds        []string `validate:"pathsexists"`
-	FilterBasedIndexes  []string `validate:"pathsexists"`
-	RegionBaseds        []string `validate:"pathsexists"`
-	RegionBasedIndexes  []string `validate:"pathsexists"`
-	FilterBasedLevelDBs []string `validate:"pathsexists"`
-	Overlap             float64  `validate:"required"`
-	Concurrency         int      `validate:"required"`
+	Input              string `validate:"required,pathexists"`
+	GenePred           string `validate:"required,pathexists"`
+	GenePredIndex      string `validate:"required,pathexists"`
+	Genome             string `validate:"required,pathexists"`
+	GenomeIndex        string `validate:"required,pathexists"`
+	Gene               string `validate:"required,pathexists"`
+	Output             string `validate:"required"`
+	AAshort            bool
+	Exon               bool
+	FilterBaseds       []string `validate:"pathsexists"`
+	FilterBasedIndexes []string `validate:"pathsexists"`
+	RegionBaseds       []string `validate:"pathsexists"`
+	RegionBasedIndexes []string `validate:"pathsexists"`
+	FilterBasedDirs    []string `validate:"pathsexists"`
+	Overlap            float64  `validate:"required"`
+	Concurrency        int      `validate:"required"`
 }
 
 func (this *AnnoSnvParam) Valid() error {
@@ -63,7 +61,7 @@ func (this AnnoSnvParam) Outdir() string {
 	return path.Dir(this.Output)
 }
 
-func (this AnnoSnvParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, fbDBs []*leveldb.DB, genome *faidx.Faidx) (map[string]map[string]any, error) {
+func (this AnnoSnvParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, genome *faidx.Faidx) (map[string]map[string]any, error) {
 	snvChan := make(chan *pkg.SNV, len(snvs))
 	for _, snv := range snvs {
 		snvChan <- snv
@@ -73,7 +71,7 @@ func (this AnnoSnvParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix
 	resChan := make(chan anno.AnnoInfo, len(snvs))
 	for i := 0; i <= this.Concurrency; i++ {
 		wg.Add(1)
-		go anno.AnnoSnvWorker(snvChan, gpeTbx, fbTbxs, rbTbxs, dbnames, fbDBs, genome, this.Overlap, resChan, &wg)
+		go anno.AnnoSnvWorker(snvChan, gpeTbx, fbTbxs, rbTbxs, dbnames, genome, this.Overlap, resChan, &wg)
 	}
 	go func() {
 		wg.Wait()
@@ -109,13 +107,29 @@ func (this AnnoSnvParam) Run() error {
 	}
 	defer vcfReader.Close()
 	vcfHeader := vcfReader.Header
-	snvs := make([]*pkg.SNV, 0)
+	keys := make([]string, 0)
+	snvsMap := make(map[string][]*pkg.SNV)
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
-		if len(variant.Chrom()) > 5 {
+		snv := &pkg.SNV{Variant: *variant}
+		chrom := variant.Chrom()
+		if len(chrom) > 5 {
 			continue
 		}
-		snvs = append(snvs, &pkg.SNV{Variant: *variant})
+		key := fmt.Sprintf("%s.%d", chrom, snv.Pos/uint64(pkg.FilterBasedBucketSize))
+		if snvs, ok := snvsMap[key]; !ok {
+			snvsMap[key] = []*pkg.SNV{snv}
+			keys = append(keys, key)
+		} else {
+			snvsMap[key] = append(snvs, snv)
+		}
 	}
+	// 打开Genome
+	log.Printf("Open Genome Faidx ...")
+	genome, err := faidx.New(this.Genome)
+	if err != nil {
+		return err
+	}
+	defer genome.Close()
 	// 打开GenePred
 	log.Printf("Open TABIX Handle ...")
 	gpeTbx, err := bix.New(this.GenePred)
@@ -160,10 +174,10 @@ func (this AnnoSnvParam) Run() error {
 		if err != nil {
 			return err
 		}
+		defer fbTbxs[i].Close()
 		for key, info := range fbTbxs[i].VReader.Header.Infos {
 			vcfHeader.Infos[key] = info
 		}
-		defer fbTbxs[i].Close()
 	}
 	// 打开RegionBaseds
 	rbTbxs := make([]*bix.Bix, len(this.RegionBaseds))
@@ -173,6 +187,7 @@ func (this AnnoSnvParam) Run() error {
 		if err != nil {
 			return err
 		}
+		defer rbTbxs[i].Close()
 		dbnames[i] = strings.Split(path.Base(rbFile), ".")[0]
 		vcfHeader.Infos[dbnames[i]] = &vcfgo.Info{
 			Id:          dbnames[i],
@@ -180,34 +195,42 @@ func (this AnnoSnvParam) Run() error {
 			Number:      ".",
 			Type:        "String",
 		}
-		defer rbTbxs[i].Close()
 	}
-	// 打开FilterBasedLevelDBs
-	log.Printf("Open LevelDB ...")
-	fbDBs := make([]*leveldb.DB, len(this.FilterBasedLevelDBs))
-	for i, fbDir := range this.FilterBasedLevelDBs {
-		fbDBs[i], err = leveldb.OpenFile(fbDir, &opt.Options{ReadOnly: true})
+	// 开始注释
+	log.Println("Run Annotating ...")
+	annoResult := make(map[string]map[string]map[string]any)
+	for _, key := range keys {
+		log.Printf("Run Annotating %s ...", key)
+		snvs, ok := snvsMap[key]
+		if !ok {
+			continue
+		}
+		fbTbxs2 := make([]*bix.Bix, 0)
+		for _, fbDir := range this.FilterBasedDirs {
+			fbFile := fmt.Sprintf("%s/%s.vcf.gz", fbDir, key)
+			_, err := os.Stat(fbFile)
+			if os.IsNotExist(err) {
+				continue
+			}
+			fbTbx, err := bix.New(fbFile)
+			if err != nil {
+				return err
+			}
+			for key, info := range fbTbx.VReader.Header.Infos {
+				vcfHeader.Infos[key] = info
+			}
+			fbTbxs2 = append(fbTbxs2, fbTbx)
+		}
+		annoResult[key], err = this.RunAnno(snvs, gpeTbx, append(fbTbxs, fbTbxs2...), rbTbxs, dbnames, genome)
 		if err != nil {
 			return err
 		}
-		headerInfo, err := db.GetHeaderLevelDB(fbDBs[i])
-		if err != nil {
-			return err
+		for _, fbTbx := range fbTbxs2 {
+			fbTbx.Close()
 		}
-		for _, info := range headerInfo {
-			vcfHeader.Infos[info.Id] = info
-		}
-		defer fbDBs[i].Close()
 	}
-	// 打开Genome
-	genome, err := faidx.New(this.Genome)
-	if err != nil {
-		return err
-	}
-	annoResult, err := this.RunAnno(snvs, gpeTbx, fbTbxs, rbTbxs, dbnames, fbDBs, genome)
-	if err != nil {
-		return err
-	}
+	// 打开输出句柄
+	log.Printf("Write to %s ...", this.Output)
 	writer, err := pkg.NewIOWriter(this.Output)
 	if err != nil {
 		return err
@@ -215,17 +238,20 @@ func (this AnnoSnvParam) Run() error {
 	defer writer.Close()
 	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
 	whiteList := []string{"GENE", "GENE_ID", "EVENT", "REGION", "DETAIL"}
-	for _, snv := range snvs {
-		for key, val := range annoResult[snv.PK()] {
-			idx := sort.SearchStrings(whiteList, key)
-			if (idx < len(whiteList) && whiteList[idx] == key) || (val != "" && val != ".") {
-				err = snv.Info().Set(key, val)
-				if err != nil {
-					return err
+	for _, key := range keys {
+		results := annoResult[key]
+		for _, snv := range snvsMap[key] {
+			for key, val := range results[snv.PK()] {
+				idx := sort.SearchStrings(whiteList, key)
+				if (idx < len(whiteList) && whiteList[idx] == key) || (val != "" && val != ".") {
+					err = snv.Info().Set(key, val)
+					if err != nil {
+						return err
+					}
 				}
 			}
+			vcfWriter.WriteVariant(&snv.Variant)
 		}
-		vcfWriter.WriteVariant(&snv.Variant)
 	}
 	return nil
 }
@@ -245,7 +271,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 			param.Exon, _ = cmd.Flags().GetBool("exon")
 			param.FilterBaseds, _ = cmd.Flags().GetStringArray("filterbaseds")
 			param.RegionBaseds, _ = cmd.Flags().GetStringArray("regionbaseds")
-			param.FilterBasedLevelDBs, _ = cmd.Flags().GetStringArray("leveldbs")
+			param.FilterBasedDirs, _ = cmd.Flags().GetStringArray("filterbased_dirs")
 			param.Overlap, _ = cmd.Flags().GetFloat64("overlap")
 			param.Concurrency, _ = cmd.Flags().GetInt("concurrency")
 			err := param.Valid()
@@ -268,7 +294,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 	cmd.Flags().BoolP("exon", "e", false, "Parameter Is Exon")
 	cmd.Flags().StringArrayP("filterbaseds", "f", []string{}, "Input FilterBased Database File")
 	cmd.Flags().StringArrayP("regionbaseds", "r", []string{}, "Input RegionBased Database File")
-	cmd.Flags().StringArrayP("leveldbs", "F", []string{}, "Input FilterBased LevelDB Directory")
+	cmd.Flags().StringArrayP("filterbased_dirs", "F", []string{}, "Input FilterBased Directory")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
 	cmd.Flags().IntP("concurrency", "c", 4, "Parameter Concurrency Numbers")
 	return cmd

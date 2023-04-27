@@ -8,7 +8,6 @@ import (
 
 	"github.com/brentp/bix"
 	"github.com/brentp/faidx"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type AnnoInfo struct {
@@ -23,7 +22,7 @@ func (this *AnnoInfo) AddAnno(anno map[string]any) {
 	}
 }
 
-func AnnoSnv(snv *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, fbDBs []*leveldb.DB, genome *faidx.Faidx, overlap float64) AnnoInfo {
+func AnnoSnv(snv *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, genome *faidx.Faidx, overlap float64) AnnoInfo {
 	annoInfo := AnnoInfo{PK: snv.PK(), Error: nil, Data: make(map[string]any)}
 	var anno map[string]any
 	var err error
@@ -49,21 +48,13 @@ func AnnoSnv(snv *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix
 		}
 		annoInfo.AddAnno(anno)
 	}
-	for _, leveldb := range fbDBs {
-		anno, err = db.AnnoFilterBasedLevelDB(snv, leveldb)
-		if err != nil {
-			annoInfo.Error = err
-			return annoInfo
-		}
-		annoInfo.AddAnno(anno)
-	}
 	return annoInfo
 }
 
-func AnnoSnvWorker(snvs chan *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, fbDBs []*leveldb.DB, genome *faidx.Faidx, overlap float64, result chan AnnoInfo, wg *sync.WaitGroup) {
+func AnnoSnvWorker(snvs chan *pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix.Bix, rbTbxs []*bix.Bix, dbnames []string, genome *faidx.Faidx, overlap float64, result chan AnnoInfo, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for snv := range snvs {
-		result <- AnnoSnv(snv, gpeTbx, fbTbxs, rbTbxs, dbnames, fbDBs, genome, overlap)
+		result <- AnnoSnv(snv, gpeTbx, fbTbxs, rbTbxs, dbnames, genome, overlap)
 	}
 }
 

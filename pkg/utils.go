@@ -7,6 +7,8 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+var FilterBasedBucketSize = 10 * 1000 * 1000
+
 func Min[T int | float64 | uint64 | uint32](a T, b T) T {
 	if a < b {
 		return a
