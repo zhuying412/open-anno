@@ -35,6 +35,7 @@ type AnnoSnvParam struct {
 	FilterBasedDirs    []string `validate:"pathsexists"`
 	Overlap            float64  `validate:"required"`
 	Concurrency        int      `validate:"required"`
+	Chrom              string
 }
 
 func (this *AnnoSnvParam) Valid() error {
@@ -112,7 +113,7 @@ func (this AnnoSnvParam) Run() error {
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
 		snv := &pkg.SNV{Variant: *variant}
 		chrom := variant.Chrom()
-		if len(chrom) > 5 {
+		if len(chrom) > 5 || (chrom != "" && chrom != this.Chrom) {
 			continue
 		}
 		key := fmt.Sprintf("%s.%d", chrom, snv.Pos/uint64(pkg.FilterBasedBucketSize))
@@ -274,6 +275,7 @@ func NewAnnoSnvCmd() *cobra.Command {
 			param.FilterBasedDirs, _ = cmd.Flags().GetStringArray("filterbased_dirs")
 			param.Overlap, _ = cmd.Flags().GetFloat64("overlap")
 			param.Concurrency, _ = cmd.Flags().GetInt("concurrency")
+			param.Chrom, _ = cmd.Flags().GetString("chrom")
 			err := param.Valid()
 			if err != nil {
 				cmd.Help()
@@ -297,5 +299,6 @@ func NewAnnoSnvCmd() *cobra.Command {
 	cmd.Flags().StringArrayP("filterbased_dirs", "F", []string{}, "Input FilterBased Directory")
 	cmd.Flags().Float64P("overlap", "l", 0.7, "Parameter Database Name")
 	cmd.Flags().IntP("concurrency", "c", 4, "Parameter Concurrency Numbers")
+	cmd.Flags().StringP("chrom", "m", "", "Chromosome")
 	return cmd
 }
