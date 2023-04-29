@@ -113,13 +113,16 @@ func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
 			return infos, err
 		}
 		for _, fbFile := range fbFiles {
-			fbTbx, err := bix.New(path.Join(fbDir, fbFile.Name()))
-			if err != nil {
-				return infos, err
-			}
-			defer fbTbx.Close()
-			for key, info := range fbTbx.VReader.Header.Infos {
-				infos[key] = info
+			if strings.HasSuffix(fbFile.Name(), ".vcf.gz") {
+				fbTbx, err := bix.New(path.Join(fbDir, fbFile.Name()))
+				if err != nil {
+					return infos, err
+				}
+				defer fbTbx.Close()
+				for key, info := range fbTbx.VReader.Header.Infos {
+					infos[key] = info
+				}
+				break
 			}
 		}
 	}
