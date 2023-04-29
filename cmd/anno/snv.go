@@ -158,7 +158,7 @@ func (this AnnoSnvParam) Run() error {
 	for variant := vcfReader.Read(); variant != nil; variant = vcfReader.Read() {
 		snv := &pkg.SNV{Variant: *variant}
 		chrom := variant.Chrom()
-		if len(chrom) > 5 || (chrom != "" && chrom != this.Chrom) {
+		if len(chrom) > 5 || (this.Chrom != "" && chrom != this.Chrom) {
 			continue
 		}
 		key := fmt.Sprintf("%s.%d", chrom, snv.Pos/uint64(pkg.FilterBasedBucketSize))
