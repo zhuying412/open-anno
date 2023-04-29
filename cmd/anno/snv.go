@@ -2,6 +2,7 @@ package anno
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"open-anno/anno"
 	"open-anno/pkg"
@@ -87,6 +88,47 @@ func (this AnnoSnvParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix
 	}
 	return results, nil
 }
+func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
+	infos := map[string]*vcfgo.Info{
+		"GENE":    {Id: "GENE", Description: "Gene Symbol", Number: ".", Type: "String"},
+		"GENE_ID": {Id: "GENE_ID", Description: "Gene Entrez ID", Number: ".", Type: "String"},
+		"REGION":  {Id: "REGION", Description: "Region in gene, eg: exonic, intronic, UTR3, UTR5", Number: ".", Type: "String"},
+		"EVENT":   {Id: "EVENT", Description: "Variant Event, eg: missense, nonsense, splicing", Number: ".", Type: "String"},
+		"DETAIL":  {Id: "DETAIL", Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE", Number: ".", Type: "String"},
+	}
+	for _, fbFile := range this.FilterBaseds {
+		fbTbx, err := bix.New(fbFile)
+		if err != nil {
+			return infos, err
+		}
+		defer fbTbx.Close()
+		for key, info := range fbTbx.VReader.Header.Infos {
+			infos[key] = info
+		}
+	}
+	// 读取目录下的文件和子目录
+	for _, fbDir := range this.FilterBasedDirs {
+		fbFiles, err := ioutil.ReadDir(fbDir)
+		if err != nil {
+			return infos, err
+		}
+		for _, fbFile := range fbFiles {
+			fbTbx, err := bix.New(path.Join(fbDir, fbFile.Name()))
+			if err != nil {
+				return infos, err
+			}
+			defer fbTbx.Close()
+			for key, info := range fbTbx.VReader.Header.Infos {
+				infos[key] = info
+			}
+		}
+	}
+	for _, rbFile := range this.RegionBaseds {
+		dbname := strings.Split(path.Base(rbFile), ".")[0]
+		infos[dbname] = &vcfgo.Info{Id: dbname, Description: dbname, Number: ".", Type: "String"}
+	}
+	return infos, nil
+}
 
 func (this AnnoSnvParam) Run() error {
 	// 读取GeneID信息
@@ -124,6 +166,14 @@ func (this AnnoSnvParam) Run() error {
 			snvsMap[key] = append(snvs, snv)
 		}
 	}
+	// VcfHeaderInfo
+	infos, err := this.GetHeaderInfos()
+	if err != nil {
+		return err
+	}
+	for id, info := range infos {
+		vcfHeader.Infos[id] = info
+	}
 	// 打开Genome
 	log.Printf("Open Genome Faidx ...")
 	genome, err := faidx.New(this.Genome)
@@ -138,36 +188,6 @@ func (this AnnoSnvParam) Run() error {
 		return err
 	}
 	defer gpeTbx.Close()
-	vcfHeader.Infos["GENE"] = &vcfgo.Info{
-		Id:          "GENE",
-		Description: "Gene Symbol",
-		Number:      ".",
-		Type:        "String",
-	}
-	vcfHeader.Infos["GENE_ID"] = &vcfgo.Info{
-		Id:          "GENE_ID",
-		Description: "Gene Entrez ID",
-		Number:      ".",
-		Type:        "String",
-	}
-	vcfHeader.Infos["REGION"] = &vcfgo.Info{
-		Id:          "REGION",
-		Description: "Region in gene, eg: exonic, intronic, UTR3, UTR5",
-		Number:      ".",
-		Type:        "String",
-	}
-	vcfHeader.Infos["EVENT"] = &vcfgo.Info{
-		Id:          "EVENT",
-		Description: "Variant Event, eg: missense, nonsense, splicing",
-		Number:      ".",
-		Type:        "String",
-	}
-	vcfHeader.Infos["DETAIL"] = &vcfgo.Info{
-		Id:          "DETAIL",
-		Description: "Gene detail, FORMAT=Gene:Transcript:Exon:NA_CHANGE:AA_CHANGE",
-		Number:      ".",
-		Type:        "String",
-	}
 	// 打开FilterBaseds
 	fbTbxs := make([]*bix.Bix, len(this.FilterBaseds))
 	for i, fbFile := range this.FilterBaseds {
@@ -176,9 +196,6 @@ func (this AnnoSnvParam) Run() error {
 			return err
 		}
 		defer fbTbxs[i].Close()
-		for key, info := range fbTbxs[i].VReader.Header.Infos {
-			vcfHeader.Infos[key] = info
-		}
 	}
 	// 打开RegionBaseds
 	rbTbxs := make([]*bix.Bix, len(this.RegionBaseds))
@@ -189,17 +206,18 @@ func (this AnnoSnvParam) Run() error {
 			return err
 		}
 		defer rbTbxs[i].Close()
-		dbnames[i] = strings.Split(path.Base(rbFile), ".")[0]
-		vcfHeader.Infos[dbnames[i]] = &vcfgo.Info{
-			Id:          dbnames[i],
-			Description: dbnames[i],
-			Number:      ".",
-			Type:        "String",
-		}
 	}
+	// 打开输出句柄
+	log.Printf("Write to %s ...", this.Output)
+	writer, err := pkg.NewIOWriter(this.Output)
+	if err != nil {
+		return err
+	}
+	defer writer.Close()
+	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
 	// 开始注释
 	log.Println("Run Annotating ...")
-	annoResult := make(map[string]map[string]map[string]any)
+	whiteList := []string{"GENE", "GENE_ID", "EVENT", "REGION", "DETAIL"}
 	for _, key := range keys {
 		log.Printf("Run Annotating %s ...", key)
 		snvs, ok := snvsMap[key]
@@ -217,35 +235,20 @@ func (this AnnoSnvParam) Run() error {
 			if err != nil {
 				return err
 			}
-			for key, info := range fbTbx.VReader.Header.Infos {
-				vcfHeader.Infos[key] = info
-			}
 			fbTbxs2 = append(fbTbxs2, fbTbx)
 		}
-		annoResult[key], err = this.RunAnno(snvs, gpeTbx, append(fbTbxs, fbTbxs2...), rbTbxs, dbnames, genome)
-		if err != nil {
-			return err
-		}
+		annoResult, err := this.RunAnno(snvs, gpeTbx, append(fbTbxs, fbTbxs2...), rbTbxs, dbnames, genome)
 		for _, fbTbx := range fbTbxs2 {
 			fbTbx.Close()
 		}
-	}
-	// 打开输出句柄
-	log.Printf("Write to %s ...", this.Output)
-	writer, err := pkg.NewIOWriter(this.Output)
-	if err != nil {
-		return err
-	}
-	defer writer.Close()
-	vcfWriter, err := vcfgo.NewWriter(writer, vcfHeader)
-	whiteList := []string{"GENE", "GENE_ID", "EVENT", "REGION", "DETAIL"}
-	for _, key := range keys {
-		results := annoResult[key]
-		for _, snv := range snvsMap[key] {
-			for key, val := range results[snv.PK()] {
-				idx := sort.SearchStrings(whiteList, key)
-				if (idx < len(whiteList) && whiteList[idx] == key) || (val != "" && val != ".") {
-					err = snv.Info().Set(key, val)
+		if err != nil {
+			return err
+		}
+		for _, snv := range snvs {
+			for id, val := range annoResult[snv.PK()] {
+				idx := sort.SearchStrings(whiteList, id)
+				if (idx < len(whiteList) && whiteList[idx] == id) || (val != "" && val != ".") {
+					err = snv.Info().Set(id, val)
 					if err != nil {
 						return err
 					}
