@@ -88,7 +88,7 @@ func (this AnnoSnvParam) RunAnno(snvs []*pkg.SNV, gpeTbx *bix.Bix, fbTbxs []*bix
 	}
 	return results, nil
 }
-func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
+func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, []string, error) {
 	infos := map[string]*vcfgo.Info{
 		"GENE":    {Id: "GENE", Description: "Gene Symbol", Number: ".", Type: "String"},
 		"GENE_ID": {Id: "GENE_ID", Description: "Gene Entrez ID", Number: ".", Type: "String"},
@@ -99,7 +99,7 @@ func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
 	for _, fbFile := range this.FilterBaseds {
 		fbTbx, err := bix.New(fbFile)
 		if err != nil {
-			return infos, err
+			return infos, []string{}, err
 		}
 		defer fbTbx.Close()
 		for key, info := range fbTbx.VReader.Header.Infos {
@@ -110,13 +110,13 @@ func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
 	for _, fbDir := range this.FilterBasedDirs {
 		fbFiles, err := ioutil.ReadDir(fbDir)
 		if err != nil {
-			return infos, err
+			return infos, []string{}, err
 		}
 		for _, fbFile := range fbFiles {
 			if strings.HasSuffix(fbFile.Name(), ".vcf.gz") {
 				fbTbx, err := bix.New(path.Join(fbDir, fbFile.Name()))
 				if err != nil {
-					return infos, err
+					return infos, []string{}, err
 				}
 				defer fbTbx.Close()
 				for key, info := range fbTbx.VReader.Header.Infos {
@@ -126,11 +126,13 @@ func (this AnnoSnvParam) GetHeaderInfos() (map[string]*vcfgo.Info, error) {
 			}
 		}
 	}
-	for _, rbFile := range this.RegionBaseds {
+	dbnames := make([]string, len(this.RegionBaseds))
+	for i, rbFile := range this.RegionBaseds {
 		dbname := strings.Split(path.Base(rbFile), ".")[0]
+		dbnames[i] = dbname
 		infos[dbname] = &vcfgo.Info{Id: dbname, Description: dbname, Number: ".", Type: "String"}
 	}
-	return infos, nil
+	return infos, dbnames, nil
 }
 
 func (this AnnoSnvParam) Run() error {
@@ -170,7 +172,7 @@ func (this AnnoSnvParam) Run() error {
 		}
 	}
 	// VcfHeaderInfo
-	infos, err := this.GetHeaderInfos()
+	infos, dbnames, err := this.GetHeaderInfos()
 	if err != nil {
 		return err
 	}
@@ -202,7 +204,6 @@ func (this AnnoSnvParam) Run() error {
 	}
 	// 打开RegionBaseds
 	rbTbxs := make([]*bix.Bix, len(this.RegionBaseds))
-	dbnames := make([]string, len(this.RegionBaseds))
 	for i, rbFile := range this.RegionBaseds {
 		rbTbxs[i], err = bix.New(rbFile)
 		if err != nil {
