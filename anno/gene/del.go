@@ -296,33 +296,47 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				// ...+++,,,,,,...
 				//        |--|
 				dist1s, dist1e := snv.Start-region1.Start+1, snv.End-region1.Start+1
-				dist2s, dist2e := region1.End-region1.Start+1, region1.End-snv.End+1
+				dist2s, dist2e := region1.End-snv.Start+1, region1.End-snv.End+1
 				dist1, dist2 := dist1s, dist2e
+				fmt.Println("aaa", dist1s, dist1e)
+				fmt.Println("bbb", dist2s, dist2e)
+				fmt.Println("ccc", dist1, dist2)
 				if pkg.Min(dist1, dist2) <= 2 {
 					transAnno.Event = "splicing"
 					transAnno.Region = "splicing"
 				}
 				if trans.Strand == "+" {
 					if dist1 <= dist2 {
+						nclen := cStart
 						if dist1s == dist1e {
-							transAnno.NAChange = fmt.Sprintf("c.%d+%ddel%s", cStart, dist1s, snv.Ref)
+							transAnno.NAChange = fmt.Sprintf("c.%d+%ddel%s", nclen, dist1s, snv.Ref)
 						} else {
-							transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", cStart, dist1s, cStart, dist1e, snv.Ref)
+							transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", nclen, dist1s, nclen, dist1e, snv.Ref)
 						}
 					} else {
+						nclen := cStart + 1
 						if dist2s == dist2e {
-							transAnno.NAChange = fmt.Sprintf("c.%d-%ddel%s", cStart+1, dist2s, snv.Ref)
+							transAnno.NAChange = fmt.Sprintf("c.%d-%ddel%s", nclen, dist2s, snv.Ref)
 						} else {
-							transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", cStart+1, dist2s, cStart+1, dist2e, snv.Ref)
+							transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", nclen, dist2s, nclen, dist2e, snv.Ref)
 						}
 					}
 				} else {
 					if dist1 <= dist2 {
 						nclen := cLen - cStart + 1
-						transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", nclen, dist1e, nclen, dist1s, pkg.RevComp(snv.Ref))
+						if dist1s == dist1e {
+							transAnno.NAChange = fmt.Sprintf("c.%d-%ddel%s", nclen, dist1s, pkg.RevComp(snv.Ref))
+						} else {
+							transAnno.NAChange = fmt.Sprintf("c.%d-%d_%d-%ddel%s", nclen, dist1e, nclen, dist1s, pkg.RevComp(snv.Ref))
+						}
+
 					} else {
 						nclen := cLen - cStart
-						transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", nclen, dist1e, nclen, dist1s, pkg.RevComp(snv.Ref))
+						if dist2s == dist2e {
+							transAnno.NAChange = fmt.Sprintf("c.%d+%ddel%s", nclen, dist2s, pkg.RevComp(snv.Ref))
+						} else {
+							transAnno.NAChange = fmt.Sprintf("c.%d+%d_%d+%ddel%s", nclen, dist2e, nclen, dist2s, pkg.RevComp(snv.Ref))
+						}
 					}
 				}
 			}
