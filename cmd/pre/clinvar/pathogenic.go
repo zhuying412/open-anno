@@ -6,6 +6,7 @@ import (
 
 	"fmt"
 	"open-anno/anno"
+	"open-anno/anno/gene"
 	"open-anno/pkg"
 	"os"
 	"path"
@@ -34,6 +35,8 @@ type PrePathogenicParam struct {
 func (this PrePathogenicParam) Valid() error {
 	this.GenePredIndex = this.GenePred + ".tbi"
 	this.GenomeIndex = this.Genome + ".fai"
+	pkg.IS_EXON_REGION = this.Exon
+	gene.AA_SHORT = this.AAshort
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
 	err := validate.Struct(this)

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"open-anno/anno"
+	"open-anno/anno/gene"
 	"open-anno/pkg"
 	"os"
 	"path"
@@ -49,6 +50,7 @@ func (this *AnnoSnvParam) Valid() error {
 		this.RegionBasedIndexes = append(this.RegionBasedIndexes, db+".tbi")
 	}
 	pkg.IS_EXON_REGION = this.Exon
+	gene.AA_SHORT = this.AAshort
 	validate := validator.New()
 	validate.RegisterValidation("pathexists", pkg.CheckPathExists)
 	validate.RegisterValidation("pathsexists", pkg.CheckPathsExists)

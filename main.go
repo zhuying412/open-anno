@@ -37,6 +37,7 @@ func NewPreCmd() *cobra.Command {
 	}
 	cln.AddCommand(clinvar.NewPreClinvarCmd())
 	cln.AddCommand(clinvar.NewPrePathogenicCmd())
+	cln.AddCommand(clinvar.NewPrePathogenicMTCmd())
 	cln.AddCommand(clinvar.NewPreClinvarGeneCmd())
 	cmd.AddCommand(cln)
 	return cmd
