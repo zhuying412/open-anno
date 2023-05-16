@@ -64,8 +64,8 @@ func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				cdna = pkg.RevComp(cdna)
 				ncdna = pkg.RevComp(ncdna)
 			}
-			protein := pkg.Translate(cdna, trans.Chrom == "MT")
-			nprotein := pkg.Translate(ncdna, trans.Chrom == "MT")
+			protein := pkg.Translate(cdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
+			nprotein := pkg.Translate(ncdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
 			cstart := pkg.DifferenceSimple(cdna, ncdna)
 			na1, na2 := cdna[cstart-1], ncdna[cstart-1]
 			transAnno.NAChange = fmt.Sprintf("c.%d%c>%c", cstart, na1, na2)

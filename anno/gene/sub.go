@@ -35,8 +35,8 @@ func setSubAAChange(transAnno TransAnno, trans pkg.Transcript, cstart int, cend 
 		}
 
 	}
-	protein := pkg.Translate(cdna, trans.Chrom == "MT")
-	nprotein := pkg.Translate(ncdna, trans.Chrom == "MT")
+	protein := pkg.Translate(cdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
+	nprotein := pkg.Translate(ncdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
 	start, end1, end2 := pkg.Difference(protein, nprotein)
 	aa1 := protein[start-1 : end1]
 	aa2 := nprotein[start-1 : end2]

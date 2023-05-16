@@ -100,8 +100,8 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				cdna = pkg.RevComp(cdna)
 				ncdna = pkg.RevComp(ncdna)
 			}
-			protein := pkg.Translate(cdna, trans.Chrom == "MT")
-			nprotein := pkg.Translate(ncdna, trans.Chrom == "MT")
+			protein := pkg.Translate(cdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
+			nprotein := pkg.Translate(ncdna, trans.Chrom == "MT" || trans.Chrom == "chrM")
 			start := pkg.DifferenceSimple(cdna, ncdna)
 			if start-1 == len(cdna) {
 
