@@ -298,9 +298,6 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				dist1s, dist1e := snv.Start-region1.Start+1, snv.End-region1.Start+1
 				dist2s, dist2e := region1.End-snv.Start+1, region1.End-snv.End+1
 				dist1, dist2 := dist1s, dist2e
-				fmt.Println("aaa", dist1s, dist1e)
-				fmt.Println("bbb", dist2s, dist2e)
-				fmt.Println("ccc", dist1, dist2)
 				if pkg.Min(dist1, dist2) <= 2 {
 					transAnno.Event = "splicing"
 					transAnno.Region = "splicing"

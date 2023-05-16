@@ -157,14 +157,25 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 								)
 							}
 						} else {
-							transAnno.AAChange = fmt.Sprintf(
-								"p.%s%d_%s%dins%s",
-								pkg.AAName(protein[start-2], AA_SHORT),
-								start-1,
-								pkg.AAName(protein[start-1], AA_SHORT),
-								start,
-								pkg.AAName(aa2, AA_SHORT),
-							)
+							if start == 1 {
+								transAnno.AAChange = fmt.Sprintf(
+									"p.%s%d-1_%s%dins%s",
+									pkg.AAName(protein[start-1], AA_SHORT),
+									start,
+									pkg.AAName(protein[start-1], AA_SHORT),
+									start,
+									pkg.AAName(aa2, AA_SHORT),
+								)
+							} else {
+								transAnno.AAChange = fmt.Sprintf(
+									"p.%s%d_%s%dins%s",
+									pkg.AAName(protein[start-2], AA_SHORT),
+									start-1,
+									pkg.AAName(protein[start-1], AA_SHORT),
+									start,
+									pkg.AAName(aa2, AA_SHORT),
+								)
+							}
 						}
 					} else if len(aa1) == 1 {
 						transAnno.AAChange = fmt.Sprintf("p.%s%ddelins%s", pkg.AAName(aa1, AA_SHORT), start-1, pkg.AAName(aa2, AA_SHORT))
