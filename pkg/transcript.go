@@ -89,6 +89,21 @@ func (this Transcript) CLen() int {
 	return this.Regions.CLen()
 }
 
+// ULen 转录本exon区UTR的长度
+func (this Transcript) ULen() (int, int) {
+	var utrLen1, utrLen2 int
+	for _, region := range this.Regions {
+		if region.Type == RType_UTR {
+			if region.End < this.CdsStart {
+				utrLen1 += region.Len()
+			} else {
+				utrLen2 += region.Len()
+			}
+		}
+	}
+	return utrLen1, utrLen2
+}
+
 // CDNA Regions中CDS的Sequence拼接结果即CDNA
 func (this Transcript) CDNA() string {
 	return this.Regions.CDNA()
@@ -97,6 +112,25 @@ func (this Transcript) CDNA() string {
 // CDNA Regions中所有Sequence拼接结果即DNA
 func (this Transcript) DNA() string {
 	return this.Regions.DNA()
+}
+
+// Region 指定pos所在的region信息
+func (this Transcript) Region(pos int) (Region, int, int) {
+	var region Region
+	var cLen, uLen int
+	for _, region := range this.Regions {
+		if region.Start <= pos && pos <= region.End {
+			return region, cLen, uLen
+		}
+		if region.Type == RType_CDS {
+			cLen += region.Len()
+			uLen = 0
+		}
+		if region.Type == RType_UTR {
+			uLen += region.Len()
+		}
+	}
+	return region, cLen, uLen
 }
 
 // SetGeneID 根据geneSymbolToID的Map信息设置转录本的GeneID
@@ -108,13 +142,8 @@ func (this *Transcript) SetGeneID() {
 }
 
 // SetRegions 设置初始化Regions信息
-func (this *Transcript) SetRegions() error {
-	var err error
-	this.Regions, err = NewRegions(*this)
-	if err != nil {
-		return err
-	}
-	return nil
+func (this *Transcript) SetRegions() {
+	this.Regions = NewRegions(*this)
 }
 
 // SetRegions 设置初始化Regions信息, 并设置每个Regions的Sequence
@@ -124,10 +153,7 @@ func (this *Transcript) SetRegionsWithSeq(genome *faidx.Faidx) error {
 	if err != nil {
 		return err
 	}
-	this.Regions, err = NewRegionsWithSeq(*this, seq)
-	if err != nil {
-		return err
-	}
+	this.Regions = NewRegionsWithSeq(*this, seq)
 	return nil
 }
 

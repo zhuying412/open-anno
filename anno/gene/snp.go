@@ -5,57 +5,118 @@ import (
 	"open-anno/pkg"
 )
 
-func findSnpRegion(regions pkg.Regions, snv pkg.AnnoVariant) (pkg.Region, int) {
-	var cLen int
-	for _, region := range regions {
-		if region.Start <= snv.Start && snv.End <= region.End {
-			return region, cLen
-		}
-		if region.Type == pkg.RType_CDS {
-			cLen += region.End - region.Start + 1
+func getUTRPosOfNAchange(trans pkg.Transcript, utrLen1, utrLen2, pos, uLen int, region pkg.Region) string {
+	if pos < trans.CdsStart {
+		if trans.Strand == "+" {
+			if utrLen1 == 0 {
+				return fmt.Sprintf("-%d", trans.CdsStart-pos)
+			} else {
+				if region.Type == pkg.RType_UTR {
+					return fmt.Sprintf("-%d", utrLen1-(uLen+pos-region.Start))
+				} else if region.Type == pkg.RType_INTRON {
+					dist1, dist2 := pos-region.Start+1, region.End-pos+1
+					if dist1 < dist2 {
+						return fmt.Sprintf("-%d+%d", utrLen1-uLen+1, dist1)
+					} else {
+						return fmt.Sprintf("-%d-%d", utrLen1-uLen, dist2)
+					}
+				} else {
+					return fmt.Sprintf("-%d-%d", utrLen1, trans.TxStart-pos)
+				}
+			}
+		} else {
+			if utrLen1 == 0 {
+				return fmt.Sprintf("*%d", trans.CdsStart-pos)
+			} else {
+				if region.Type == pkg.RType_UTR {
+					return fmt.Sprintf("*%d", utrLen1-(uLen+pos-region.Start))
+				} else if region.Type == pkg.RType_INTRON {
+					dist1, dist2 := pos-region.Start+1, region.End-pos+1
+					if dist1 < dist2 {
+						return fmt.Sprintf("*%d-%d", utrLen1-uLen+1, dist1)
+					} else {
+						return fmt.Sprintf("*%d+%d", utrLen1-uLen, dist2)
+					}
+				} else {
+					return fmt.Sprintf("*%d+%d", utrLen1, trans.TxStart-pos)
+				}
+			}
 		}
 	}
-	return pkg.Region{}, cLen
+	if pos > trans.CdsEnd {
+		if trans.Strand == "+" {
+			if utrLen2 == 0 {
+				return fmt.Sprintf("*%d", pos-trans.CdsEnd)
+			} else {
+				if region.Type == pkg.RType_UTR {
+					return fmt.Sprintf("*%d", uLen+(pos-region.Start+1))
+				} else if region.Type == pkg.RType_INTRON {
+					dist1, dist2 := pos-region.Start+1, region.End-pos+1
+					if dist1 < dist2 {
+						return fmt.Sprintf("*%d+%d", uLen, dist1)
+					} else {
+						return fmt.Sprintf("*%d-%d", uLen+1, dist2)
+					}
+				} else {
+					return fmt.Sprintf("*%d+%d", utrLen2, pos-trans.TxEnd)
+				}
+			}
+		} else {
+			if utrLen2 == 0 {
+				return fmt.Sprintf("-%d", pos-trans.CdsEnd)
+			} else {
+				if region.Type == pkg.RType_UTR {
+					return fmt.Sprintf("-%d", uLen+(pos-region.Start+1))
+				} else if region.Type == pkg.RType_INTRON {
+					dist1, dist2 := pos-region.Start+1, region.End-pos+1
+					if dist1 < dist2 {
+						return fmt.Sprintf("-%d-%d", uLen, dist1)
+					} else {
+						return fmt.Sprintf("-%d+%d", uLen+1, dist2)
+					}
+				} else {
+					return fmt.Sprintf("-%d-%d", utrLen2, pos-trans.TxEnd)
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
-	region, cLen := findSnpRegion(trans.Regions, snv)
+	region, cLen, uLen := trans.Region(snv.Start)
 	transAnno := NewTransAnno(trans, region)
-	if region.End < trans.CdsStart {
+	if snv.Start < trans.CdsStart || snv.Start > trans.CdsEnd {
+		utrLen1, utrLen2 := trans.ULen()
+		utrPosOfNAchange := getUTRPosOfNAchange(trans, utrLen1, utrLen2, snv.Start, uLen, region)
 		if trans.Strand == "+" {
-			transAnno.NAChange = fmt.Sprintf("c.-%d%s>%s", trans.CdsStart-snv.End, snv.Ref, snv.Alt)
+			transAnno.NAChange = fmt.Sprintf("c.%s%s>%s", utrPosOfNAchange, snv.Ref, snv.Alt)
 		} else {
-			transAnno.NAChange = fmt.Sprintf("c.+%d%s>%s", trans.CdsStart-snv.End, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
-		}
-	} else if region.Start > trans.CdsEnd {
-		transAnno.Region = region.Name()
-		if trans.Strand == "+" {
-			transAnno.NAChange = fmt.Sprintf("c.+%d%s>%s", snv.Start-trans.CdsEnd, snv.Ref, snv.Alt)
-		} else {
-			transAnno.NAChange = fmt.Sprintf("c.-%d%s>%s", snv.Start-trans.CdsEnd, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
+			transAnno.NAChange = fmt.Sprintf("c.%s%s>%s", utrPosOfNAchange, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
 		}
 	} else {
+		cdsLen := trans.CLen()
 		if region.Type == pkg.RType_INTRON {
-			dist1 := snv.Start - region.Start + 1
-			dist2 := region.End - snv.Start + 1
-			if dist1 <= 2 || dist2 <= 2 {
-				transAnno.Event = "splicing"
-				transAnno.Region = "splicing"
-			}
+			var dist1, dist2 int
 			if trans.Strand == "+" {
-				if dist1 <= dist2 {
+				dist1, dist2 = snv.Start-region.Start+1, region.End-snv.Start+1
+				if dist1 < dist2 {
 					transAnno.NAChange = fmt.Sprintf("c.%d+%d%s>%s", cLen, dist1, snv.Ref, snv.Alt)
 				} else {
 					transAnno.NAChange = fmt.Sprintf("c.%d-%d%s>%s", cLen+1, dist2, snv.Ref, snv.Alt)
 				}
 			} else {
-				if dist1 <= dist2 {
-					transAnno.NAChange = fmt.Sprintf("c.%d-%d%s>%s", trans.CLen()-cLen+1, dist1, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
+				dist1, dist2 = snv.Start-region.Start+1, region.End-snv.Start+1
+				if dist1 < dist2 {
+					transAnno.NAChange = fmt.Sprintf("c.%d-%d%s>%s", cdsLen-cLen+1, dist1, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%d+%d%s>%s", trans.CLen()-cLen, dist2, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
+					transAnno.NAChange = fmt.Sprintf("c.%d+%d%s>%s", cdsLen-cLen, dist2, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
 				}
 			}
-
+			if pkg.Min(dist1, dist2) <= 2 {
+				transAnno.Event = "splicing"
+				transAnno.Region = "splicing"
+			}
 		} else {
 			pos := cLen + snv.Start - region.Start + 1
 			cdna := trans.CDNA()

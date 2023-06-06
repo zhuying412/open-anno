@@ -61,7 +61,7 @@ func (this PreClinvarParam) Run() error {
 			}
 		} else {
 			row := strings.Split(text, "\t")
-			row[0] = "chr" + row[0]
+			row[0] = "chr" + strings.ReplaceAll(row[0], "MT", "M")
 			infos := make([]string, 0)
 			for _, item := range strings.Split(row[7], ";") {
 				info := strings.Split(item, "=")

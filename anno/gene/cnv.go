@@ -49,10 +49,7 @@ func AnnoCnv(cnv *pkg.CNV, tbx *bix.Bix) (map[string]any, error) {
 		}
 		if !trans.IsUnk() {
 			trans.SetGeneID()
-			err := trans.SetRegions()
-			if err != nil {
-				return map[string]any{}, err
-			}
+			trans.SetRegions()
 			var cdss, utr3s, utr5s pkg.Regions
 			var cdsCount int
 			regions := trans.Regions
