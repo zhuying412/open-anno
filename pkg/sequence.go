@@ -40,6 +40,9 @@ func Translate(sequence string, mt bool) string {
 			buffer.WriteByte('X')
 		}
 	}
+	if length%3 > 0 {
+		buffer.WriteByte('X')
+	}
 	return buffer.String()
 }
 
