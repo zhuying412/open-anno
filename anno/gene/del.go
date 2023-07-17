@@ -154,10 +154,14 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 		// 情况3: snv发生在整个编码区左边
 		// ...+++,,,+++...|-|
 		//              |-|
-		if trans.Strand == "+" {
-			transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange1, utrPosOfNAchange2)
+		if utrPosOfNAchange1 == utrPosOfNAchange2 {
+			transAnno.NAChange = fmt.Sprintf("c.%sdel", utrPosOfNAchange1)
 		} else {
-			transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange2, utrPosOfNAchange1)
+			if trans.Strand == "+" {
+				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange1, utrPosOfNAchange2)
+			} else {
+				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange2, utrPosOfNAchange1)
+			}
 		}
 		if snv.Start < trans.CdsStart && snv.End > trans.CdsEnd {
 			// 情况1时
@@ -187,17 +191,25 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	} else {
 		// 变异跨region
 		if !region1.Equal(region2) {
-			if trans.Strand == "+" {
-				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, cdsPosOfNAchange2)
+			if cdsPosOfNAchange1 == cdsPosOfNAchange2 {
+				transAnno.NAChange = fmt.Sprintf("c.%sdel", cdsPosOfNAchange1)
 			} else {
-				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, cdsPosOfNAchange1)
-			}
-		} else {
-			if region1.Type == pkg.RType_INTRON {
 				if trans.Strand == "+" {
 					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, cdsPosOfNAchange2)
 				} else {
 					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, cdsPosOfNAchange1)
+				}
+			}
+		} else {
+			if region1.Type == pkg.RType_INTRON {
+				if cdsPosOfNAchange1 == cdsPosOfNAchange2 {
+					transAnno.NAChange = fmt.Sprintf("c.%sdel", cdsPosOfNAchange1)
+				} else {
+					if trans.Strand == "+" {
+						transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, cdsPosOfNAchange2)
+					} else {
+						transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, cdsPosOfNAchange1)
+					}
 				}
 				if dist1 > 0 && dist2 > 0 && pkg.Min(dist1, dist2) <= 2 {
 					transAnno.Event = "splicing"
@@ -210,6 +222,27 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				transAnno = setDelAAChange(transAnno, trans, cstart, cend)
 			}
 		}
+	}
+	return transAnno
+}
+
+func AnnoUnkDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
+	transAnno := NewTransAnno(trans)
+	transAnno.Region = "ncRNA"
+	nstart := snv.Start - trans.TxStart + 1
+	nend := snv.End - trans.TxStart + 1
+	dna := trans.DNA()
+	ndna := pkg.Delete(dna, nstart, nend)
+	if trans.Strand == "-" {
+		dna = pkg.RevComp(dna)
+		ndna = pkg.RevComp(ndna)
+	}
+	start := pkg.DifferenceSimple(dna, ndna)
+	alt := dna[start-1 : start+nend-nstart]
+	if nstart == nend {
+		transAnno.NAChange = fmt.Sprintf("n.%ddel%s", start, alt)
+	} else {
+		transAnno.NAChange = fmt.Sprintf("n.%d_%ddel%s", start, start+nend-nstart, alt)
 	}
 	return transAnno
 }

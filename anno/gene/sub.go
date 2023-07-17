@@ -173,3 +173,25 @@ func AnnoSub(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	}
 	return transAnno
 }
+
+func AnnoUnkSub(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
+	alt := snv.Alt
+	transAnno := NewTransAnno(trans)
+	transAnno.Region = "ncRNA"
+	nstart := snv.Start - trans.TxStart + 1
+	nend := snv.End - trans.TxStart + 1
+	dna := trans.DNA()
+	ndna := pkg.Substitute2(dna, nstart, nend, alt)
+	if trans.Strand == "-" {
+		alt = pkg.RevComp(alt)
+		dna = pkg.RevComp(dna)
+		ndna = pkg.RevComp(ndna)
+	}
+	start := pkg.DifferenceSimple(dna, ndna)
+	if nstart == nend {
+		transAnno.NAChange = fmt.Sprintf("c.%ddelins%s", start, alt)
+	} else {
+		transAnno.NAChange = fmt.Sprintf("c.%d_%ddelins%s", start, start+nend-nstart, alt)
+	}
+	return transAnno
+}

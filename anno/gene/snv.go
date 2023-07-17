@@ -101,8 +101,15 @@ func AnnoSnv(snv *pkg.SNV, tbx *bix.Bix, genome *faidx.Faidx) (map[string]any, e
 			}
 			var transAnno TransAnno
 			if trans.IsUnk() {
-				transAnno = NewTransAnno(trans)
-				transAnno.Region = "ncRNA"
+				if snv.Type() == pkg.VType_SNP {
+					transAnno = AnnoUnkSnp(annoVar, trans)
+				} else if snv.Type() == pkg.VType_INS {
+					transAnno = AnnoUnkIns(annoVar, trans)
+				} else if snv.Type() == pkg.VType_DEL {
+					transAnno = AnnoUnkDel(annoVar, trans)
+				} else {
+					transAnno = AnnoSub(annoVar, trans)
+				}
 			} else {
 				if snv.Type() == pkg.VType_SNP {
 					transAnno = AnnoSnp(annoVar, trans)

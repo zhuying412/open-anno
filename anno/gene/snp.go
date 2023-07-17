@@ -97,16 +97,15 @@ func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	} else {
 		cdsLen := trans.CLen()
 		if region.Type == pkg.RType_INTRON {
-			var dist1, dist2 int
+			dist1, dist2 := snv.Start-region.Start+1, region.End-snv.Start+1
 			if trans.Strand == "+" {
-				dist1, dist2 = snv.Start-region.Start+1, region.End-snv.Start+1
+
 				if dist1 < dist2 {
 					transAnno.NAChange = fmt.Sprintf("c.%d+%d%s>%s", cLen, dist1, snv.Ref, snv.Alt)
 				} else {
 					transAnno.NAChange = fmt.Sprintf("c.%d-%d%s>%s", cLen+1, dist2, snv.Ref, snv.Alt)
 				}
 			} else {
-				dist1, dist2 = snv.Start-region.Start+1, region.End-snv.Start+1
 				if dist1 < dist2 {
 					transAnno.NAChange = fmt.Sprintf("c.%d-%d%s>%s", cdsLen-cLen+1, dist1, pkg.RevComp(snv.Ref), pkg.RevComp(snv.Alt))
 				} else {
@@ -157,5 +156,21 @@ func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 
 		}
 	}
+	return transAnno
+}
+
+func AnnoUnkSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
+	transAnno := NewTransAnno(trans)
+	transAnno.Region = "ncRNA"
+	pos := snv.Start - trans.TxStart + 1
+	dna := trans.DNA()
+	ndna := pkg.Substitute(dna, pos, snv.Alt)
+	if trans.Strand == "-" {
+		dna = pkg.RevComp(dna)
+		ndna = pkg.RevComp(ndna)
+	}
+	start := pkg.DifferenceSimple(dna, ndna)
+	na1, na2 := dna[start-1], ndna[start-1]
+	transAnno.NAChange = fmt.Sprintf("n.%d%c>%c", start, na1, na2)
 	return transAnno
 }

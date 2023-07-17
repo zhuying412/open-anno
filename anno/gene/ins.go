@@ -208,3 +208,33 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	}
 	return transAnno
 }
+
+func AnnoUnkIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
+	transAnno := NewTransAnno(trans)
+	transAnno.Region = "ncRNA"
+	pos := snv.Start - trans.TxStart + 1
+	dna := trans.DNA()
+	ndna := pkg.Insert(dna, pos, snv.Alt)
+	if trans.Strand == "-" {
+		dna = pkg.RevComp(dna)
+		ndna = pkg.RevComp(ndna)
+	}
+	start := pkg.DifferenceSimple(dna, ndna)
+	alt := ndna[start-1 : start+len(snv.Alt)-1]
+	if start == 1 {
+		// 在CDNA第一个碱基前插入，不影响起始密码子
+		transAnno.NAChange = fmt.Sprintf("n.-1_1ins%s", alt)
+	} else if start-1 == len(dna) {
+		// 在CDNA最后碱基后插入，不影响整条蛋白序列
+		transAnno.NAChange = fmt.Sprintf("n.%d_%d+1ins%s", len(dna), len(dna), alt)
+	} else {
+		unit := pkg.DupUnit(alt)
+		if start > len(unit) && unit == dna[start-len(unit)-1:start-1] {
+			// 比较重复单元和其之前的碱基
+			transAnno.NAChange = fmt.Sprintf("n.%ddup%s", start-1, unit)
+		} else {
+			transAnno.NAChange = fmt.Sprintf("n.%d_%dins%s", start-1, start, alt)
+		}
+	}
+	return transAnno
+}
