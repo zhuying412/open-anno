@@ -153,6 +153,7 @@ func (this *Transcript) SetRegionsWithSeq(genome *faidx.Faidx) error {
 	if err != nil {
 		return err
 	}
+	seq = strings.ToUpper(seq)
 	this.Regions = NewRegionsWithSeq(*this, seq)
 	return nil
 }
