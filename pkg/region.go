@@ -16,14 +16,14 @@ var IS_EXON_REGION = false
 
 // Region Transcript的区域元件，如Intron，CDS等
 type Region struct {
-	Chrom       string `json:"chrom"`
-	Start       int    `json:"start"`
-	End         int    `json:"end"`
-	Type        string `json:"type"`
-	Order       int    `json:"order"`
-	Exon        string `json:"exon"`
-	CdsDistance int    `json:"cds_distance"`
-	Sequence    string `json:"sequence"`
+	Chrom string `json:"chrom"`
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Type  string `json:"type"`
+	Order int    `json:"order"`
+	Exon  string `json:"exon"`
+	// CdsDistance int    `json:"cds_distance"`
+	Sequence string `json:"sequence"`
 }
 
 // Name Region的名称，根据IS_EXON_REGION，返回Exon编号或元件编号
@@ -103,9 +103,9 @@ func (this Regions) DNA() string {
 
 // NewRegions 根据Transcript创建新的Regions
 func NewRegions(trans Transcript) Regions {
-	if trans.IsUnk() {
-		return Regions{}
-	}
+	// if trans.IsUnk() {
+	// 	return Regions{}
+	// }
 	regions := make(Regions, 0)
 	for i := 0; i < trans.ExonCount; i++ {
 		exon := fmt.Sprintf("exon%d", i+1)
