@@ -108,7 +108,7 @@ func AnnoSnv(snv *pkg.SNV, tbx *bix.Bix, genome *faidx.Faidx) (map[string]any, e
 				} else if snv.Type() == pkg.VType_DEL {
 					transAnno = AnnoUnkDel(annoVar, trans)
 				} else {
-					transAnno = AnnoSub(annoVar, trans)
+					transAnno = AnnoUnkSub(annoVar, trans)
 				}
 			} else {
 				if snv.Type() == pkg.VType_SNP {

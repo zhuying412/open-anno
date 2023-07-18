@@ -172,7 +172,8 @@ func (this PrePathogenicParam) Run() error {
 		for i, geneinfo := range geneinfos {
 			clnGeneIds[i] = strings.Split(geneinfo, ":")[1]
 		}
-		if info, ok := annoResult[snv.PK()]; ok {
+		if info, ok := annoResult[snv.PK()]; ok && len(info) > 0 {
+			// fmt.Println(snv, annoResult[snv.PK()])
 			genes := strings.Split(info["GENE"].(string), ",")
 			geneIds := strings.Split(info["GENE_ID"].(string), ",")
 			geneDetails := strings.Split(info["DETAIL"].(string), ",")
