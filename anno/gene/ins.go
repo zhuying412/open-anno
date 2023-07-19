@@ -147,14 +147,14 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 			if trans.Strand == "+" {
 				transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", utrPosOfNAchange1, utrPosOfNAchange2, snv.Alt)
 			} else {
-				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel%s", utrPosOfNAchange2, utrPosOfNAchange1, pkg.RevComp(snv.Alt))
+				transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", utrPosOfNAchange2, utrPosOfNAchange1, pkg.RevComp(snv.Alt))
 			}
 		} else if region1.Start >= trans.CdsStart && region2.End <= trans.CdsEnd {
 			if trans.Strand == "+" {
 				if region2.Type == pkg.RType_CDS {
 					transAnno = setInsAAChange(transAnno, trans, snv, cLen2)
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, cdsPosOfNAchange2)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange1, cdsPosOfNAchange2, snv.Alt)
 					transAnno.Event = "splicing"
 					transAnno.Region = "splicing"
 				}
@@ -162,7 +162,7 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				if region1.Type == pkg.RType_CDS {
 					transAnno = setInsAAChange(transAnno, trans, snv, cLen2)
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, cdsPosOfNAchange1)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange2, cdsPosOfNAchange1, pkg.RevComp(snv.Alt))
 					transAnno.Event = "splicing"
 					transAnno.Region = "splicing"
 				}
@@ -173,31 +173,31 @@ func AnnoIns(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 				if region1.End < trans.CdsStart {
 					transAnno = setInsAAChange(transAnno, trans, snv, cLen2)
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, utrPosOfNAchange2)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange1, utrPosOfNAchange2, snv.Alt)
 				}
 			} else {
 				if region1.End < trans.CdsEnd {
 					transAnno = setInsAAChange(transAnno, trans, snv, cLen2)
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, utrPosOfNAchange1)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange2, utrPosOfNAchange1, pkg.RevComp(snv.Alt))
 				}
 			}
 		}
 	} else {
 		if region1.End < trans.CdsStart || region1.Start > trans.CdsEnd {
 			if trans.Strand == "+" {
-				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange1, utrPosOfNAchange2)
+				transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", utrPosOfNAchange1, utrPosOfNAchange2, snv.Alt)
 			} else {
-				transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", utrPosOfNAchange2, utrPosOfNAchange1)
+				transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", utrPosOfNAchange2, utrPosOfNAchange1, pkg.RevComp(snv.Alt))
 			}
 		} else {
 			if region1.Type == pkg.RType_CDS {
 				transAnno = setInsAAChange(transAnno, trans, snv, cLen1+snv.Start-region1.Start+1)
 			} else {
 				if trans.Strand == "+" {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange1, cdsPosOfNAchange2)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange1, cdsPosOfNAchange2, snv.Alt)
 				} else {
-					transAnno.NAChange = fmt.Sprintf("c.%s_%sdel", cdsPosOfNAchange2, cdsPosOfNAchange1)
+					transAnno.NAChange = fmt.Sprintf("c.%s_%sins%s", cdsPosOfNAchange2, cdsPosOfNAchange1, pkg.RevComp(snv.Alt))
 				}
 				if pkg.Min(dist1, dist2) <= 2 {
 					transAnno.Event = "splicing"
