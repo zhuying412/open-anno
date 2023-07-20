@@ -161,7 +161,7 @@ func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 
 func AnnoUnkSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	transAnno := NewTransAnno(trans)
-	transAnno.Region = "ncRNA"
+	transAnno.Region2 = "ncRNA"
 	pos := snv.Start - trans.TxStart + 1
 	dna := trans.DNA()
 	ndna := pkg.Substitute(dna, pos, snv.Alt)

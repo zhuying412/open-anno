@@ -177,7 +177,7 @@ func AnnoSub(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 func AnnoUnkSub(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	alt := snv.Alt
 	transAnno := NewTransAnno(trans)
-	transAnno.Region = "ncRNA"
+	transAnno.Region2 = "ncRNA"
 	nstart := snv.Start - trans.TxStart + 1
 	nend := snv.End - trans.TxStart + 1
 	dna := trans.DNA()

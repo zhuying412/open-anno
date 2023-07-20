@@ -228,21 +228,47 @@ func AnnoDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 
 func AnnoUnkDel(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 	transAnno := NewTransAnno(trans)
-	transAnno.Region = "ncRNA"
-	nstart := snv.Start - trans.TxStart + 1
-	nend := snv.End - trans.TxStart + 1
-	dna := trans.DNA()
-	ndna := pkg.Delete(dna, nstart, nend)
-	if trans.Strand == "-" {
-		dna = pkg.RevComp(dna)
-		ndna = pkg.RevComp(ndna)
-	}
-	start := pkg.DifferenceSimple(dna, ndna)
-	alt := dna[start-1 : start+nend-nstart]
-	if nstart == nend {
-		transAnno.NAChange = fmt.Sprintf("n.%ddel%s", start, alt)
+	transAnno.Region2 = "ncRNA"
+	if snv.Start < trans.TxStart {
+		if snv.End > trans.TxEnd {
+			if trans.Strand == "+" {
+				transAnno.NAChange = fmt.Sprintf("n.-%d_+%ddel", trans.TxStart-snv.Start, snv.End-trans.TxEnd)
+			} else {
+				transAnno.NAChange = fmt.Sprintf("n.-%d_+%ddel", snv.End-trans.TxEnd, trans.TxStart-snv.Start)
+			}
+		} else {
+			if trans.Strand == "+" {
+				transAnno.NAChange = fmt.Sprintf("n.-%d_%ddel", trans.TxStart-snv.Start, snv.End-trans.TxStart+1)
+			} else {
+				transAnno.NAChange = fmt.Sprintf("n.%d_+%ddel", trans.TxEnd-trans.TxEnd+1, trans.TxStart-snv.Start)
+			}
+		}
 	} else {
-		transAnno.NAChange = fmt.Sprintf("n.%d_%ddel%s", start, start+nend-nstart, alt)
+		if snv.End > trans.TxEnd {
+			if trans.Strand == "+" {
+				transAnno.NAChange = fmt.Sprintf("n.%d_+%ddel", trans.TxStart-snv.Start+1, snv.End-trans.TxEnd)
+			} else {
+				transAnno.NAChange = fmt.Sprintf("n.-%d_%ddel", snv.End-trans.TxEnd, trans.TxEnd-snv.Start+1)
+			}
+		} else {
+			nstart := snv.Start - trans.TxStart + 1
+			nend := snv.End - trans.TxStart + 1
+			dna := trans.DNA()
+			ndna := pkg.Delete(dna, nstart, nend)
+			if trans.Strand == "-" {
+				dna = pkg.RevComp(dna)
+				ndna = pkg.RevComp(ndna)
+			}
+			start := pkg.DifferenceSimple(dna, ndna)
+			// alt := dna[start-1 : start+nend-nstart]
+			if nstart == nend {
+				// transAnno.NAChange = fmt.Sprintf("n.%ddel%s", start, alt)
+				transAnno.NAChange = fmt.Sprintf("n.%ddel", start)
+			} else {
+				// transAnno.NAChange = fmt.Sprintf("n.%d_%ddel%s", start, start+nend-nstart, alt)
+				transAnno.NAChange = fmt.Sprintf("n.%d_%ddel", start, start+nend-nstart)
+			}
+		}
 	}
 	return transAnno
 }
