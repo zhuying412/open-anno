@@ -101,9 +101,10 @@ func setDelAAChange(transAnno TransAnno, trans pkg.Transcript, cstart, cend int)
 					fsi := strings.IndexByte(nprotein[start-1:], '*')
 					if fsi == -1 {
 						fs = "?"
-					}
-					if fsi != 0 {
-						fs = fmt.Sprintf("%d", fsi+1)
+					} else {
+						if fsi != 0 {
+							fs = fmt.Sprintf("%d", fsi+1)
+						}
 					}
 					transAnno.AAChange = fmt.Sprintf("p.%s%d%sfs*%s", pkg.AAName(aa1[0], AA_SHORT), start, pkg.AAName(aa2[0], AA_SHORT), fs)
 				}
