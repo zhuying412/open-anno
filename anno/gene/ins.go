@@ -83,14 +83,25 @@ func setInsAAChange(transAnno TransAnno, trans pkg.Transcript, snv pkg.AnnoVaria
 							pkg.AAName(aa2, AA_SHORT),
 						)
 					} else {
-						transAnno.AAChange = fmt.Sprintf(
-							"p.%s%d_%s%dins%s",
-							pkg.AAName(protein[start-2], AA_SHORT),
-							start-1,
-							pkg.AAName(protein[start-1], AA_SHORT),
-							start,
-							pkg.AAName(aa2, AA_SHORT),
-						)
+						if start > len(protein) {
+							transAnno.AAChange = fmt.Sprintf(
+								"p.%s%d_%s%d+1ins%s",
+	                                                        pkg.AAName(protein[start-2], AA_SHORT),
+		                                                start-1,
+			                                        pkg.AAName(protein[start-2], AA_SHORT),
+				                                start-1,
+					                        pkg.AAName(aa2, AA_SHORT),
+							)
+						} else {
+							transAnno.AAChange = fmt.Sprintf(
+								"p.%s%d_%s%dins%s",
+								pkg.AAName(protein[start-2], AA_SHORT),
+								start-1,
+								pkg.AAName(protein[start-1], AA_SHORT),
+								start,
+								pkg.AAName(aa2, AA_SHORT),
+							)
+						}
 					}
 				}
 			} else if len(aa1) == 1 {
