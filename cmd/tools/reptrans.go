@@ -80,9 +80,10 @@ func (this RepTransParam) ReadMANE(maneFile string) (map[string]int, error) {
 		row := scanner.Row()
 		chrom := row["GRCh38_chr"]
 		if strings.HasPrefix(chrom, "NC_") {
-			chrom = strings.Split(chrom, ".")[0]
-			chrom = strings.ReplaceAll(chrom, "NC_", "")
-			chrom = strings.ReplaceAll(chrom, "0", "")
+			chrom = strings.Split(chrom, ".")[0][7:9]
+			if chrom[0] == '0' {
+				chrom = chrom[1:]
+			}
 			if chrom == "23" {
 				chrom = "X"
 			}
