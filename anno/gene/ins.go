@@ -62,10 +62,10 @@ func setInsAAChange(transAnno TransAnno, trans pkg.Transcript, snv pkg.AnnoVaria
 				if start > len(unit) && unit == protein[start-len(unit)-1:start-1] {
 					// 比较重复单元和其之前的碱基
 					if len(unit) == 1 {
-						transAnno.NAChange = fmt.Sprintf("c.%s%ddup", unit, start-1)
+						transAnno.AAChange = fmt.Sprintf("p.%s%ddup", unit, start-1)
 					} else {
-						transAnno.NAChange = fmt.Sprintf(
-							"c.%s%d_%s%ddup",
+						transAnno.AAChange = fmt.Sprintf(
+							"p.%s%d_%s%ddup",
 							pkg.AAName(protein[start-len(unit)-1], AA_SHORT),
 							start-len(unit),
 							pkg.AAName(protein[start-2], AA_SHORT),
@@ -86,11 +86,11 @@ func setInsAAChange(transAnno TransAnno, trans pkg.Transcript, snv pkg.AnnoVaria
 						if start > len(protein) {
 							transAnno.AAChange = fmt.Sprintf(
 								"p.%s%d_%s%d+1ins%s",
-	                                                        pkg.AAName(protein[start-2], AA_SHORT),
-		                                                start-1,
-			                                        pkg.AAName(protein[start-2], AA_SHORT),
-				                                start-1,
-					                        pkg.AAName(aa2, AA_SHORT),
+								pkg.AAName(protein[start-2], AA_SHORT),
+								start-1,
+								pkg.AAName(protein[start-2], AA_SHORT),
+								start-1,
+								pkg.AAName(aa2, AA_SHORT),
 							)
 						} else {
 							transAnno.AAChange = fmt.Sprintf(
