@@ -131,8 +131,7 @@ func AnnoSnp(snv pkg.AnnoVariant, trans pkg.Transcript) TransAnno {
 			transAnno.NAChange = fmt.Sprintf("c.%d%c>%c", cstart, na1, na2)
 			pstart := pkg.DifferenceSimple(protein, nprotein)
 			if pstart > len(protein) {
-				pstart = cstart / 3
-
+				pstart = ((cstart - 1) / 3) + 1
 			}
 			aa1, aa2 := protein[pstart-1], nprotein[pstart-1]
 			if aa1 == aa2 {
