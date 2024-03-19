@@ -48,7 +48,15 @@ func setInsAAChange(transAnno TransAnno, trans pkg.Transcript, snv pkg.AnnoVaria
 			} else {
 				transAnno.NAChange = fmt.Sprintf("c.%d_%ddup%s", start-len(unit), start-1, unit)
 			}
-
+			count := len(alt)/len(unit)
+			if count > 1 {
+				transAnno.NAChange += fmt.Sprintf("[%d]", count)
+			}
+			if trans.Name == "NM_004643.4" {
+				fmt.Println(alt)
+				fmt.Println(unit)
+				fmt.Println(count)
+			}
 		} else {
 			transAnno.NAChange = fmt.Sprintf("c.%d_%dins%s", start-1, start, alt)
 		}
@@ -71,6 +79,10 @@ func setInsAAChange(transAnno TransAnno, trans pkg.Transcript, snv pkg.AnnoVaria
 							pkg.AAName(protein[start-2], AA_SHORT),
 							start-1,
 						)
+					}
+					count := len(aa2)/len(unit)
+					if count > 1 {
+						transAnno.AAChange += fmt.Sprintf("[%d]", count)
 					}
 				} else {
 					if start == 1 {
