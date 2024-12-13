@@ -140,11 +140,11 @@ func NewRegions(trans Transcript) Regions {
 		} else {
 			newStart, newEnd := start, end
 			hasUTR1, hasUTR2 := false, false
-			if start < trans.CdsStart && trans.CdsStart < end {
+			if start < trans.CdsStart && trans.CdsStart <= end {
 				newStart = trans.CdsStart
 				hasUTR1 = true
 			}
-			if start < trans.CdsEnd && trans.CdsEnd < end {
+			if start <= trans.CdsEnd && trans.CdsEnd < end {
 				newEnd = trans.CdsEnd
 				hasUTR2 = true
 			}
